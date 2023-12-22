@@ -10,8 +10,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Add include directories
+# Root directory
 include_directories(${PROJECT_SOURCE_DIR}/include)
+# Klib library
+include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
 
 # Add source directory
 file(GLOB SOURCES "src/*.cpp" "src/netutil/*.c" "src/driver/*.c" "src/log/*.c" "src/errors/*.c")
@@ -35,3 +37,10 @@ add_executable(TCP-IP ${SOURCES})
 
 # For tests, you might want to include another subdirectory
 # add_subdirectory(tests)
+
+# Custom target to run the executable
+add_custom_target(run
+    COMMAND TCP-IP
+    DEPENDS TCP-IP
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+)
