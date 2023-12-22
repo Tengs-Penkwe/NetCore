@@ -7,6 +7,7 @@
 
 #include <errors/errno.h>
 
+#include <bitmacros.h>
 
 /* C++ */
 #if defined(__cplusplus)
