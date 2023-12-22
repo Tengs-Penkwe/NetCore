@@ -1,4 +1,5 @@
 #include <errors/errno.h>
+#include <stdio.h>
 
 const char* err_code_strings[] = {
 #define X(code, str) str,
@@ -17,4 +18,14 @@ const char* err_code_to_string(enum err_code code) {
 char* err_getstring(errval_t errval) {
     enum err_code code = err_no(errval);
     return (char*)err_code_to_string(code);
+}
+
+void err_print_calltrace(errval_t err){
+    if (err_is_fail(err)){
+        enum err_code x;
+        while( (x = err_no(err)) != 0 ){
+            printf("Failure: %20s \n", err_getstring(x));
+            err = err >> ERR_SHIFT;
+        }       
+    }
 }
