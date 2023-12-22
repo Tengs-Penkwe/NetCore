@@ -64,7 +64,7 @@ errval_t device_get_mac(NetDevice* device, mac_addr* ret_mac) {
         perror("ioctl(SIOCGIFHWADDR)");
         return NET_ERR_DEVICE_GET_MAC;
     }
-    *ret_mac = str2mac(device->ifr.ifr_hwaddr.sa_data);
+    *ret_mac = mem2mac(device->ifr.ifr_hwaddr.sa_data);
     return SYS_ERR_OK;
 }
 

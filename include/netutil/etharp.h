@@ -62,6 +62,11 @@ static inline mac_addr tomac(uint64_t mac) {
     return (mac_addr) {.addr = { s[0], s[1], s[2], s[3], s[4], s[5]}};
 }
 
+static inline mac_addr mem2mac(void* mac) {
+    uint8_t* s = mac;
+    return (mac_addr) {.addr = { s[0], s[1], s[2], s[3], s[4], s[5]}};
+}
+
 static inline uint64_t frommac(mac_addr from) {
     uint64_t to = 0;
     for (int i = 5; i >= 0; i--) {
