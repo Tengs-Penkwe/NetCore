@@ -5,9 +5,11 @@
 #include <stdlib.h>
 #include <assert.h>
 
+/* Error Handling */
 #include <errors/errno.h>
 
-#include <bitmacros.h>
+/* Debug System */
+#include <debug.h>
 
 /* C++ */
 #if defined(__cplusplus)
