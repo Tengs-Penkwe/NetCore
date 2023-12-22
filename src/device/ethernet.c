@@ -1,8 +1,8 @@
 #include <netutil/etharp.h>
 #include <netutil/ip.h>
 
-#include <driver/driver.h>
-#include <driver/ethernet.h>
+#include <device/device.h>
+#include <netstack/ethernet.h>
 
 errval_t ethernet_init(
     struct net_device *device, Ethernet* ether

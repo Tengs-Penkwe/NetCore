@@ -1,4 +1,4 @@
-#include <driver/driver.h>
+#include <device/device.h>
 #include <netutil/dump.h>
 
 #include <fcntl.h>
