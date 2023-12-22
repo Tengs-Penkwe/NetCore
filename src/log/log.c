@@ -8,7 +8,7 @@ enum log_level log_matrix[LOG_MODULE_COUNT] = {
 };
 
 // Utility function to convert log level enum to string
-const char* level_to_string(enum log_level level) {
+static const char* level_to_string(enum log_level level) {
     switch (level) {
         case LOG_LEVEL_VERBOSE: return "VERBOSE";
         case LOG_LEVEL_INFO:    return "INFO ";
@@ -30,7 +30,7 @@ const char *level_colors[] = {
 };
 
 // Utility function to convert log module enum to string
-const char* module_to_string(enum log_module module) {
+static const char* module_to_string(enum log_module module) {
     switch (module) {
         case LOG:       return "LOG";
         case DRIVER:    return "DRIVER";
@@ -52,19 +52,18 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
     const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
 
     // Format the log prefix with level, module, file, line, and function
-    int offset = snprintf(buffer, sizeof(buffer), "%s[%s-%s] %s:%d:%s(): ", leader, level_to_string(level), module_to_string(module), file, line, func);
+    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s] %s:%d:%s(): ", leader, level_to_string(level), module_to_string(module), file, line, func);
 
     // Append the formatted message
-    if (msg != NULL && offset < (int)sizeof(buffer)) {
+    if (msg != NULL && len < (int)sizeof(buffer)) {
         va_start(ap, msg);
-        vsnprintf(buffer + offset, sizeof(buffer) - offset, msg, ap);
+        vsnprintf(buffer + len, sizeof(buffer) - len, msg, ap);
         va_end(ap);
     }
 
     // Reset color at the end of the message
     const char *tail = level < LOG_LEVEL_INFO ? "\n" : "\x1B[0m\n";
-    strncat(buffer, tail, sizeof(buffer) - strlen(buffer) - 1);
+    len += snprintf(buffer + len, sizeof(buffer) - len, tail);
 
-    // Print the log message
-    printf("%s", buffer);
+    sys_print(buffer, len);
 }

@@ -7,6 +7,10 @@
 
 __BEGIN_DECLS
 
+// The file descriptor 1 refers to standard output (STDOUT)
+#include <sys/unistd.h>
+#define sys_print(buf, len) write(1, buf, len)
+
 // X-macro lists for log levels and modules
 #define LOG_LEVELS \
     X(VERBOSE, LOG_LEVEL_VERBOSE) \
@@ -45,11 +49,12 @@ enum log_module {
     LOG_MODULE_COUNT,
 };
 
-extern enum log_level log_matrix[LOG_MODULE_COUNT];
-
 #define __BASEFILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
+
+// Defined in log.c to prevent duplicate definition
+extern enum log_level log_matrix[LOG_MODULE_COUNT];
 
 #define LOG(module, level, fmt, ...) \
     if(level >= log_matrix[module]) { \
