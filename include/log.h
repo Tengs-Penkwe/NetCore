@@ -51,9 +51,6 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 
 void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-
 #define LOG(module, level, fmt, ...) \
     if(level >= log_matrix[module]) { \
         log_printf(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
@@ -121,8 +118,6 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
 #define TCP_NOTE(fmt, ...)            LOG(TCP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define TCP_WARN(fmt, ...)            LOG(TCP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define TCP_ERR(fmt, ...)             LOG(TCP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
-
-#pragma GCC diagnostic pop    //"-Wgnu-zero-variadic-macro-arguments"
 
 __END_DECLS
 
