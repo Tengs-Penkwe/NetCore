@@ -1,7 +1,7 @@
 #ifndef _HTONS_H_
 #define _HTONS_H_
 
-#include <net.h>
+#include <common.h>
 
 /*
  * Copyright (c) 2001, 2002 Swedish Institute of Computer Science.

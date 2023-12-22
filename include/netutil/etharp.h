@@ -1,7 +1,7 @@
 #ifndef _ETHARP_H_
 #define _ETHARP_H_
 
-#include <net.h>
+#include <common.h>
 
 #define ETH_HLEN 14       /* Default size for ip header */
 #define ETH_CRC_LEN 4

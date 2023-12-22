@@ -1,7 +1,7 @@
 #ifndef _ICMP_H_
 #define _ICMP_H_
 
-#include <net.h>
+#include <common.h>
 
 #define ICMP_ER   0    /* echo reply */
 #define ICMP_DUR  3    /* destination unreachable */

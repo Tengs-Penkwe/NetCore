@@ -1,7 +1,7 @@
 #ifndef _IP_H_
 #define _IP_H_
 
-#include <net.h>
+#include <common.h>
 
 #define IP_RF 0x8000U        /* reserved fragment flag */
 #define IP_DF 0x4000U        /* dont fragment flag */

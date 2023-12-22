@@ -1,7 +1,7 @@
 #ifndef _IPV6_H_
 #define _IPV6_H_
 
-#include <net.h>
+#include <common.h>
 
 // Structure of an IPv6 header
 struct ipv6_hdr {
