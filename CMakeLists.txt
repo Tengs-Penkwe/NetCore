@@ -18,7 +18,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
 # Add source files
 file(GLOB C_SOURCES 
     "src/netutil/*.c"  
-    "src/driver/*.c"        
+    "src/device/*.c"        
     "src/log/*.c" 
     "src/errors/*.c"
 )
