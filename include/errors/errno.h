@@ -13,11 +13,14 @@ typedef uintptr_t errval_t;
 // Define domains and error codes
 #define SYSTEM_ERR_CODES \
     X(SYS_ERR_OK,                     "SYS_ERR_OK") \
-    X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL")
+    X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
+    X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet")
 
 #define NETWORK_ERR_CODES \
-    X(NET_ERR_TIMEOUT,                "NET_ERR_TIMEOUT") \
-    X(NET_ERR_DISCONNECTED,           "NET_ERR_DISCONNECTED")
+    X(NET_ERR_DEVICE_INIT,            "Can't initialize the network device") \
+    X(NET_ERR_DEVICE_SEND,            "Can't send raw packet by network device") \
+    X(NET_ERR_DEVICE_GET_MAC,         "Can't get MAC address of my network device") \
+    X(NET_ERR_ETHER_NO_MAC,           "Can't get MAC address of my ethernet")
 
 enum err_code {
 #define X(code, str) code,
