@@ -1,4 +1,4 @@
-#include <log/log.h>
+#include <log.h>
 #include <stdio.h>
 
 enum log_level log_matrix[LOG_MODULE_COUNT] = {
