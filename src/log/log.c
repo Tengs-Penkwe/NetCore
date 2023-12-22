@@ -32,14 +32,14 @@ const char *level_colors[] = {
 // Utility function to convert log module enum to string
 static const char* module_to_string(enum log_module module) {
     switch (module) {
-        case LOG:       return "LOG";
-        case DRIVER:    return "DRIVER";
-        case ETHER:     return "ETHER";
-        case ARP:       return "ARP";
-        case IP:        return "IP";
-        case ICMP:      return "ICMP";
-        case UDP:       return "UDP";
-        case TCP:       return "TCP";
+        case LOG:              return "LOG";
+        case MODULE_DEVICE:    return "DEVICE";
+        case MODULE_ETHER:     return "ETHER";
+        case MODULE_ARP:       return "ARP";
+        case MODULE_IP:        return "IP";
+        case MODULE_ICMP:      return "ICMP";
+        case MODULE_UDP:       return "UDP";
+        case MODULE_TCP:       return "TCP";
         default:        return "UNKNOWN_MODULE";
     }
 }
