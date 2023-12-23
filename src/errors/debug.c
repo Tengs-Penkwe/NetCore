@@ -12,6 +12,7 @@
 
 #include <stdarg.h>         //va_list, va_start, va_end
 #include <stdio.h>          //snprintf
+#include "pthread.h"        //pthread_self
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -31,14 +32,15 @@
  */
 void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...)
 {
-    va_list ap;
     char    str[256];
     size_t  len;
 
     char *leader = err_is_ok(err) ? "\x1B[1;32mSUCCESS" : "\x1B[1;91mERROR";
 
-    len = snprintf(str, sizeof(str), "%s:%s() %s:%d\n%s: ", leader, func, file, line, leader);
+    pthread_t thread_id = pthread_self();
+    len = snprintf(str, sizeof(str), "%s<%d>:%s() %s:%d\n%s: ", leader, thread_id, func, file, line, leader);
     if (msg != NULL) {
+        va_list ap;
         va_start(ap, msg);
         len += vsnprintf(str + len, sizeof(str) - len, msg, ap);
         va_end(ap);
@@ -61,7 +63,7 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * @brief Prints a message and aborts the program
+ * @brief Prints a message and aborts the thread
  *
  * @param[in] file  Source file of the caller
  * @param[in] func  Function name of the caller
@@ -80,8 +82,9 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
     vsnprintf(msg_str, sizeof(msg_str), msg, ap);
     va_end(ap);
 
+    pthread_t thread_id = pthread_self();
     char str[256];
-    snprintf(str, sizeof(str), "\x1B[1;91m%s() %s:%d\n%s\x1B[0m\n", func, file, line, msg_str);
+    snprintf(str, sizeof(str), "\x1B[1;91m<%d>%s() %s:%d\n%s\x1B[0m\n", thread_id, func, file, line, msg_str);
     sys_print(str, sizeof(str));
 
     abort();

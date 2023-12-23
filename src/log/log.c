@@ -52,7 +52,7 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
 
     pthread_t thread_id = pthread_self();
     // Format the log prefix with level, module, file, line, and function
-    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%u> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), thread_id, file, line, func);
+    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%d> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), thread_id, file, line, func);
 
     // Append the formatted message
     if (msg != NULL && len < (int)sizeof(buffer)) {
