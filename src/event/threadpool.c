@@ -12,6 +12,7 @@ task_t task_queue[TASK_SIZE]; // Fixed size for simplicity
 int queue_size = 0;
 
 errval_t thread_pool_init(void) {
+    ///TODO: parse argument in main.c to decide threadpool size
     for (int i = 0; i < THREAD_POOL_SIZE; i++) {
         ///TODO: return error code
         assert(pthread_create(&thread_pool[i], NULL, thread_function, NULL) == 0);
