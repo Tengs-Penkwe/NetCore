@@ -69,12 +69,12 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define LOG_ERR(fmt, ...)             LOG(LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
 // Define logging macros for DRIVER module
-#define DRIVER_VERBOSE(fmt, ...)      LOG(MODULE_DEVICE, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
-#define DRIVER_INFO(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
-#define DRIVER_DEBUG(fmt, ...)        LOG(MODULE_DEVICE, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
-#define DRIVER_NOTE(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
-#define DRIVER_WARN(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
-#define DRIVER_ERR(fmt, ...)          LOG(MODULE_DEVICE, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define DEVICE_VERBOSE(fmt, ...)      LOG(MODULE_DEVICE, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define DEVICE_INFO(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define DEVICE_DEBUG(fmt, ...)        LOG(MODULE_DEVICE, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define DEVICE_NOTE(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define DEVICE_WARN(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define DEVICE_ERR(fmt, ...)          LOG(MODULE_DEVICE, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
 // Define logging macros for ETHER module
 #define ETHER_VERBOSE(fmt, ...)       LOG(MODULE_ETHER, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
