@@ -59,9 +59,8 @@ void arp_register(
     
     // Try to find if it already exists
     if (kh_get(ip_mac, arp->hosts, ip) != kh_end(arp->hosts)) { // Already exists
-        ARP_WARN("The IP-MAC pair already exists!");
-        print_ip_address(ip);
-        print_mac_address(&mac);
+        ARP_INFO("The IP-MAC pair already exists!");
+        return;
     }
     // ALARM: Should I lock it before kh_get, if thread A is changing the hash table while thread
     // B is reading it, will it cause problem ? 
@@ -137,12 +136,12 @@ errval_t arp_unmarshal(
     // 2. Register the IP-MAC pair
     mac_addr  src_mac = ntoh6(packet->eth_src);
     ip_addr_t src_ip  = ntohl(packet->ip_src);
+    arp_register(arp, src_ip, src_mac);
 
     uint16_t type = ntohs(packet->opcode);
     switch (type) {
     case ARP_TYPE_REPLY:
         ARP_VERBOSE("received a ARP reply packet");
-        arp_register(arp, src_ip, src_mac);
         break;
     case ARP_TYPE_REQUEST:
         ARP_VERBOSE("received a ARP request packet");
