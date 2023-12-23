@@ -11,17 +11,21 @@ errval_t ethernet_init(
 ) {
     assert(device && ether);
     errval_t err;
+    // 0. Set the device
+    ether->device = device;
 
+    // 1. Get and set the MAC address
     mac_addr mac = MAC_NULL;
     err = device_get_mac(device, &mac);
     RETURN_ERR_PRINT(err, "Can't get the MAC address");
     assert(!maccmp(mac, MAC_NULL));
     ether->mac = mac;
 
-    /// TODO: dynamic IP
+    // 2. Set the IP address
+    /// TODO: dynamic IP using DHCP
     ip_addr_t my_ip = 0x0A00020F;
 
-    /// Set up the ARP
+    // 3. Set up the ARP
     ether->arp = calloc(1, sizeof(ARP));
     if (ether->arp == NULL) {
         USER_PANIC("Failed to allocate the ARP");
@@ -67,8 +71,9 @@ errval_t ethernet_marshal(
 errval_t ethernet_unmarshal(
     Ethernet* ether, uint8_t* data, size_t size
 ) {
-    // errval_t err;
+    errval_t err;
     struct eth_hdr* packet = (struct eth_hdr*) data;
+    ETHER_VERBOSE("Unmarshalling %d bytes at %p", size, data);
 
     /// 1. Decide if the packet is for us
     mac_addr dst_mac = ntoh6(packet->dst);
@@ -88,8 +93,8 @@ errval_t ethernet_unmarshal(
     switch (type) {
     case ETH_TYPE_ARP:
         ETHER_VERBOSE("Got an ARP packet");
-        // err = arp_unmarshal(ether->arp, data, size);
-        // RETURN_ERR_PRINT(err, "Error when unmarshalling ARP packet");
+        err = arp_unmarshal(ether->arp, data, size);
+        RETURN_ERR_PRINT(err, "Error when unmarshalling ARP packet");
         break;
     case ETH_TYPE_IPv4:
         ETHER_VERBOSE("Got an IP packet");
@@ -104,5 +109,6 @@ errval_t ethernet_unmarshal(
         return NET_ERR_ETHER_UNKNOWN_TYPE;
     }
 
+    ETHER_VERBOSE("Done Handling %d bytes at %p", size, data);
     return SYS_ERR_OK;
 }

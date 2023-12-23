@@ -28,8 +28,10 @@ errval_t arp_send(
     assert(arp);
 
     size_t send_size = ARP_RESERVE_SIZE + sizeof(struct arp_hdr);
-    struct arp_hdr* packet = malloc(send_size);
-    assert(packet);
+    uint8_t* data_with_reserve = malloc(send_size);
+    assert(data_with_reserve);
+
+    struct arp_hdr* packet = (struct arp_hdr*) data_with_reserve + ARP_RESERVE_SIZE;
     *packet = (struct arp_hdr) {
         .hwtype   = htons(ARP_HW_TYPE_ETH),
         .proto    = htons(ARP_PROT_IP),
@@ -44,8 +46,8 @@ errval_t arp_send(
 
     err = ethernet_marshal(arp->ether, dst_mac, ETH_TYPE_ARP, (uint8_t*)packet, send_size);
     RETURN_ERR_PRINT(err, "Can't marshall the ARP message");
-    free(packet);
-
+    free(data_with_reserve);
+    
     return SYS_ERR_OK;
 }
 
