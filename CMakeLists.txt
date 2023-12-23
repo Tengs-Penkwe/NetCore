@@ -22,6 +22,8 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR}/include)
 # Klib library
 include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
+# Colletions-C library
+include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
 
 # Add source files
 file(GLOB C_SOURCES 

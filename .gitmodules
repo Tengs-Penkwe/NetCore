@@ -1,3 +1,6 @@
 [submodule "lib/klib"]
 	path = lib/klib
 	url = https://github.com/attractivechaos/klib.git
+[submodule "lib/cc"]
+	path = lib/cc
+	url = https://github.com/srdja/Collections-C.git
