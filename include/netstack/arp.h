@@ -3,21 +3,24 @@
 
 #include <netutil/ip.h>
 #include "ethernet.h"
+#include "khash.h"
+
+__BEGIN_DECLS
+
+/// The hash table of IP-MAC
+KHASH_MAP_INIT_INT(ip_mac, mac_addr) 
 
 typedef struct arp_state {
-    struct ethernet_state* ether;
-    ip_addr_t ip;
-    // collections_hash_table* hosts;
+    struct ethernet_state *ether;
+    ip_addr_t              ip;
+    khash_t(ip_mac)       *hosts;   
 } ARP;
 
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip
 );
 
-errval_t arp_marshal(
-    ARP* arp, ip_addr_t dst_ip, uint16_t type, void* data_start
-);
-
+#define ARP_RESERVE_SIZE  sizeof(struct eth_hdr)
 errval_t arp_send(
     ARP* arp, uint16_t opration,
     ip_addr_t dst_ip, mac_addr dst_mac
@@ -36,9 +39,11 @@ errval_t arp_lookup_mac(
 );
 
 errval_t arp_unmarshal(
-    ARP* arp, void* data, size_t size
+    ARP* arp, uint8_t* data, size_t size
 );
 
 void arp_dump(ARP* arp, char** result);
+
+__END_DECLS
 
 #endif //__VNET_ARP__
