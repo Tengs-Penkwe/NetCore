@@ -9,6 +9,9 @@
 #include "udp.h"
 #include "tcp.h"
 
+#include "cc_hashtable.h"  // Hash Table
+#include "cc_array.h"      // Array
+
 // Segmentation offset should be 8 alignment
 #define IP_MTU   ROUND_DOWN((ETHER_MTU - sizeof(struct ip_hdr) - 80), 8)
 
@@ -26,33 +29,22 @@
 // 10 Seconds
 #define IP_GIVEUP_RECV_US    10000000
 
-// Default bucket size, can have more
-#define IP_DEFAULT_MSG       1024
-#define IP_DEFAULT_BND       256
-
-// Use source IP + Sequence Number as hash table key
-#define MSG_KEY(src_ip, seqno) (uint64_t)((uint64_t)src_ip | ((uint64_t)seqno << 32))
-
 /// @brief Presentation of an IP Message
 typedef struct ip_message {
-    struct ip_state* ip;      ///< Global IP state
+    struct ip_state *ip;     ///< Global IP state
 
-    uint8_t proto;  ///< Protocal over IP
-    uint16_t id;    ///< Message ID
+    uint8_t          proto;  ///< Protocal over IP
+    uint16_t         id;     ///< Message ID
 
-    // struct deferred_event defer;    ///< Use ip->ws, controls the dropping
+    uint32_t         whole_size;  ///< Size of the whole message
+    CC_Array        *data;   ///< All segmentation
 
-    uint32_t whole_size;  ///< Size of the whole message
-    uint32_t alloc_size;  // Record how much space does the data pointer holds
-    void    *data;        ///< Copy of the message
     union {
         struct {
-            uint32_t  size;  //TODO: This field is based on an assumption: we won't receive a same packet twice
             int       times_to_live;
             ip_addr_t src_ip;
         } recvd ;
         struct {        
-            uint32_t  size;  
             int       retry_interval;
             ip_addr_t dst_ip;
             mac_addr  dst_mac;
@@ -67,13 +59,11 @@ typedef struct ip_state {
     struct udp_state* udp;
     struct tcp_state* tcp;
 
-    uint16_t seg_count;  ///< Ensure the sent message have unique ID
-
-    // struct waitset* ws;            ///< Controls the timing
+    uint16_t seg_count;            ///< Ensure the sent message have unique ID
 
     ip_addr_t ip;
-    // collections_hash_table* recv_messages;  ///< For an IP address
-    // collections_hash_table* send_messages;  ///< For an IP address
+    CC_HashTable  *recv_messages;
+    CC_HashTable  *send_messages;
 } IP;
 
 errval_t ip_init(
@@ -85,7 +75,7 @@ errval_t ip_marshal(
 );
 
 errval_t ip_unmarshal(
-    IP* ip, void* addr, size_t size
+    IP* ip, uint8_t* data, size_t size
 );
 
 #endif  //__VNET_IP_H__
