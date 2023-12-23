@@ -12,11 +12,9 @@
 #include <string.h>
 #include <poll.h>
 
-#include <signal.h>
-#include <time.h>
-
 #include <event/threadpool.h>
 #include <event/event.h>
+#include <event/timer.h>
 
 errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_name) {
     // errval_t err;
@@ -82,45 +80,6 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     return SYS_ERR_OK;
 }
 
-// errval_t device_get_ipv4(NetDevice* device, ip_addr_t* ret_ip) {
-//     assert(device && ret_ip);
-    
-//     // Get IP address
-//     if (ioctl(device->tap_fd, SIOCGIFADDR, device->ifr) < 0) {
-//         perror("ioctl(SIOCGIFADDR)");
-//         return NET_ERR_DEVICE_INIT;
-//     }
-
-//     struct sockaddr_in *ipaddr = (struct sockaddr_in *)&ifr.ifr_addr;
-//     char ip_str[INET_ADDRSTRLEN];
-//     inet_ntop(AF_INET, &ipaddr->sin_addr, ip_str, INET_ADDRSTRLEN);
-
-//     printf("IP address: %s\n", ip_str);
-
-// }
-// static void timer_handler(int sig) {
-//     printf("Timer expired, sig: %d\n", sig);
-// }
-
-// static errval_t event_init(void) {
-//     struct sigaction sa;
-//     sa.sa_handler = &timer_handler;
-//     sigaction(SIGALRM, &sa, NULL);
-
-//     timer_t timerid;
-//     struct sigevent se;
-//     se.sigev_notify = SIGEV_SIGNAL;
-//     se.sigev_signo = SIGALRM;
-
-//     timer_create(CLOCK_MONOTONIC, &se, &timerid);
-
-//     struct itimerspec its;
-//     its.it_value.tv_sec = 2; // 2 seconds
-//     its.it_interval.tv_sec = 20000; // Non-repeating
-//     timer_settime(timerid, 0, &its, NULL);
-
-//     return SYS_ERR_OK;
-// }
 
 int main(int argc, char* argv[]) {
     (void) argc;
@@ -147,10 +106,10 @@ int main(int argc, char* argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize the thread pool");
     }
 
-    // err = event_init();
-    // if (err_is_fail(err)) {
-    //     USER_PANIC_ERR(err, "Can't Initialize Event System");
-    // }
+    err = timer_init();
+    if (err_is_fail(err)) {
+        USER_PANIC_ERR(err, "Can't Initialize the Timer");
+    }
 
     // Set up polling
     struct pollfd pfd[1];
