@@ -2,21 +2,30 @@
 #include <event/threadpool.h>
 #include <event/timer.h>
 
-// Thread pool and task queue structures
-pthread_t thread_pool[THREAD_POOL_SIZE];
-pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
+// Global variable defined in threadpool.h
+Pool pool;
 
-const int queue_capacity = TASK_SIZE;
-task_t task_queue[TASK_SIZE]; // Fixed size for simplicity
-int queue_size = 0;
+errval_t thread_pool_init(size_t workers) {
+    pool.queue    = kdq_init(task_t);
+    pool.threads  = calloc(workers, sizeof(pthread_t));
 
-errval_t thread_pool_init(void) {
-    ///TODO: parse argument in main.c to decide threadpool size
-    for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-        ///TODO: return error code
-        assert(pthread_create(&thread_pool[i], NULL, thread_function, NULL) == 0);
+    if (pthread_mutex_init(&pool.mutex, NULL) != 0) {
+        LOG_ERR("Can't Initialize mutex");
+        return SYS_ERR_FAIL;
     }
+
+    if (pthread_cond_init(&pool.cond, NULL) != 0) {
+        LOG_ERR("Can't Initialize cond");
+        return SYS_ERR_FAIL;
+    }
+
+    for (size_t i = 0; i < workers; i++) {
+        if (pthread_create(&pool.threads[i], NULL, thread_function, NULL) != 0) {
+            LOG_ERR("Can't create worker thread");
+            return SYS_ERR_FAIL;
+        }
+    }
+
     return SYS_ERR_OK;
 }
 
@@ -26,36 +35,31 @@ void thread_pool_destroy(void) {
 
 void *thread_function(void* arg) {
     (void) arg;
+    TIMER_INFO("Pool Worker started !");
     while(true) {
-        pthread_mutex_lock(&queue_mutex);
-        while (queue_size == 0) {
-            pthread_cond_wait(&queue_cond, &queue_mutex);
+        pthread_mutex_lock(&pool.mutex);
+        while (kdq_size(pool.queue) == 0) {
+            pthread_cond_wait(&pool.cond, &pool.mutex);
         }
 
-        task_t task = task_queue[0];
-        for (int i = 0; i < queue_size - 1; i++) {
-            task_queue[i] = task_queue[i + 1];
-        }
-        queue_size --;
+        task_t* task = kdq_shift(task_t, pool.queue);
 
-        pthread_mutex_unlock(&queue_mutex);
-        process_task(task);
+        pthread_mutex_unlock(&pool.mutex);
+        process_task(*task);
     }
 }
 
 void submit_task(void (*function)(void*), void* argument) {
-    pthread_mutex_lock(&queue_mutex);
+    pthread_mutex_lock(&pool.mutex);
 
-    if (queue_size < queue_capacity) {
-        task_t new_task = {
-            .function = function,
-            .argument = argument,
-        };
-        task_queue[queue_size ++] = new_task;
-        pthread_cond_signal(&queue_cond);
-    }
+    task_t new_task = {
+        .function = function,
+        .argument = argument,
+    };
+    kdq_push(task_t, pool.queue, new_task);
+    pthread_cond_signal(&pool.cond);
 
-    pthread_mutex_unlock(&queue_mutex);
+    pthread_mutex_unlock(&pool.mutex);
 }
 
 void process_task(task_t task) {

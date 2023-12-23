@@ -50,7 +50,8 @@ int main(int argc, char* argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize the signals");
     }
 
-    err = thread_pool_init();
+    ///TODO: parse argument in main.c to decide threadpool size
+    err = thread_pool_init(8);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the thread pool");
     }
