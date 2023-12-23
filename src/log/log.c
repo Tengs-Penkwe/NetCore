@@ -13,7 +13,7 @@ enum log_level log_matrix[LOG_MODULE_COUNT] = {
 // Utility function to convert log level enum to string
 static const char* level_to_string(enum log_level level) {
     switch (level) {
-        case LOG_LEVEL_VERBOSE: return "VERBOSE";
+        case LOG_LEVEL_VERBOSE: return "VERBS";
         case LOG_LEVEL_INFO:    return "INFO ";
         case LOG_LEVEL_DEBUG:   return "DEBUG";
         case LOG_LEVEL_NOTE:    return "NOTE ";
