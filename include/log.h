@@ -30,10 +30,11 @@ enum log_level {
 };
 
 // Current Log Level Setting
-#define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
+#define CURRENT_LOG_LEVEL LOG_LEVEL_VERBOSE
 
 #define LOG_MODULE_LEVELS \
     X(LOG,                      CURRENT_LOG_LEVEL) \
+    X(MODULE_TIMER,             CURRENT_LOG_LEVEL) \
     X(MODULE_DEVICE,            CURRENT_LOG_LEVEL) \
     X(MODULE_ETHER,             CURRENT_LOG_LEVEL) \
     X(MODULE_ARP,               CURRENT_LOG_LEVEL) \
@@ -61,12 +62,21 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
         log_printf(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
     }
 
+// Define logging macros for general module
 #define LOG_VERBOSE(fmt, ...)         LOG(LOG, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
 #define LOG_INFO(fmt, ...)            LOG(LOG, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
 #define LOG_DEBUG(fmt, ...)           LOG(LOG, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
 #define LOG_NOTE(fmt, ...)            LOG(LOG, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)            LOG(LOG, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define LOG_ERR(fmt, ...)             LOG(LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+
+// Define logging macros for DRIVER module
+#define TIMER_VERBOSE(fmt, ...)       LOG(MODULE_TIMER, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define TIMER_INFO(fmt, ...)          LOG(MODULE_TIMER, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define TIMER_DEBUG(fmt, ...)         LOG(MODULE_TIMER, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define TIMER_NOTE(fmt, ...)          LOG(MODULE_TIMER, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define TIMER_WARN(fmt, ...)          LOG(MODULE_TIMER, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define TIMER_ERR(fmt, ...)           LOG(MODULE_TIMER, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
 // Define logging macros for DRIVER module
 #define DEVICE_VERBOSE(fmt, ...)      LOG(MODULE_DEVICE, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
