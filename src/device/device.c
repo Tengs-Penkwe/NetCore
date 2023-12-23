@@ -1,6 +1,8 @@
 #include <device/device.h>
 #include <netutil/dump.h>
 
+#include <netstack/ethernet.h>
+
 #include <fcntl.h>
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
@@ -34,7 +36,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
         return NET_ERR_DEVICE_INIT;
     }
 
-    DRIVER_INFO("TAP device %s opened\n", ifr.ifr_name);
+    DEVICE_INFO("TAP device %s opened, tapfd = %d", ifr.ifr_name, tap_fd);
 
     *device = (NetDevice) {
         .tap_fd = tap_fd,
@@ -52,19 +54,20 @@ errval_t device_send(NetDevice* device, void* data, size_t size) {
         return NET_ERR_DEVICE_SEND;
     }
 
-    DRIVER_INFO("Written %zd bytes to TAP device\n", written);
+    DEVICE_INFO("Written %zd bytes to TAP device\n", written);
     return SYS_ERR_OK;
 }
 
-errval_t device_get_mac(NetDevice* device, mac_addr* ret_mac) {
+errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     assert(device && ret_mac);
 
     // Get MAC address
-    if (ioctl(device->tap_fd, SIOCGIFHWADDR, device->ifr) < 0) {
+    if (ioctl(device->tap_fd, SIOCGIFHWADDR, &device->ifr) < 0) {
         perror("ioctl(SIOCGIFHWADDR)");
         return NET_ERR_DEVICE_GET_MAC;
     }
     *ret_mac = mem2mac(device->ifr.ifr_hwaddr.sa_data);
+
     return SYS_ERR_OK;
 }
 
@@ -89,13 +92,18 @@ int main(int argc, char* argv[]) {
     (void) argc;
     (void) argv;
     errval_t err;
-    NetDevice* device = calloc(1, sizeof(NetDevice));
 
+    NetDevice* device = calloc(1, sizeof(NetDevice));
+    assert(device);
     //TODO: Parse it from command line
     err = device_init(device, "/dev/net/tun", "tap0");
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the network device");
     }
+
+    Ethernet* ether = calloc(1, sizeof(Ethernet));
+    assert(ether);
+    err = ethernet_init(device, ether);
 
     // Set up polling
     struct pollfd pfd[1];
