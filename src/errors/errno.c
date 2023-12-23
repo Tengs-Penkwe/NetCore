@@ -24,7 +24,7 @@ void err_print_calltrace(errval_t err){
     if (err_is_fail(err)){
         enum err_code x;
         while( (x = err_no(err)) != 0 ){
-            printf("Failure: %20s \n", err_getstring(x));
+            printf("Failure: ( %20s )\n", err_getstring(x));
             err = err >> ERR_SHIFT;
         }       
     }
