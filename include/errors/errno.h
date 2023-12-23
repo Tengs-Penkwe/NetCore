@@ -20,15 +20,34 @@ typedef uintptr_t errval_t;
     X(EVENT_THREAD_CREATE,            "Can't create the thread for event")
 
 #define NETWORK_ERR_CODES \
-    X(NET_ERR_DEVICE_INIT,            "Can't initialize the network device") \
-    X(NET_ERR_DEVICE_SEND,            "Can't send raw packet by network device") \
-    X(NET_ERR_DEVICE_GET_MAC,         "Can't get MAC address of my network device") \
-    X(NET_ERR_ETHER_WRONG_MAC,        "Destination MAC address of received message doesn't meet with our MAC") \
-    X(NET_ERR_ETHER_NO_MAC,           "Can't get MAC address of my ethernet") \
-    X(NET_ERR_ETHER_UNKNOWN_TYPE,     "Unknown Ethernet type other than ARP or IP") \
-    X(NET_ERR_ARP_WRONG_FIELD,        "Wrong Field in ARP packet") \
-    X(NET_ERR_ARP_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the ARP request") \
-    X(NET_ERR_IPv4_NO_MAC_ADDRESS,    "We don't have the MAC address for given IPv4 address") \
+    X(NET_ERR_DEVICE_INIT,             "Can't initialize the network device") \
+    X(NET_ERR_DEVICE_SEND,             "Can't send raw packet by network device") \
+    X(NET_ERR_DEVICE_GET_MAC,          "Can't get MAC address of my network device") \
+    X(NET_ERR_ETHER_WRONG_MAC,         "Destination MAC address of received message doesn't meet with our MAC") \
+    X(NET_ERR_ETHER_NO_MAC,            "Can't get MAC address of my ethernet") \
+    X(NET_ERR_ETHER_NO_IP_ADDRESS,     "We don't have IP address associated with given MAC address") \
+    X(NET_ERR_ETHER_UNKNOWN_TYPE,      "Unknown Ethernet type other than ARP or IP") \
+    X(NET_ERR_ARP_WRONG_FIELD,         "Wrong Field in ARP packet") \
+    X(NET_ERR_ARP_WRONG_IP_ADDRESS,    "Wrong Destination IP address for the ARP request") \
+    X(NET_ERR_IPv4_NO_MAC_ADDRESS,     "We don't have MAC address associated with given IPv4 address") \
+    X(NET_ERR_IPv4_WRONG_FIELD,        "Wrong Field in IPv4 packet") \
+    X(NET_ERR_IPv4_WRONG_CHECKSUM,     "Wrong checksum in IPv4 packet") \
+    X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
+    X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
+    X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
+    X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
+    X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
+    X(NET_ERR_UDP_PORT_REGISTERED,     "This UDP Port has already been registered") \
+    X(NET_ERR_UDP_PORT_NOT_REGISTERED, "This UDP Port isn't registered") \
+    X(NET_ERR_TCP_WRONG_FIELD,         "Wrong Field in TCP header") \
+    X(NET_ERR_TCP_PORT_REGISTERED,     "This TCP Port has already been registered") \
+    X(NET_ERR_TCP_PORT_NOT_REGISTERED, "This TCP Port isn't registered") \
+    X(NET_ERR_TCP_NO_CONNECTION,       "TCP received a message not SYN for a not established connection, or send to a place with no connection") \
+    X(NET_ERR_TCP_BAD_STATE,           "TCP connection received a message with impossible state") \
+    X(NET_ERR_TCP_WRONG_SEQUENCE,      "The Sequence number of this TCP message is wrong") \
+    X(NET_ERR_TCP_WRONG_ACKNOWLEDGE,   "The Acknowledge number of this TCP message is wrong") \
+    X(NET_ERR_TCP_MAX_CONNECTION,      "The TCP server is there, but it has too many connections")
+
 
 enum err_code {
 #define X(code, str) code,
