@@ -136,7 +136,8 @@ void dump_packet_info(const void *packet_start) {
     const struct eth_hdr *eth_header = (const struct eth_hdr *)packet_start;
     dump_ethernet_header(eth_header);
 
-    switch(ntohs(eth_header->type)) {
+    uint16_t type = ntohs(eth_header->type);
+    switch(type) {
     case ETH_TYPE_ARP:
         dump_arp_header((const struct arp_hdr *)((const uint8_t *)packet_start + sizeof(struct eth_hdr)));
         break;
@@ -147,6 +148,6 @@ void dump_packet_info(const void *packet_start) {
         dump_ipv6_header((const struct ipv6_hdr *)((const uint8_t *)packet_start + sizeof(struct eth_hdr)));
         break;
     default:
-        printf("Unknown Header:\n");
+        printf("Unknown Header: %d\n", type);
     }
 }
