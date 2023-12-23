@@ -20,11 +20,7 @@ errval_t ethernet_init(
 );
 
 errval_t ethernet_marshal(
-    Ethernet* ether, mac_addr dst_mac, uint16_t type, void* data_start
-);
-
-errval_t ethernet_send(
-    Ethernet* ether, void* data, size_t size
+    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, size_t size
 );
 
 errval_t ethernet_unmarshal(
