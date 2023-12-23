@@ -12,7 +12,9 @@
 
 #include <stdarg.h>         //va_list, va_start, va_end
 #include <stdio.h>          //snprintf
-#include "pthread.h"        //pthread_self
+
+#include <sys/syscall.h>   //syscall
+#include <sys/types.h>     //pid_t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -37,8 +39,8 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
 
     char *leader = err_is_ok(err) ? "\x1B[1;32mSUCCESS" : "\x1B[1;91mERROR";
 
-    pthread_t thread_id = pthread_self();
-    len = snprintf(str, sizeof(str), "%s<%d>:%s() %s:%d\n%s: ", leader, thread_id, func, file, line, leader);
+    pid_t tid = syscall(SYS_gettid);
+    len = snprintf(str, sizeof(str), "%s<%lu>:%s() %s:%d\n%s: ", leader, tid, func, file, line, leader);
     if (msg != NULL) {
         va_list ap;
         va_start(ap, msg);
@@ -82,9 +84,9 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
     vsnprintf(msg_str, sizeof(msg_str), msg, ap);
     va_end(ap);
 
-    pthread_t thread_id = pthread_self();
+    pid_t tid = syscall(SYS_gettid);
     char str[256];
-    snprintf(str, sizeof(str), "\x1B[1;91m<%d>%s() %s:%d\n%s\x1B[0m\n", thread_id, func, file, line, msg_str);
+    snprintf(str, sizeof(str), "\x1B[1;91m<%lu>%s() %s:%d\n%s\x1B[0m\n", tid, func, file, line, msg_str);
     sys_print(str, sizeof(str));
 
     abort();

@@ -1,6 +1,8 @@
 #include <log.h>
 #include <stdio.h>
-#include <pthread.h>
+
+#include <sys/syscall.h>   //syscall
+#include <sys/types.h>     //pid_t
 
 enum log_level log_matrix[LOG_MODULE_COUNT] = {
 #define X(module, level) level,
@@ -50,9 +52,9 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
     static char buffer[1024]; 
     const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
 
-    pthread_t thread_id = pthread_self();
+    pid_t tid = syscall(SYS_gettid);
     // Format the log prefix with level, module, file, line, and function
-    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%d> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), thread_id, file, line, func);
+    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%lu> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), tid, file, line, func);
 
     // Append the formatted message
     if (msg != NULL && len < (int)sizeof(buffer)) {
