@@ -18,10 +18,7 @@ errval_t thread_pool_init(void) {
 }
 
 void thread_pool_destroy(void) {
-    LOG_ERR("Is this correct ?!");
-    for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-        pthread_join(thread_pool[i], NULL);
-    }
+    LOG_ERR("TODO: Need to destroy all the cond and mutex, free all resources");
 }
 
 void *thread_function(void* arg) {
