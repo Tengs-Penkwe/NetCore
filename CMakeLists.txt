@@ -22,6 +22,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
 file(GLOB C_SOURCES 
     "src/netutil/*.c"  
     "src/netstack/*.c"        
+    "src/event/*.c"
     "src/device/*.c"        
     "src/log/*.c" 
     "src/errors/*.c"
