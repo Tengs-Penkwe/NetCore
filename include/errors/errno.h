@@ -20,7 +20,11 @@ typedef uintptr_t errval_t;
     X(NET_ERR_DEVICE_INIT,            "Can't initialize the network device") \
     X(NET_ERR_DEVICE_SEND,            "Can't send raw packet by network device") \
     X(NET_ERR_DEVICE_GET_MAC,         "Can't get MAC address of my network device") \
-    X(NET_ERR_ETHER_NO_MAC,           "Can't get MAC address of my ethernet")
+    X(NET_ERR_ETHER_NO_MAC,           "Can't get MAC address of my ethernet") \
+    X(NET_ERR_ETHER_UNKNOWN_TYPE,     "Unknown Ethernet type other than ARP or IP") \
+    X(NET_ERR_ARP_WRONG_FIELD,        "Wrong Field in ARP packet") \
+    X(NET_ERR_ARP_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the ARP request") \
+    X(NET_ERR_IPv4_NO_MAC_ADDRESS,    "We don't have the MAC address for given IPv4 address") \
 
 enum err_code {
 #define X(code, str) code,
