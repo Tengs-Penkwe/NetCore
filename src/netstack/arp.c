@@ -79,6 +79,14 @@ void arp_register(
     pthread_mutex_unlock(&arp->mutex);
 }
 
+errval_t arp_lookup_ip (
+    ARP* arp, mac_addr mac, ip_addr_t* ret_ip
+) {
+    assert(arp && ret_ip);
+    (void) mac;
+    return SYS_ERR_NOT_IMPLEMENTED;
+}
+
 errval_t arp_lookup_mac(
     ARP* arp, ip_addr_t ip, mac_addr* ret_mac
 ) {
@@ -129,18 +137,15 @@ errval_t arp_unmarshal(
     // 2. Register the IP-MAC pair
     mac_addr  src_mac = ntoh6(packet->eth_src);
     ip_addr_t src_ip  = ntohl(packet->ip_src);
-    // mac_addr  dst_mac = ntoh6(packet->eth_dst);
-    arp_register(arp, src_ip, src_mac);
 
     uint16_t type = ntohs(packet->opcode);
     switch (type) {
     case ARP_TYPE_REPLY:
         ARP_VERBOSE("received a ARP reply packet");
-        // arp_register(arp, src_ip, src_mac);
+        arp_register(arp, src_ip, src_mac);
         break;
     case ARP_TYPE_REQUEST:
         ARP_VERBOSE("received a ARP request packet");
-        // assert(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST));
         err = arp_send(arp, ARP_OP_REP, src_ip, src_mac);
         RETURN_ERR_PRINT(err, "Can't send ARP reply");
         break;
