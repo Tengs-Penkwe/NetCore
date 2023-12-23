@@ -1,6 +1,7 @@
 #include <netutil/etharp.h>
 #include <netutil/dump.h>
 #include <netutil/htons.h>
+#include <netstack/ethernet.h>
 #include <netstack/arp.h>
 
 errval_t arp_init(
@@ -10,6 +11,11 @@ errval_t arp_init(
     arp->ether = ether;
     arp->ip = ip;
     arp->hosts = kh_init(ip_mac); 
+
+    if (pthread_mutex_init(&arp->mutex, NULL) != 0) {
+        ARP_ERR("Can't initialize the mutex for ARP");
+        return SYS_ERR_FAIL;
+    }
 
     return SYS_ERR_OK;
 }
@@ -36,8 +42,9 @@ errval_t arp_send(
         .ip_dst   = htonl(dst_ip),
     };
 
-    err = ethernet_marshal(arp->ether, dst_mac, ETH_TYPE_ARP, (void*)packet, send_size);
+    err = ethernet_marshal(arp->ether, dst_mac, ETH_TYPE_ARP, (uint8_t*)packet, send_size);
     RETURN_ERR_PRINT(err, "Can't marshall the ARP message");
+    free(packet);
 
     return SYS_ERR_OK;
 }
@@ -54,6 +61,9 @@ void arp_register(
         print_ip_address(ip);
         print_mac_address(&mac);
     }
+    // ALARM: Should I lock it before kh_get, if thread A is changing the hash table while thread
+    // B is reading it, will it cause problem ? 
+    pthread_mutex_lock(&arp->mutex);
 
     int ret;
     key = kh_put(ip_mac, arp->hosts, ip, &ret); 
@@ -61,9 +71,10 @@ void arp_register(
         kh_del(ip_mac, arp->hosts, key);
         ARP_ERR("Can't add a new key to IP-MAC hash table");
     }
-
     // Set the value of key
     kh_value(arp->hosts, key) = mac;
+
+    pthread_mutex_unlock(&arp->mutex);
 }
 
 errval_t arp_lookup_mac(
