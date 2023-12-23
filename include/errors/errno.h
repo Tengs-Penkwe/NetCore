@@ -20,6 +20,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_DEVICE_INIT,            "Can't initialize the network device") \
     X(NET_ERR_DEVICE_SEND,            "Can't send raw packet by network device") \
     X(NET_ERR_DEVICE_GET_MAC,         "Can't get MAC address of my network device") \
+    X(NET_ERR_ETHER_WRONG_MAC,        "Destination MAC address of received message doesn't meet with our MAC") \
     X(NET_ERR_ETHER_NO_MAC,           "Can't get MAC address of my ethernet") \
     X(NET_ERR_ETHER_UNKNOWN_TYPE,     "Unknown Ethernet type other than ARP or IP") \
     X(NET_ERR_ARP_WRONG_FIELD,        "Wrong Field in ARP packet") \

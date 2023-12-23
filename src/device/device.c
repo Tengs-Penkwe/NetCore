@@ -129,6 +129,10 @@ int main(int argc, char* argv[]) {
                 printf("Read %d bytes from TAP device\n", nbytes);
                 dump_packet_info(buffer);
                 printf("========================================\n");
+                err = ethernet_unmarshal(ether, (uint8_t*)buffer, nbytes);
+                if (err_is_fail(err)) {
+                    DEBUG_ERR(err, "We meet an error when processing this frame, but the process continue");
+                }
                 // ... process the data ...
             }
         }

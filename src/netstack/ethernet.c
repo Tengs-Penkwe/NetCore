@@ -16,6 +16,7 @@ errval_t ethernet_init(
     err = device_get_mac(device, &mac);
     RETURN_ERR_PRINT(err, "Can't get the MAC address");
     assert(!maccmp(mac, MAC_NULL));
+    ether->mac = mac;
 
     /// TODO: dynamic IP
     ip_addr_t my_ip = 0x0A00020F;
@@ -64,10 +65,44 @@ errval_t ethernet_marshal(
 }
 
 errval_t ethernet_unmarshal(
-    Ethernet* ether, void* data, size_t size
+    Ethernet* ether, uint8_t* data, size_t size
 ) {
-    assert(ether && data);
-    (void) size;
+    // errval_t err;
+    struct eth_hdr* packet = (struct eth_hdr*) data;
 
-    return SYS_ERR_NOT_IMPLEMENTED;
+    /// 1. Decide if the packet is for us
+    mac_addr dst_mac = ntoh6(packet->dst);
+    if (!(maccmp(ether->mac, dst_mac) || maccmp(dst_mac, MAC_BROADCAST))){
+        ETHER_NOTE("Not a message for us, destination MAC is");
+        print_mac_address(&dst_mac);
+        print_mac_address(&ether->mac);
+        return NET_ERR_ETHER_WRONG_MAC;
+    }
+
+    /// 2. Remove the Ethernet header and hand it to next layer
+    data += sizeof(struct eth_hdr);
+    size -= (sizeof(struct eth_hdr));
+
+    /// 3. Judge the packet type
+    uint16_t type = ntohs(packet->type);
+    switch (type) {
+    case ETH_TYPE_ARP:
+        ETHER_VERBOSE("Got an ARP packet");
+        // err = arp_unmarshal(ether->arp, data, size);
+        // RETURN_ERR_PRINT(err, "Error when unmarshalling ARP packet");
+        break;
+    case ETH_TYPE_IPv4:
+        ETHER_VERBOSE("Got an IP packet");
+        // err = ip_unmarshal(ether->ip, data, size);
+        // RETURN_ERR_PRINT(err, "Error when handling IP packet");
+        break;
+    case ETH_TYPE_IPv6:
+        ETHER_ERR("I don't support IPv6 yet");
+        break;
+    default:
+        LOG_ERR("Unknown packet type in Enthernet Layer: %x", type);
+        return NET_ERR_ETHER_UNKNOWN_TYPE;
+    }
+
+    return  SYS_ERR_OK;
 }

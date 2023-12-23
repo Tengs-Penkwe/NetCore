@@ -24,7 +24,7 @@ errval_t ethernet_marshal(
 );
 
 errval_t ethernet_unmarshal(
-    Ethernet* ether, void* data, size_t size
+    Ethernet* ether, uint8_t* data, size_t size
 );
 
 #endif //__VNET_ETHERNET_H__
