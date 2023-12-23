@@ -46,18 +46,17 @@ static const char* module_to_string(enum log_module module) {
 
 void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
 {
-    va_list ap;
     static char buffer[1024]; 
-
     const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
 
     // Format the log prefix with level, module, file, line, and function
-    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s] %s:%d:%s(): ", leader, level_to_string(level), module_to_string(module), file, line, func);
+    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s] %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), file, line, func);
 
     // Append the formatted message
     if (msg != NULL && len < (int)sizeof(buffer)) {
+        va_list ap;
         va_start(ap, msg);
-        vsnprintf(buffer + len, sizeof(buffer) - len, msg, ap);
+        len += vsnprintf(buffer + len, sizeof(buffer) - len, msg, ap);
         va_end(ap);
     }
 
