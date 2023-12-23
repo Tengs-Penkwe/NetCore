@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <netutil/etharp.h>
 
-#define ETHER_TX_BUFFER_SIZE 2048
-#define ETHER_RX_BUFFER_SIZE 2048
 #define ETHER_MTU            1500
+/// 1500 (MTU) + 14 (Header) + 4(FCS) + 4 (VLAN Tag) + 4 (QinQ Tag) => round to 256
+#define ETHER_MAX_SIZE       1536
 
 typedef struct ethernet_state {
     mac_addr mac;

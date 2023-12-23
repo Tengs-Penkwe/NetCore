@@ -162,14 +162,16 @@ int main(int argc, char* argv[]) {
 
         if (pfd[0].revents & POLLIN) {
             // Data is available to read
-            char buffer[2048];
-            int nbytes = read(device->tap_fd, buffer, sizeof(buffer));
+            char* buffer = malloc(ETHER_MAX_SIZE);
+            int nbytes = read(device->tap_fd, buffer, ETHER_MAX_SIZE);
             if (nbytes < 0) {
                 perror("read");
             } else {
                 // Process the data
                 printf("Read %d bytes from TAP device\n", nbytes);
-                submit_task(frame_receive, buffer);
+                dump_packet_info(buffer);
+                pbuf(buffer, nbytes, 6);
+                // submit_task(frame_receive, buffer);
                 // dump_packet_info(buffer);
                 printf("========================================\n");
                 // err = ethernet_unmarshal(ether, (uint8_t*)buffer, nbytes);
@@ -178,6 +180,7 @@ int main(int argc, char* argv[]) {
                 // }
                 // ... process the data ...
             }
+            free(buffer);
         }
     }
 
