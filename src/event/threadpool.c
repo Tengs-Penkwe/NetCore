@@ -1,5 +1,6 @@
 #include <common.h>
 #include <event/threadpool.h>
+#include <event/timer.h>
 
 // Thread pool and task queue structures
 pthread_t thread_pool[THREAD_POOL_SIZE];
@@ -12,7 +13,8 @@ int queue_size = 0;
 
 errval_t thread_pool_init(void) {
     for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-        pthread_create(&thread_pool[i], NULL, thread_function, NULL);
+        ///TODO: return error code
+        assert(pthread_create(&thread_pool[i], NULL, thread_function, NULL) == 0);
     }
     return SYS_ERR_OK;
 }
