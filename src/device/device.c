@@ -1,20 +1,18 @@
 #include <device/device.h>
 #include <netutil/dump.h>
 
-#include <netstack/ethernet.h>
-
 #include <fcntl.h>
-#include <linux/if_tun.h>
 #include <sys/ioctl.h>
+#include <linux/if_tun.h>
+#include <poll.h>
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <poll.h>
 
-#include <event/threadpool.h>
 #include <event/event.h>
-#include <event/timer.h>
+#include <event/threadpool.h>
 
 errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_name) {
     // errval_t err;
@@ -80,36 +78,8 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     return SYS_ERR_OK;
 }
 
-
-int main(int argc, char* argv[]) {
-    (void) argc;
-    (void) argv;
-    errval_t err;
-
-    NetDevice* device = calloc(1, sizeof(NetDevice));
-    assert(device);
-    //TODO: Parse it from command line
-    err = device_init(device, "/dev/net/tun", "tap0");
-    if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the Network Device");
-    }
-
-    Ethernet* ether = calloc(1, sizeof(Ethernet));
-    assert(ether);
-    err = ethernet_init(device, ether);
-    if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize Network Module");
-    }
-
-    err = thread_pool_init();
-    if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the thread pool");
-    }
-
-    err = timer_init();
-    if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the Timer");
-    }
+void device_loop(NetDevice* device, Ethernet* ether) {
+    assert(device && ether);
 
     // Set up polling
     struct pollfd pfd[1];
@@ -121,7 +91,7 @@ int main(int argc, char* argv[]) {
         if (ret < 0) {
             perror("poll");
             close(device->tap_fd);
-            return 1;
+            return;
         }
 
         if (pfd[0].revents & POLLIN) {
@@ -147,9 +117,4 @@ int main(int argc, char* argv[]) {
             // free(buffer); Can't free it here, thread need it, must be free'd in task thread
         }
     }
-
-    //TODO: Ethernet Destroy
-    thread_pool_destroy();
-    close(device->tap_fd);
-    return 0;
 }

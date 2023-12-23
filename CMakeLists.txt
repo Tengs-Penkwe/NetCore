@@ -27,6 +27,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
 
 # Add source files
 file(GLOB C_SOURCES 
+    "src/*.c"
     "src/netutil/*.c"  
     "src/netstack/*.c"        
     "src/event/*.c"
