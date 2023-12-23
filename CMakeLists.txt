@@ -13,6 +13,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Generate compile_commands.json for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Set the build type to Debug if not specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
 # Root directory
 include_directories(${PROJECT_SOURCE_DIR}/include)
 # Klib library
@@ -41,7 +46,15 @@ add_compile_options(
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration")
 
 # Common compile options for C++ files
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+
+# Debug-specific compile options
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+
+# Release-specific compile options
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 # Define the executable
 add_executable(TCP-IP ${C_SOURCES} ${CPP_SOURCES})
