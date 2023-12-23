@@ -72,6 +72,7 @@ void submit_delayed_task(delayed_us delay, task_t task) {
 
 static void* timer_thread (void* arg) {
     (void) arg;
+    TIMER_INFO("Timer thread started !");
 
     /// 1. Register the sigaction to receiver Timer's Signal: SIGUSER1
     struct sigaction sa;
@@ -79,11 +80,11 @@ static void* timer_thread (void* arg) {
     sa.sa_sigaction = time_to_submit_task;
     sigaction(SIG_TIGGER_SUBMIT, &sa, NULL);
 
-    /// 3. Set the signal set
+    /// 2. Set the signal set
     sigset_t set;
     sigemptyset(&set);
     sigaddset(&set, SIG_TELL_TIMER);
-    /// 3.1 wait for the signal from workers
+    /// 2.1 wait for the signal from workers
     int sig;
     while (true) {
         sigwait(&set, &sig);
@@ -92,21 +93,9 @@ static void* timer_thread (void* arg) {
 }
 
 errval_t timer_thread_init(void) {
-    
-    ///TODO: move to main
-    // Initialize the signal set
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIG_TELL_TIMER);
-
-    // Block The signal for timer
-    // Note: we are in main thread !
-    if (sigprocmask(SIG_BLOCK, &set, NULL) != 0) {
-        perror("sigprocmask");
-        return SYS_ERR_FAIL;
-    }
 
     timer.delay_queue = kdq_init(delayed_task);
+
     if (pthread_mutex_init(&timer.mutex, NULL) != 0) {
         LOG_ERR("Can't set the mutex of timer thread");
         return SYS_ERR_FAIL;

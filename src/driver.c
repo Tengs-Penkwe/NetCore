@@ -6,6 +6,25 @@
 #include <event/event.h>
 #include <event/timer.h>
 
+#include <stdio.h>  //perror
+
+static errval_t signal_init(void) {
+    // Initialize the signal set
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIG_TELL_TIMER);
+    sigaddset(&set, SIG_TIGGER_SUBMIT);
+
+    // Block The signal for timer
+    // Note: we are in main thread !
+    if (sigprocmask(SIG_BLOCK, &set, NULL) != 0) {
+        perror("sigprocmask");
+        return SYS_ERR_FAIL;
+    }
+
+    return SYS_ERR_OK;
+}
+
 int main(int argc, char* argv[]) {
     (void) argc;
     (void) argv;
@@ -24,6 +43,11 @@ int main(int argc, char* argv[]) {
     err = ethernet_init(device, ether);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize Network Module");
+    }
+
+    err = signal_init();
+    if (err_is_fail(err)) {
+        USER_PANIC_ERR(err, "Can't Initialize the signals");
     }
 
     err = thread_pool_init();
