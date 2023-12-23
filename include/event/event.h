@@ -2,6 +2,7 @@
 #define __EVENT_EVENT_H__
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef struct ethernet_state Ethernet;
 
