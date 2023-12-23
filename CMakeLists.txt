@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # Set your project name
 project(TCP-IP)
 
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED True)
 
 # Specify the C++ standard
