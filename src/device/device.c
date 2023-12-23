@@ -54,6 +54,8 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
 
 errval_t device_send(NetDevice* device, void* data, size_t size) {
     assert(device && data && size);
+
+    ///TODO: if two threads write at the same time, will there be problem ?
     ssize_t written = write(device->tap_fd, data, size);
     if (written < 0) {
         perror("write to TAP device");
