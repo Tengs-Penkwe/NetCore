@@ -8,7 +8,29 @@
 #include <netutil/tcp.h>
 #include <netutil/ipv6.h>
 
+#include <stdio.h>  //printf
 __BEGIN_DECLS
+
+static inline void pbufrow(const void* buffer, size_t length) {
+    for (size_t index = 0; index < length; index += 1) {
+        printf("%02X", ((const uint8_t*) buffer)[index]);
+    }
+    printf("\n");
+}
+
+static inline void pbuf(const void* buffer, size_t length, size_t column) {
+    uint8_t* ptr = (uint8_t*) buffer;
+    size_t nrows = length / column;
+    for (size_t row = 0; row < nrows; row += 1) {
+        printf("[%04lu] ", row * column);
+        pbufrow(ptr, column);
+        ptr += column;
+    }
+    if (nrows * column < length) {
+        printf("[%04lu] ", nrows * column);
+        pbufrow(ptr, length - nrows * column);
+    }
+}
     
 // Helper function to print MAC address
 void print_mac_address(const mac_addr *addr);

@@ -1,4 +1,3 @@
-#include <stdio.h>  //printf
 #include <netutil/dump.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>  //AF_INET6
