@@ -33,13 +33,13 @@ errval_t ethernet_init(
     err = arp_init(ether->arp, ether, my_ip);
     RETURN_ERR_PRINT(err, "Failed to initialize the ARP");
 
-    /// Set up the IP
-    // ether->ip = calloc(1, sizeof(IP));
-    // if (ether->ip == NULL) {
-    //     USER_PANIC("Failed to allocate the IP");
-    // }
-    // err = ip_init(ether->ip, ether, ether->arp, my_ip);
-    // RETURN_ERR_PRINT(err, "Failed to initialize the IP");
+    // 4. Set up the IPv4
+    ether->ip = calloc(1, sizeof(IP));
+    if (ether->ip == NULL) {
+        USER_PANIC("Failed to allocate the IP");
+    }
+    err = ip_init(ether->ip, ether, ether->arp, my_ip);
+    RETURN_ERR_PRINT(err, "Failed to initialize the IP");
 
     return SYS_ERR_OK;
 }
@@ -98,8 +98,8 @@ errval_t ethernet_unmarshal(
         break;
     case ETH_TYPE_IPv4:
         ETHER_VERBOSE("Got an IP packet");
-        // err = ip_unmarshal(ether->ip, data, size);
-        // RETURN_ERR_PRINT(err, "Error when handling IP packet");
+        err = ip_unmarshal(ether->ip, data, size);
+        RETURN_ERR_PRINT(err, "Error when handling IP packet");
         break;
     case ETH_TYPE_IPv6:
         ETHER_ERR("I don't support IPv6 yet");
