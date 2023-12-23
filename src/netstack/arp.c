@@ -96,7 +96,7 @@ errval_t arp_lookup_mac(
     if (key == kh_end(arp->hosts)) { //Doesn't exist
         ARP_NOTE("The MAC address of wanted IP doesn't exist!");
         print_ip_address(ip);
-        return NET_ERR_IPv4_NO_MAC_ADDRESS;
+        return NET_ERR_ARP_NO_MAC_ADDRESS;
     }
     *ret_mac = kh_value(arp->hosts, key);
     return SYS_ERR_OK;
