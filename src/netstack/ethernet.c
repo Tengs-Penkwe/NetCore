@@ -81,7 +81,7 @@ errval_t ethernet_unmarshal(
 
     /// 2. Remove the Ethernet header and hand it to next layer
     data += sizeof(struct eth_hdr);
-    size -= (sizeof(struct eth_hdr));
+    size -= sizeof(struct eth_hdr);
 
     /// 3. Judge the packet type
     uint16_t type = ntohs(packet->type);
@@ -104,5 +104,5 @@ errval_t ethernet_unmarshal(
         return NET_ERR_ETHER_UNKNOWN_TYPE;
     }
 
-    return  SYS_ERR_OK;
+    return SYS_ERR_OK;
 }

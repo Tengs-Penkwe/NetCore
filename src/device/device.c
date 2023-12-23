@@ -55,10 +55,12 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
 errval_t device_send(NetDevice* device, void* data, size_t size) {
     assert(device && data && size);
     ssize_t written = write(device->tap_fd, data, size);
+    free(data);
     if (written < 0) {
         perror("write to TAP device");
         return NET_ERR_DEVICE_SEND;
     }
+    assert((size_t)written == size);
 
     DEVICE_INFO("Written %zd bytes to TAP device\n", written);
     return SYS_ERR_OK;
@@ -167,23 +169,24 @@ int main(int argc, char* argv[]) {
             if (nbytes < 0) {
                 perror("read");
             } else {
-                // Process the data
-                printf("Read %d bytes from TAP device\n", nbytes);
-                dump_packet_info(buffer);
-                pbuf(buffer, nbytes, 6);
-                // submit_task(frame_receive, buffer);
-                // dump_packet_info(buffer);
-                printf("========================================\n");
+                Frame* fr = calloc(1, sizeof(Frame));
+                *fr = (Frame) {
+                    .ether = ether, 
+                    .data  = (uint8_t*)buffer,
+                    .size  = (size_t)nbytes,
+                };
+                submit_task(frame_receive, fr);
                 // err = ethernet_unmarshal(ether, (uint8_t*)buffer, nbytes);
                 // if (err_is_fail(err)) {
                 //     DEBUG_ERR(err, "We meet an error when processing this frame, but the process continue");
                 // }
                 // ... process the data ...
             }
-            free(buffer);
+            // free(buffer); Can't free it here, thread need it, must be free'd in task thread
         }
     }
 
+    //TODO: Ethernet Destroy
     thread_pool_destroy();
     close(device->tap_fd);
     return 0;
