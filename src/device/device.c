@@ -61,7 +61,9 @@ errval_t device_send(NetDevice* device, void* data, size_t size) {
     }
     assert((size_t)written == size);
 
-    DEVICE_INFO("Written %zd bytes to TAP device\n", written);
+    printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+    printf("Written %zd bytes to TAP device\n", written);
+    dump_packet_info(data);
     return SYS_ERR_OK;
 }
 
