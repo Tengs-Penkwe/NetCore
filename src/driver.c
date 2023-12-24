@@ -22,6 +22,7 @@ static errval_t signal_init(void) {
         return SYS_ERR_FAIL;
     }
 
+    LOG_INFO("Signals set");
     return SYS_ERR_OK;
 }
 

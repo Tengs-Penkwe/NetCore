@@ -50,7 +50,7 @@ static void time_to_submit_task(int sig, siginfo_t *si, void *uc) {
     (void) uc;
     delayed_task* dt = si->si_value.sival_ptr;
     task_t task = dt->task;
-    submit_task(task.function, task.argument);
+    submit_task(task);
 }
 
 /// @brief      For Worker 
@@ -106,5 +106,6 @@ errval_t timer_thread_init(void) {
         return SYS_ERR_FAIL;
     }
 
+    TIMER_INFO("Timer Module initialized");
     return SYS_ERR_OK;
 }

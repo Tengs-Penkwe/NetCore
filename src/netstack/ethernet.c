@@ -41,6 +41,7 @@ errval_t ethernet_init(
     err = ip_init(ether->ip, ether, ether->arp, my_ip);
     RETURN_ERR_PRINT(err, "Failed to initialize the IP");
 
+    ETHER_INFO("Ethernet Moule initialized");
     return SYS_ERR_OK;
 }
 
