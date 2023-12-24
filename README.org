@@ -1,3 +1,85 @@
-#+TITLE: TCP/IP stack
+#+TITLE: TCP/IP Stack Implementation
 #+AUTHOR: Tengs
 
+* Project Overview
+  :PROPERTIES:
+  :CUSTOM_ID: overview
+  :END:
+  Briefly describe the motivation and goals of TCP/IP stack project.
+
+* Features
+  :PROPERTIES:
+  :CUSTOM_ID: features
+  :END:
+  - List the key features of TCP/IP stack.
+    - Example: Implementation of IPv4/IPv6, TCP, UDP, etc.
+    - Mention any unique attributes or capabilities.
+  
+* Getting Started
+  :PROPERTIES:
+  :CUSTOM_ID: getting_started
+  :END:
+  ** Prerequisites
+     List any prerequisites or dependencies required to use your TCP/IP stack.
+  
+  ** Installation
+     Provide step-by-step instructions on how to install and set up your TCP/IP stack.
+     - Example: Cloning the repository, building the project, etc.
+
+* Usage
+  :PROPERTIES:
+  :CUSTOM_ID: usage
+  :END:
+  Provide examples of how to use your TCP/IP stack. Include code snippets or command-line examples if applicable.
+
+* Project Structure
+  :PROPERTIES:
+  :CUSTOM_ID: structure
+  :END:
+  Explain the organization of your project's directories and files. 
+  - `src/`: Source files for the TCP/IP stack implementation.
+  - `include/`: Header files.
+  - `lib/`: External libraries used,
+  - `scripts/`: Utility scripts.
+  - `build/`: Build system and compilation outputs.
+
+* Development
+  :PROPERTIES:
+  :CUSTOM_ID: development
+  :END:
+  Describe the development environment and tools used. 
+  - Information about the compiler, build system (CMake), etc.
+  - Any specific instructions for development or contribution.
+
+* Testing
+  :PROPERTIES:
+  :CUSTOM_ID: testing
+  :END:
+  Outline how your TCP/IP stack can be tested. Mention any testing frameworks used or how to run the test suite.
+
+* Contributing
+  :PROPERTIES:
+  :CUSTOM_ID: contributing
+  :END:
+  If you are open to contributions:
+  - Guidelines for contributing to your project.
+  - How to submit pull requests, report bugs, or request features.
+
+* License
+  :PROPERTIES:
+  :CUSTOM_ID: license
+  :END:
+  State the license under which your TCP/IP stack is released, and provide a brief summary of it.
+
+* Acknowledgments
+  :PROPERTIES:
+  :CUSTOM_ID: acknowledgments
+  :END:
+  - Credits to any individuals or resources that were crucial in the development of this project.
+  - Any third-party libraries or tools used.
+
+* Contact
+  :PROPERTIES:
+  :CUSTOM_ID: contact
+  :END:
+  Provide your contact information or the best way to reach you for questions or collaborations.
