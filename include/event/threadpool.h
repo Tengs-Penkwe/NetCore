@@ -13,6 +13,9 @@ typedef struct {
     void* argument;
 } task_t;
 
+#define MK_TASK(h,a)    (task_t){ /*handler*/ (h), /*arg*/ (a) }
+#define NOP_TASK        MK_TASK(NULL, NULL)
+
 // The Queue of tasks
 KDQ_INIT(task_t)
 
