@@ -49,6 +49,7 @@ typedef struct ip_message {
     pthread_mutex_t  mutex;
 
     uint32_t         whole_size;  ///< Size of the whole message
+    /// alloc_size == 0 have special meaning, it's used in close_message
     uint32_t         alloc_size;  ///< Record how much space does the data pointer holds
     uint8_t         *data;        ///< Holds all the data
     Mseg            *seg;         ///< All the offset of segments we received yet
@@ -75,22 +76,31 @@ static inline void close_message(void* message) {
     ip_msg_key_t msg_key = MSG_KEY(msg->recvd.src_ip, msg->id);
     khint64_t key = kh_get(ip_msg, ip->recv_messages, msg_key);
 
-    if (key == kh_end(ip->recv_messages))
+    if (key == kh_end(ip->recv_messages) && msg->alloc_size != 0)
         USER_PANIC("The message doesn't exist in hash table before we delete it!");
-    // Delete the message from the hash table
-    pthread_mutex_lock(&ip->recv_mutex);
-    kh_del(ip_msg, ip->recv_messages, msg_key);
-    pthread_mutex_unlock(&ip->recv_mutex);
-    IP_NOTE("Deleted a message from hash table");
 
-    // Free all segments
-    assert(msg->seg);
-    kavll_free(Mseg, head, msg->seg, free);
+    if (msg->alloc_size != 0) { // Means there was assembling process
+        // Delete the message from the hash table
+        pthread_mutex_lock(&ip->recv_mutex);
+        kh_del(ip_msg, ip->recv_messages, msg_key);
+        pthread_mutex_unlock(&ip->recv_mutex);
+        IP_NOTE("Deleted a message from hash table");
+
+        // Free all segments
+        assert(msg->seg);
+        kavll_free(Mseg, head, msg->seg, free);
+        msg->seg = NULL;
+
+        // Note: it doesn't matter if we use recvd.size or sent.size since we used the union
+        assert(msg->whole_size && msg->recvd.size);
+        // Free the allocated data:
+        free(msg->data);
+        // if message come here directly, data should be free'd in lower module
+    }
+
+    assert(msg->seg == NULL);
     // Destroy mutex
     pthread_mutex_destroy(&msg->mutex);
-    // Free the allocated data
-    assert(msg->alloc_size && msg->whole_size);
-    free(msg->data);
     // Free the message itself and set it to NULL
     free(message);
     message = NULL;
@@ -168,7 +178,6 @@ static void check_recvd_message(void* message) {
     if (msg->recvd.times_to_live >= IP_GIVEUP_RECV_US)
     {
         close_message(msg);
-        return;
     }
     else
     {
