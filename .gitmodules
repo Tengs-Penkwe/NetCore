@@ -4,3 +4,6 @@
 [submodule "lib/cc"]
 	path = lib/cc
 	url = https://github.com/srdja/Collections-C.git
+[submodule "lib/liblfds"]
+	path = lib/liblfds
+	url = git://liblfds.org/liblfds7.1.1
