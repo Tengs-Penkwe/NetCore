@@ -54,7 +54,11 @@ void enqueue(Queue* queue, void* data) {
     lfds711_queue_umm_enqueue(&queue->queue, qe);
 }
 
-int dequeue(Queue* queue, void** ret_data) 
+/// @brief   Dequeue an element
+/// @param queue 
+/// @param ret_data 
+/// @return  1 means succeded, 0 means failed (empty)
+errval_t dequeue(Queue* queue, void** ret_data) 
 {
     struct lfds711_queue_umm_element *qe = NULL;
     if (lfds711_queue_umm_dequeue(&queue->queue, &qe) != 0)
@@ -71,10 +75,10 @@ int dequeue(Queue* queue, void** ret_data)
         } 
         LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(*fe, qe);
         lfds711_freelist_push(&queue->freelist, fe, NULL);
-        return 1;
+        return SYS_ERR_OK;
     }
     else 
     {
-        return 0;
+        return EVENT_DEQUEUE_EMPTY;
     }
 }

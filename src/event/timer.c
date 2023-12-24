@@ -19,8 +19,8 @@ static void dequeue_delayed_tasks(void) {
     /// 1. dequeue the delayed event
     Delayed_task* dt = NULL;
 
-    if (dequeue(&timer.queue, (void*)&dt) != 1) {
-        USER_PANIC("Received a signal, but there is no delayed task!");
+    if (dequeue(&timer.queue, (void*)&dt) == EVENT_DEQUEUE_EMPTY) {
+        USER_PANIC_ERR(EVENT_DEQUEUE_EMPTY, "Received a signal, but there is no delayed task!");
     }
     assert(dt);
 

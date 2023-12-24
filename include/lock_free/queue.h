@@ -30,7 +30,7 @@ static inline void queue_init_barrier(void)
 errval_t queue_init(Queue* queue);
 void queue_destroy(Queue* queue);
 void enqueue(Queue* queue, void* data);
-int dequeue(Queue* queue, void** ret_data);
+errval_t dequeue(Queue* queue, void** ret_data);
 
 __END_DECLS
 

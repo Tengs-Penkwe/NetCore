@@ -47,7 +47,7 @@ void *thread_function(void* arg) {
     Task *task = NULL;
 
     while(true) {
-        if (dequeue(&pool.queue, (void**)&task) == 0) {
+        if (dequeue(&pool.queue, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
             sem_wait(&pool.sem);
         } else {
             assert(task);
