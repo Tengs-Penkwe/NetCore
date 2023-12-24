@@ -14,6 +14,8 @@ typedef uintptr_t errval_t;
 #define SYSTEM_ERR_CODES \
     X(SYS_ERR_OK,                     "SYS_ERR_OK") \
     X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
+    X(SYS_ERR_ALLOC_FAIL,             "Some kind of allocation (malloc, new) failed") \
+    X(SYS_ERR_INIT_FAIL,              "Some kind of initializaton (thread, mutex) failed") \
     X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet")
 
 #define EVENT_ERR_CODES \
@@ -35,6 +37,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_IPv4_WRONG_CHECKSUM,     "Wrong checksum in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
+    X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
