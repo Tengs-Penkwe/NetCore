@@ -19,7 +19,10 @@ typedef uintptr_t errval_t;
     X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet")
 
 #define EVENT_ERR_CODES \
-    X(EVENT_THREAD_CREATE,            "Can't create the thread for event")
+    X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
+    X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \
+    X(EVENT_HASH_EXIST_ON_INSERT,     "The hash table is configure as none-overwritten for duplicated key")  \
+    X(EVENT_HASH_NOT_EXIST,           "The element associated with the key doesn't exist in the hash table")  \
 
 #define NETWORK_ERR_CODES \
     X(NET_ERR_DEVICE_INIT,             "Can't initialize the network device") \
