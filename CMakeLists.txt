@@ -18,12 +18,23 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# Debug-specific compile options
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+
+# Release-specific compile options
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+
 # Root directory
 include_directories(${PROJECT_SOURCE_DIR}/include)
 # Klib library
 include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
 # Colletions-C library
 include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
+# Lock free stuctures
+include_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/inc)
+link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
 
 # Add source files
 file(GLOB C_SOURCES 
@@ -36,6 +47,7 @@ file(GLOB C_SOURCES
     "src/errors/*.c"
 )
 file(GLOB CPP_SOURCES "src/*.cpp")
+
 # Common compile options for all targets
 add_compile_options(
     -Wall -Wextra -Werror -pedantic
@@ -43,6 +55,7 @@ add_compile_options(
     -Wmissing-declarations -Wredundant-decls 
     -Wmissing-field-initializers -Wtype-limits -Wno-packed-bitfield-compat
     -Wmissing-noreturn -Wno-format
+    -Wno-unknown-pragmas            # For liblfds
     )
 
 # Common compile options for C files
@@ -55,15 +68,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
 
-# Release-specific compile options
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-
 # Define the executable
 add_executable(TCP-IP ${C_SOURCES} ${CPP_SOURCES})
-
-# Define your executable
-# add_executable(YourExecutable source_file1.cpp source_file2.cpp)
+target_link_libraries(TCP-IP lfds711)
 
 # Specific compile options for a target
 # target_compile_options(YourExecutable PRIVATE -Wshadow -Wconversion)
