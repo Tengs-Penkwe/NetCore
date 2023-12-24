@@ -6,61 +6,92 @@
 #include <event/timer.h>
 #include <event/threadpool.h>
 
+/* TODO: Consider these situations
+1. two workers received same segment at the same time
+2. two workers handle the duplicate last segments at the same time
+3. A modifies the hash table whill B is reading it
+4. A reads when the hash table is resizing
+*/
+
+#include "kavl-lite.h"  // AVL tree for segmentation
+
 // Forward declaration
-static void check_get_mac(void* message);
-static void check_send_message(void* message);
+// static void check_get_mac(void* message);
+// static void check_send_message(void* message);
 static errval_t ip_handle(IP_message* msg);
 
-typedef struct {
-    void*  data;
-    size_t size;
-    size_t offset;
-} Mseg;
+/***************************************************
+* Structure to deal with IP segmentation
+* Shoud be private to user
+**************************************************/
+#define SIZE_DONT_KNOW  0xFFFFFFFF
 
-/**
- * @brief Compare if a segmentation is duplicate
- */
-static inline int seg_same(const void* seg, const void* target) {
-    if (((Mseg *)seg)->offset == ((Mseg *)target)->offset &&
-        ((Mseg *)seg)->size   == ((Mseg *)target)->size) {
-        return 0;   // Same segmentation
-    } else  {
-        return -1;  // Different segmentation
-    }
-}
+typedef struct message_segment Mseg;
+typedef struct message_segment {
+    uint32_t offset;
+    KAVLL_HEAD(Mseg) head;
+} Mseg ;
 
-/**
- * @brief Used with cc_array_reduce, get the whole size
- */
-static inline void seg_size(void* pre, void* next, void* result) {
-    size_t* recvd_size = result;
-    *recvd_size = ((Mseg*)pre)->size + ((Mseg*)next)->size;
-}
+#define seg_cmp(p, q) (((q)->offset < (p)->offset) - ((p)->offset < (q)->offset))
 
-///TODO: assert the offset + size == next ?
-static inline int seg_cmp(const void* pre, const void* next) {
-    return (((Mseg*)pre)->offset  < ((Mseg*)next)->offset) -
-           (((Mseg*)next)->offset < ((Mseg*)pre)->offset) ;
-}
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+KAVLL_INIT(Mseg, Mseg, head, seg_cmp)
+#pragma GCC diagnostic pop
 
-static inline void seg_collect(void* segment) {
-    Mseg* seg = segment;
-}
+/// @brief Presentation of an IP Message
+typedef struct ip_message {
+    struct ip_state *ip;     ///< Global IP state
 
-/**
- * @brief Frees resources associated with an IP message: to be used in cc array
- */
-static inline void free_segs(void *segment) {
-    Mseg* seg = segment;
-    free(seg->data);
-    free(segment);
-    segment = NULL;
-}
+    uint8_t          proto;  ///< Protocal over IP
+    uint16_t         id;     ///< Message ID
 
-static inline void free_message(void* message) {
-    IP_message* msg = message;
-    cc_array_destroy_cb(msg->segs, free_segs);
+    pthread_mutex_t  mutex;
+
+    uint32_t         whole_size;  ///< Size of the whole message
+    uint32_t         alloc_size;  ///< Record how much space does the data pointer holds
+    uint8_t         *data;        ///< Holds all the data
+    Mseg            *seg;         ///< All the offset of segments we received yet
+
+    union {
+        struct {
+            uint32_t  size;      ///< How many bytes have we received
+            int       times_to_live;
+            ip_addr_t src_ip;
+        } recvd ;
+        struct {        
+            uint32_t  size;      ///< How many bytes have we sent
+            int       retry_interval;
+            ip_addr_t dst_ip;
+            mac_addr  dst_mac;
+        } sent;
+    };
+} IP_message;
+
+static inline void close_message(void* message) {
+    IP_message* msg = message; assert(msg);
+    IP* ip = msg->ip; assert(ip);
+
+    ip_msg_key_t msg_key = MSG_KEY(msg->recvd.src_ip, msg->id);
+    khint64_t key = kh_get(ip_msg, ip->recv_messages, msg_key);
+
+    if (key == kh_end(ip->recv_messages))
+        USER_PANIC("The message doesn't exist in hash table before we delete it!");
+    // Delete the message from the hash table
+    pthread_mutex_lock(&ip->recv_mutex);
+    kh_del(ip_msg, ip->recv_messages, msg_key);
+    pthread_mutex_unlock(&ip->recv_mutex);
+    IP_NOTE("Deleted a message from hash table");
+
+    // Free all segments
+    assert(msg->seg);
+    kavll_free(Mseg, head, msg->seg, free);
+    // Destroy mutex
     pthread_mutex_destroy(&msg->mutex);
+    // Free the allocated data
+    assert(msg->alloc_size && msg->whole_size);
+    free(msg->data);
+    // Free the message itself and set it to NULL
     free(message);
     message = NULL;
 }
@@ -130,58 +161,31 @@ errval_t ip_init(
 static void check_recvd_message(void* message) {
     IP_VERBOSE("Checking a message");
     errval_t err;
-    IP_message* msg = message;
-    IP* ip = msg->ip;
-    assert(msg && ip);
-    ip_msg_key_t msg_key = MSG_KEY(msg->recvd.src_ip, msg->id);
+    IP_message* msg = message; assert(msg);
 
     /// Also modified in ip_assemble(), be careful of global states
     msg->recvd.times_to_live *= 1.5;
-    if (msg->recvd.times_to_live >= IP_GIVEUP_RECV_US) goto close_message;
+    if (msg->recvd.times_to_live >= IP_GIVEUP_RECV_US)
+    {
+        close_message(msg);
+        return;
+    }
+    else
+    {
+        if (msg->recvd.size == msg->whole_size) { // We can process the package now
+            // We don't need to care about duplicate segment here, they are deal in ip_assemble
+            IP_DEBUG("We spliced an IP message of size %d, ttl: %d, now let's process it", msg->whole_size, msg->recvd.times_to_live);
 
-    if (msg->whole_size != SIZE_DONT_KNOW) { // At least we have the last segmentation, try to assemble all segmentations
-        // We don't need to care about duplicate segment here, they are deal in ip_assemble
-
-
-
-        size_t recvd_size = 0;
-
-
-        // Get the received size
-        pthread_mutex_lock(&msg->mutex);
-        cc_array_reduce(msg->segs, seg_size, &recvd_size);
-        pthread_mutex_unlock(&msg->mutex);
-
-        // We collected all the segments ! remove it first
-        if (recvd_size == msg->whole_size) {
-            ///TODO: lock free
-            pthread_mutex_lock(&ip->recv_mutex);
-            kh_del(ip_msg, ip->recv_messages, msg_key);
-            pthread_mutex_unlock(&ip->recv_mutex);
-
-            ///TODO: Other thread may still hold this lock !
-            cc_array_sort(msg->segs, seg_cmp);
-        
-
+            err = ip_handle(msg);
+            if (err_is_fail(err)) { DEBUG_ERR(err, "We meet an error when handling an IP message"); }
+            close_message(msg);
+        }
+        else
+        {
+            submit_delayed_task(msg->recvd.times_to_live, MK_TASK(check_recvd_message, (void *)msg));
+            IP_VERBOSE("Done Checking a message, ttl: %d, whole size: %p", msg->recvd.times_to_live, msg->whole_size);
         }
     }
-
-    err = ip_handle(msg);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "We meet an error when handling an IP message");
-    }
-
-    submit_delayed_task(msg->recvd.times_to_live, MK_TASK(check_recvd_message, (void*)msg));
-
-    IP_VERBOSE("Done Checking a message, ttl: %d, whole size: %p", msg->recvd.times_to_live, msg->whole_size);
-    return;
-
-close_message:
-    ip_msg_key_t msg_key = MSG_KEY(msg->recvd.src_ip, msg->id);
-    pthread_mutex_lock(&ip->recv_mutex);
-    kh_del(ip_msg, ip->recv_messages, msg_key);
-    pthread_mutex_unlock(&ip->recv_mutex);
-    IP_NOTE("Closing a message");
 }
 
 /**
@@ -198,7 +202,7 @@ close_message:
 static errval_t ip_assemble(
     IP* ip, ip_addr_t src_ip, uint8_t proto, uint16_t id, uint8_t* addr, size_t size, uint32_t offset, bool more_frag, bool no_frag
 ) {
-    errval_t err;
+    // errval_t err;
     assert(ip && addr);
     IP_DEBUG("Assembling a message, ID: %d, addr: %p, size: %d, offset: %d, more_frag: %d", id, addr, size, offset, more_frag);
 
@@ -214,21 +218,24 @@ static errval_t ip_assemble(
             .ip         = ip,
             .proto      = proto,
             .id         = id,
+            .mutex      = { { 0 } },
             .whole_size = SIZE_DONT_KNOW,     // We don't know the size util the last packet arrives
-            .segs       = NULL,
+            .alloc_size = 0,
+            .seg        = NULL,
             .data       = NULL,
-            .mutex      = { 0 },
             .recvd      = {
+                .size   = size,
                 .times_to_live = IP_RETRY_RECV_US,
                 .src_ip = src_ip,
             },
         };
 
         ///TODO: What if 2 threads received duplicate segmentation at the same time ?
-        if ((more_frag == 0 && offset == 0) || no_frag == 0) { // Which means this isn't a segmented packet
+        if (no_frag == 0 || (more_frag == 0 && offset == 0)) { // Which means this isn't a segmented packet
             assert(offset == 0 && more_frag == 0);
 
             msg->data = addr;
+            assert(msg->alloc_size == 0);
             assert(msg->whole_size == SIZE_DONT_KNOW);
             msg->whole_size = size;
             check_recvd_message((void*) msg);
@@ -236,22 +243,14 @@ static errval_t ip_assemble(
             return SYS_ERR_OK;
         }
 
-        if (cc_array_new(&msg->segs) != CC_OK) {
-            IP_ERR("Can't allocate a new array for IP message");
-            return SYS_ERR_ALLOC_FAIL;
+        // Multiple threads may handle different segmentation of IP at same time, need to deal with it 
+        if (pthread_mutex_init(&msg->mutex, NULL) != 0) {
+            IP_ERR("Can't initialize the mutex for IP message");
+            return SYS_ERR_INIT_FAIL;
         }
 
-        Mseg* seg = calloc(1, sizeof(Mseg)); assert(seg);
-        *seg = (Mseg) {
-            .data   = addr,
-            .size   = size,
-            .offset = offset,
-        };
-
-        if (cc_array_add(msg->segs, seg) != CC_OK) {
-            IP_ERR("Can't add the segmentation to IP message");
-            return SYS_ERR_ALLOC_FAIL;
-        }
+        // Root of AVL tree
+        msg->seg = malloc(sizeof(Mseg));  assert(msg->seg);
 
         ///TODO: Should I lock it before kh_get, if thread A is changing the hash table while thread
         // B is reading it, will it cause problem ? 
@@ -260,54 +259,57 @@ static errval_t ip_assemble(
         key = kh_put(ip_msg, ip->recv_messages, msg_key, &ret); 
         if (!ret) { // Can't put key into hash table
             kh_del(ip_msg, ip->recv_messages, key);
+            pthread_mutex_unlock(&ip->recv_mutex);
+            ///TODO: deal with this error
             USER_PANIC("Can't add a new message with seqno: %d to hash table", id);
-            print_ip_address(src_ip);
-            dump_ipv4_header(addr);
         }
         // Set the value of key
         kh_value(ip->recv_messages, key) = msg;
         pthread_mutex_unlock(&ip->recv_mutex);
-
-        // Multiple threads may handle different segmentation of IP at same time, need to deal with it 
-        if (pthread_mutex_init(&msg->mutex, NULL) != 0) {
-            IP_ERR("Can't initialize the mutex for IP message");
-            return SYS_ERR_INIT_FAIL;
-        }
         
     } else {
         // TODO: should I accquire the lock ?
-        msg = kh_get(ip_msg, ip->recv_messages, msg_key); assert(msg);
+        msg = kh_val(ip->recv_messages, key); assert(msg);
         assert(msg->proto == proto);
         ///ALARM: global state, also modified in check_recvd_message
         msg->recvd.times_to_live /= 1.5;  // We got 1 more packet, wait less time
-
-        Mseg* seg = calloc(1, sizeof(Mseg)); assert(seg);
-        *seg = (Mseg) {
-            .data   = addr,
-            .size   = size,
-            .offset = offset,
-        };
-
-        if (cc_array_contains(msg->segs, seg, seg_same) != 0) {  /// Duplicate segmentations
-            IP_ERR("We have duplicate IP message segmentation");
-            free(seg);
-            return NET_ERR_IPv4_DUPLITCATE_SEG;
-        }
-        pthread_mutex_lock(&msg->mutex);
-        assert(cc_array_add(msg->segs, seg) == CC_OK);
-        pthread_mutex_unlock(&msg->mutex);
     }
 
+    Mseg* seg = calloc(1, sizeof(Mseg)); assert(seg);
+    seg->offset = offset;
+    if (seg != Mseg_insert(&msg->seg, seg)) { // Already exists !
+        IP_ERR("We have duplicate IP message segmentation");
+        free(seg);
+        return NET_ERR_IPv4_DUPLITCATE_SEG;
+    }
+
+    uint32_t needed_size = offset + size;
     // If this the laset packet, we now know the final size
     if (more_frag == 0) {
         assert(no_frag == false);
-
         assert(msg->whole_size == SIZE_DONT_KNOW);
         msg->whole_size = offset + size;
     }
+    // If the current size is smaller, we need to re-allocate space
+    if (msg->alloc_size < needed_size) {
+        msg->alloc_size = needed_size;
+        if (msg->data == NULL) {
+            msg->data = malloc(msg->alloc_size); assert(msg->data);
+        } else {
+            msg->data = realloc(msg->data, needed_size); assert(msg->data);
+        }
+    }
+    // Copy the message to the buffer
+    memcpy(msg->data + offset, (void*)addr, size);
+    msg->recvd.size += size; 
+    IP_VERBOSE("Done Assembling a packet of a message");
 
-    // We need to receive other segmentation of this message
-    submit_delayed_task(msg->recvd.times_to_live, MK_TASK(check_recvd_message, (void*)msg));
+    // If the message is complete, we trigger the check message,
+    if (msg->recvd.size == msg->whole_size) {
+        check_recvd_message((void*) msg);
+    } else {
+        submit_delayed_task(msg->recvd.times_to_live, MK_TASK(check_recvd_message, (void*)msg));
+    }
     
     return SYS_ERR_OK;
 }
@@ -389,12 +391,8 @@ errval_t ip_unmarshal(
 
     // 3. Assemble the IP message
     uint8_t proto = packet->proto;
-    // err = ip_assemble(ip, src_ip, proto, identification, data, size, offset, flag_more_frag, flag_no_frag);
-    // RETURN_ERR_PRINT(err, "Can't assemble the IP message from the packet");
-    (void) identification;
-    (void) proto;
-    (void) err;
-    IP_ERR("HEE");
+    err = ip_assemble(ip, src_ip, proto, identification, data, size, offset, flag_more_frag, flag_no_frag);
+    RETURN_ERR_PRINT(err, "Can't assemble the IP message from the packet");
 
     // 3.1 TTL: TODO, should we deal with it ?
     (void) packet->ttl;

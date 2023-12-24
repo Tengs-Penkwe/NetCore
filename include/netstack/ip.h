@@ -9,8 +9,6 @@
 #include "udp.h"
 #include "tcp.h"
 
-#include "cc_array.h"  // AVL tree for segmentation
-
 // Segmentation offset should be 8 alignment
 #define IP_MTU   ROUND_DOWN((ETHER_MTU - sizeof(struct ip_hdr) - 80), 8)
 
@@ -30,41 +28,14 @@
 
 __BEGIN_DECLS
 
-/// @brief Presentation of an IP Message
-typedef struct ip_message {
-    struct ip_state *ip;     ///< Global IP state
-
-    uint8_t          proto;  ///< Protocal over IP
-    uint16_t         id;     ///< Message ID
-
-    uint32_t         whole_size;  ///< Size of the whole message
-    uint32_t         alloc_size;  // Record how much space does the data pointer holds
-    CC_Array        *segs;
-    pthread_mutex_t  mutex;
-    uint8_t         *data;
-
-    union {
-        struct {
-            int       times_to_live;
-            ip_addr_t src_ip;
-        } recvd ;
-        struct {        
-            int       retry_interval;
-            ip_addr_t dst_ip;
-            mac_addr  dst_mac;
-        } sent;
-    };
-} IP_message;
-
-typedef uint64_t ip_msg_key_t ;
+typedef struct ip_message IP_message;
 
 /// The hash table of IP-MAC
 KHASH_MAP_INIT_INT64(ip_msg, IP_message*) 
 
+typedef uint64_t ip_msg_key_t ;
 // Use source IP + Sequence Number as hash table key
 #define MSG_KEY(src_ip, seqno) (ip_msg_key_t)((uint64_t)src_ip | ((uint64_t)seqno << 32))
-
-#define SIZE_DONT_KNOW  0xFFFFFFFF
 
 typedef struct ip_state {
     struct ethernet_state *ether; ///< Global Ethernet state
