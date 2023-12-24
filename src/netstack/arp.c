@@ -62,7 +62,7 @@ void arp_register(
         ARP_INFO("The IP-MAC pair already exists!");
         return;
     }
-    // ALARM: Should I lock it before kh_get, if thread A is changing the hash table while thread
+    ///TODO: Should I lock it before kh_get, if thread A is changing the hash table while thread
     // B is reading it, will it cause problem ? 
     pthread_mutex_lock(&arp->mutex);
 
