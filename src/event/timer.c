@@ -16,11 +16,13 @@ static void time_to_submit_task(int sig, siginfo_t *si, void *uc);
 static void dequeue_delayed_tasks(void);
 
 static void dequeue_delayed_tasks(void) {
-    /// TODO: test if it's empty
     /// 1. dequeue the delayed event
-    pthread_mutex_lock(&timer.mutex);
-    delayed_task* dt = kdq_shift(delayed_task, timer.delay_queue);
-    pthread_mutex_unlock(&timer.mutex);
+    Delayed_task* dt = NULL;
+
+    if (dequeue(&timer.queue, (void*)&dt) != 1) {
+        USER_PANIC("Received a signal, but there is no delayed task!");
+    }
+    assert(dt);
 
     /// 2. Register the timed event to the signal
     struct sigevent sev = { 0 };
@@ -34,10 +36,10 @@ static void dequeue_delayed_tasks(void) {
 
     struct itimerspec its = {
         .it_value = {
-            .tv_sec  = dt->delay / 1000000,          // Micro-second to Second
+            .tv_sec  =  dt->delay / 1000000,         // Micro-second to Second
             .tv_nsec = (dt->delay % 1000000) * 100,  // Left to Nano-second
         },
-        .it_interval = { 0 },
+        .it_interval = { 0 },   // No repeat
     };
 
     timer_settime(timerid, 0, &its, NULL);
@@ -46,33 +48,33 @@ static void dequeue_delayed_tasks(void) {
 /// @brief      For Timer
 /// @param task 
 static void time_to_submit_task(int sig, siginfo_t *si, void *uc) {
-    (void) sig;
+    assert(sig == SIG_TIGGER_SUBMIT);
     (void) uc;
-    delayed_task* dt = si->si_value.sival_ptr;
-    task_t task = dt->task;
+    Delayed_task* dt = si->si_value.sival_ptr;
+    Task task = dt->task;
     submit_task(task);
 }
 
 /// @brief      For Worker 
 /// @param delay 
 /// @param task 
-void submit_delayed_task(delayed_us delay, task_t task) {
+void submit_delayed_task(delayed_us delay, Task task) {
     /// Push the delayed task to queue
-    delayed_task dt = {
+    Delayed_task* dt = malloc(sizeof(Task));
+    *dt = (Delayed_task) {
         .delay = delay,
         .task  = task,
     };
-    pthread_mutex_lock(&timer.mutex);
-    kdq_push(delayed_task, timer.delay_queue, dt);
-    pthread_mutex_unlock(&timer.mutex);
+    enqueue(&timer.queue, (void*)dt);
 
     /// Send the signal to timer
     assert(pthread_kill(timer.thread, SIG_TELL_TIMER));
 }
 
 static void* timer_thread (void* arg) {
-    (void) arg;
+    assert(arg == NULL);
     TIMER_INFO("Timer thread started !");
+    queue_init_barrier();
 
     /// 1. Register the sigaction to receiver Timer's Signal: SIGUSER1
     struct sigaction sa;
@@ -93,13 +95,9 @@ static void* timer_thread (void* arg) {
 }
 
 errval_t timer_thread_init(void) {
-
-    timer.delay_queue = kdq_init(delayed_task);
-
-    if (pthread_mutex_init(&timer.mutex, NULL) != 0) {
-        LOG_ERR("Can't set the mutex of timer thread");
-        return SYS_ERR_FAIL;
-    }
+    errval_t err;
+    err = queue_init(&timer.queue);
+    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock-free queue for timer");
 
     if (pthread_create(&timer.thread, NULL, timer_thread, NULL) != 0) {
         LOG_ERR("Can't create the timer thread");

@@ -45,6 +45,7 @@ file(GLOB C_SOURCES
     "src/device/*.c"        
     "src/log/*.c" 
     "src/errors/*.c"
+    "src/lock_free/*.c"
 )
 file(GLOB CPP_SOURCES "src/*.cpp")
 

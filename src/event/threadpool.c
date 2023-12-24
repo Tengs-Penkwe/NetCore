@@ -44,7 +44,7 @@ void *thread_function(void* arg) {
     LOG_INFO("Pool Worker started !");
 
     queue_init_barrier();
-    task_t *task = NULL;
+    Task *task = NULL;
 
     while(true) {
         if (dequeue(&pool.queue, (void**)&task) == 0) {
@@ -53,14 +53,15 @@ void *thread_function(void* arg) {
             assert(task);
             process_task(*task);
             free(task);
+            task = NULL;
         }
     }
 }
 
-void submit_task(task_t task) {
+void submit_task(Task task) {
 
     // free after dequeue
-    task_t* task_copy = malloc(sizeof(task_t));
+    Task* task_copy = malloc(sizeof(Task));
     *task_copy = task;
 
     enqueue(&pool.queue, task_copy);

@@ -12,9 +12,9 @@
 typedef struct {
     void (*function)(void*);
     void* argument;
-} task_t;
+} Task;
 
-#define MK_TASK(h,a)    (task_t){ /*handler*/ (h), /*arg*/ (a) }
+#define MK_TASK(h,a)    (Task){ /*handler*/ (h), /*arg*/ (a) }
 #define NOP_TASK        MK_TASK(NULL, NULL)
 
 typedef struct {
@@ -32,9 +32,9 @@ void thread_pool_destroy(void);
 
 // Function declarations
 void* thread_function(void* arg) __attribute__((noreturn));
-void submit_task(task_t task);
+void submit_task(Task task);
 
-static inline void process_task(task_t task)
+static inline void process_task(Task task)
 {
     (*task.function)(task.argument);
 }
