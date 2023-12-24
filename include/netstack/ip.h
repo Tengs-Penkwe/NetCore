@@ -9,8 +9,7 @@
 #include "udp.h"
 #include "tcp.h"
 
-#include "cc_hashtable.h"  // Hash Table
-#include "cc_array.h"      // Array
+#include "cc_array.h"  // AVL tree for segmentation
 
 // Segmentation offset should be 8 alignment
 #define IP_MTU   ROUND_DOWN((ETHER_MTU - sizeof(struct ip_hdr) - 80), 8)
@@ -29,6 +28,8 @@
 // 10 Seconds
 #define IP_GIVEUP_RECV_US    10000000
 
+__BEGIN_DECLS
+
 /// @brief Presentation of an IP Message
 typedef struct ip_message {
     struct ip_state *ip;     ///< Global IP state
@@ -37,7 +38,10 @@ typedef struct ip_message {
     uint16_t         id;     ///< Message ID
 
     uint32_t         whole_size;  ///< Size of the whole message
-    CC_Array        *data;   ///< All segmentation
+    uint32_t         alloc_size;  // Record how much space does the data pointer holds
+    CC_Array        *segs;
+    pthread_mutex_t  mutex;
+    uint8_t         *data;
 
     union {
         struct {
@@ -52,18 +56,29 @@ typedef struct ip_message {
     };
 } IP_message;
 
-typedef struct ip_state {
-    struct ethernet_state* ether;  ///< Global Ethernet state
-    struct arp_state* arp;         ///< Global ARP state
-    struct icmp_state* icmp;
-    struct udp_state* udp;
-    struct tcp_state* tcp;
+typedef uint64_t ip_msg_key_t ;
 
-    uint16_t seg_count;            ///< Ensure the sent message have unique ID
+/// The hash table of IP-MAC
+KHASH_MAP_INIT_INT64(ip_msg, IP_message*) 
+
+// Use source IP + Sequence Number as hash table key
+#define MSG_KEY(src_ip, seqno) (ip_msg_key_t)((uint64_t)src_ip | ((uint64_t)seqno << 32))
+
+#define SIZE_DONT_KNOW  0xFFFFFFFF
+
+typedef struct ip_state {
+    struct ethernet_state *ether; ///< Global Ethernet state
+    struct arp_state *arp;        ///< Global ARP state
+    struct icmp_state *icmp;
+    struct udp_state *udp;
+    struct tcp_state *tcp;
 
     ip_addr_t ip;
-    CC_HashTable  *recv_messages;
-    CC_HashTable  *send_messages;
+    uint16_t seg_count;          ///< Ensure the sent message have unique ID
+
+    pthread_mutex_t   recv_mutex;
+    khash_t(ip_msg)  *recv_messages; 
+    khash_t(ip_msg)  *send_messages;
 } IP;
 
 errval_t ip_init(
@@ -77,5 +92,7 @@ errval_t ip_marshal(
 errval_t ip_unmarshal(
     IP* ip, uint8_t* data, size_t size
 );
+
+__END_DECLS
 
 #endif  //__VNET_IP_H__
