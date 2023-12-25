@@ -16,8 +16,6 @@ typedef struct {
         struct lfds711_hash_a_state    hash;
     alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) 
         struct lfds711_btree_au_state  buckets[HASH_BUCKETS];
-    alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES)
-        struct lfds711_hash_a_element  
     enum hash_policy                   policy;
 } HashTable; 
 
