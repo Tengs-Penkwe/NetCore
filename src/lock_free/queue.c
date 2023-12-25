@@ -34,7 +34,7 @@ void enqueue(Queue* queue, void* data) {
     /// We try to get an element (contains a queue element) in free list, if there isn't, create one
     struct lfds711_freelist_element *fe = NULL;
     while (true) {
-        if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) != 1) {
+        if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) == 0) { // No node in free list !
             assert(fe == NULL);
             fe = malloc(sizeof(struct lfds711_freelist_element)); assert(fe);
 
@@ -49,8 +49,9 @@ void enqueue(Queue* queue, void* data) {
     assert(fe);
 
     struct lfds711_queue_umm_element *qe = LFDS711_FREELIST_GET_VALUE_FROM_ELEMENT(*fe);
-    LFDS711_QUEUE_UMM_SET_VALUE_IN_ELEMENT(*qe, data);
+    lfds711_freelist_push(&queue->freelist, fe, NULL);
 
+    LFDS711_QUEUE_UMM_SET_VALUE_IN_ELEMENT(*qe, data);
     lfds711_queue_umm_enqueue(&queue->queue, qe);
 }
 
@@ -61,15 +62,13 @@ void enqueue(Queue* queue, void* data) {
 errval_t dequeue(Queue* queue, void** ret_data) 
 {
     struct lfds711_queue_umm_element *qe = NULL;
-    if (lfds711_queue_umm_dequeue(&queue->queue, &qe) != 0)
+    if (lfds711_queue_umm_dequeue(&queue->queue, &qe) == 1) // Means we dequeued one element
     {
-        assert(qe);
-        assert(*ret_data == NULL);
         *ret_data = LFDS711_QUEUE_UMM_GET_VALUE_FROM_ELEMENT(*qe);
 
         /// Get or create an element in free list
         struct lfds711_freelist_element *fe = NULL;
-        if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) != 1) {
+        if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) == 0) { // Means no node in free list
             fe = malloc(sizeof(struct lfds711_freelist_element));
             assert(fe);
         } 
