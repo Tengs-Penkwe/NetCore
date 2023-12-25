@@ -13,7 +13,8 @@
 #include "khash.h"  
 
 // Segmentation offset should be 8 alignment
-#define IP_MTU   ROUND_DOWN((ETHER_MTU - sizeof(struct ip_hdr) - 80), 8)
+// ETHER_MTU (1500) - IP (max 60) => round down to 32
+#define IP_MTU               1440
 
 /// Time for Sending
 // 5 Milli-Second: increases by 2
