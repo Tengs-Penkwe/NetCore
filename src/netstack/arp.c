@@ -12,7 +12,7 @@ errval_t arp_init(
     arp->ether = ether;
     arp->ip = ip;
 
-    err = hash_init(&arp->hosts, FAIL_ON_EXIST);
+    err = hash_init(&arp->hosts, HS_FAIL_ON_EXIST);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");

@@ -3,13 +3,13 @@
 errval_t hash_init(HashTable* hash, enum hash_policy policy) {
     switch (policy)
     {
-    case OVERWRITE_ON_EXIST:
+    case HS_OVERWRITE_ON_EXIST:
         lfds711_hash_a_init_valid_on_current_logical_core(
             &hash->hash, hash->buckets, HASH_BUCKETS,
             key_compare_func, key_hash_func, 
             LFDS711_HASH_A_EXISTING_KEY_OVERWRITE, NULL);
         break;
-    case FAIL_ON_EXIST:
+    case HS_FAIL_ON_EXIST:
         lfds711_hash_a_init_valid_on_current_logical_core(
             &hash->hash, hash->buckets, HASH_BUCKETS,
             key_compare_func, key_hash_func, 
@@ -49,11 +49,11 @@ errval_t hash_insert(HashTable* hash, Hash_key key, void* data) {
     case LFDS711_HASH_A_PUT_RESULT_SUCCESS:
         break;
     case LFDS711_HASH_A_PUT_RESULT_SUCCESS_OVERWRITE:
-        assert(hash->policy == OVERWRITE_ON_EXIST);
+        assert(hash->policy == HS_OVERWRITE_ON_EXIST);
         USER_PANIC("TODO: free the duplicate key!");
         break;
     case LFDS711_HASH_A_PUT_RESULT_FAILURE_EXISTING_KEY:
-        assert(hash->policy == FAIL_ON_EXIST);
+        assert(hash->policy == HS_FAIL_ON_EXIST);
         free(he);   //TODO: eliminate the cost of malloc+free for duplicated key
         return EVENT_HASH_EXIST_ON_INSERT;
     default:

@@ -7,8 +7,8 @@
 #define HASH_BUCKETS      64
 
 enum hash_policy {
-    OVERWRITE_ON_EXIST,
-    FAIL_ON_EXIST,
+    HS_OVERWRITE_ON_EXIST,
+    HS_FAIL_ON_EXIST,
 };
 
 typedef struct {
