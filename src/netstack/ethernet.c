@@ -21,6 +21,9 @@ errval_t ethernet_init(
     assert(!maccmp(mac, MAC_NULL));
     ether->mac = mac;
 
+    ETHER_INFO("My MAC address is: ");
+    print_mac_address(&ether->mac);
+
     // 2. Set the IP address
     /// TODO: dynamic IP using DHCP
     ip_addr_t my_ip = 0x0A00020F;
@@ -55,6 +58,8 @@ errval_t ethernet_marshal(
     
     data -= sizeof(struct eth_hdr);
     size += sizeof(struct eth_hdr);
+    LOG_ERR("HERE");
+    print_mac_address(&ether->mac);
 
     struct eth_hdr* packet = (struct eth_hdr*) data;
     *packet = (struct eth_hdr){

@@ -9,6 +9,8 @@
 #include "udp.h"
 #include "tcp.h"
 
+#include "khash.h"  
+
 // Segmentation offset should be 8 alignment
 #define IP_MTU   ROUND_DOWN((ETHER_MTU - sizeof(struct ip_hdr) - 80), 8)
 

@@ -159,6 +159,7 @@ errval_t ip_init(
     // err = tcp_init(ip->tcp, ip);
     // RETURN_ERR_PRINT(err, "Can't initialize global TCP state");
 
+    IP_INFO("IP Module initialized");
     return SYS_ERR_OK;
 }
 
