@@ -60,7 +60,7 @@ static void time_to_submit_task(int sig, siginfo_t *si, void *uc) {
 /// @param task 
 void submit_delayed_task(delayed_us delay, Task task) {
     /// Push the delayed task to queue
-    Delayed_task* dt = malloc(sizeof(Task));
+    Delayed_task* dt = malloc(sizeof(Delayed_task));
     *dt = (Delayed_task) {
         .delay = delay,
         .task  = task,
