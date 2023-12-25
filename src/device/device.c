@@ -98,7 +98,7 @@ void device_loop(NetDevice* device, Ethernet* ether) {
         if (pfd[0].revents & POLLIN) {
             // Data is available to read
             char* buffer = malloc(ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE);
-            int nbytes = read(device->tap_fd, buffer, ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE);
+            int nbytes = read(device->tap_fd, buffer + DEVICE_HEADER_RESERVE, ETHER_MAX_SIZE);
             if (nbytes < 0) {
                 perror("read");
             } else {

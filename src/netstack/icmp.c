@@ -25,11 +25,13 @@ errval_t icmp_send(
     switch (type) {
     case ICMP_ER:
         ICMP_VERBOSE("Sending a reply to a ICMP echo request !");
-        size = sizeof(struct icmp_hdr) + sizeof(struct icmp_echo) + field.size;
-        data = (uint8_t*)malloc(size);
+        size = field.size;
+        data = field.data;  ///ALARM: Device reserved filed for it
         assert(data);
-        memcpy(data + sizeof(struct icmp_hdr), &field, sizeof(struct icmp_echo));
-        memcpy(data + sizeof(struct icmp_hdr) + sizeof(struct icmp_echo), field.data, field.size);
+
+        data -= sizeof(struct icmp_echo);
+        memcpy(data, &field.echo, sizeof(struct icmp_echo));
+        size += sizeof(struct icmp_echo);
         break;
     case ICMP_ECHO:
     case ICMP_DUR:
@@ -47,15 +49,16 @@ errval_t icmp_send(
         ICMP_ERR("WRONG ICMP type :%d!", type);
         return NET_ERR_ICMP_WRONG_TYPE;
     }
+    data -= sizeof(struct icmp_hdr);
+    size += sizeof(struct icmp_hdr);
 
     struct icmp_hdr* packet = (struct icmp_hdr*) data;
-    packet->type = type;
-    packet->code = code;
-
-    /// For ICMP, the checksum is calculated for the full packet
-    packet->chksum = 0;
-    const uint16_t checksum = inet_checksum(packet, size);
-    packet->chksum = checksum;
+    *packet = (struct icmp_hdr) {
+        .type   = type,
+        .code   = code,
+        .chksum = 0,    /// For ICMP, the checksum is calculated for the full packet
+    };
+    packet->chksum = inet_checksum(packet, size);
     
     err = ip_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, (uint8_t*)packet, size);
     RETURN_ERR_PRINT(err, "Can't send the ICMP through binding");
@@ -87,7 +90,7 @@ errval_t icmp_unmarshal(
     case ICMP_ECHO:
         addr += sizeof(struct icmp_echo);
         size -= sizeof(struct icmp_echo);
-        ICMP_data data = {
+        ICMP_data field = {
             .echo = {
                 .id    = ICMPH_ECHO_ID(packet),
                 .seqno = ICMPH_ECHO_SEQ(packet),
@@ -95,8 +98,8 @@ errval_t icmp_unmarshal(
             .data = addr,
             .size = size,
         };
-        ICMP_VERBOSE("An ICMP echo request id: %d, seqno: %d !", ntohs(data.echo.id), ntohs(data.echo.seqno));
-        err = icmp_send(icmp, src_ip, ICMP_ER, 0, data);
+        ICMP_VERBOSE("An ICMP echo request id: %d, seqno: %d !", ntohs(field.echo.id), ntohs(field.echo.seqno));
+        err = icmp_send(icmp, src_ip, ICMP_ER, 0, field);
         RETURN_ERR_PRINT(err, "Can't send reply to echo");
         break;
     case ICMP_ER:
