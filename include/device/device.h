@@ -6,6 +6,11 @@
 
 #include <linux/if.h>   //struct ifreq
 
+/// IPv4: Max 60, 
+/// TCP : Max 60, UDP : 8, ICMP : 8
+#define DEVICE_HEADER_RESERVE   128
+/// Round up to 8
+
 typedef struct net_device {
     int tap_fd; ///< TAP device file descriptor
     struct ifreq ifr;

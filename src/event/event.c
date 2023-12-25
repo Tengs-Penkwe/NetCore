@@ -1,6 +1,7 @@
 #include <common.h>
 #include <netstack/ethernet.h>
 #include <event/event.h>
+#include <device/device.h>      //DEVICE_HEADER_RESERVE
 
 #include <netutil/dump.h>
 
@@ -21,6 +22,6 @@ void frame_unmarshal(void* frame) {
     }
     printf("========================================\n");
     
-    free(data);
+    free(data - DEVICE_HEADER_RESERVE);
     free(frame);
 }

@@ -97,15 +97,15 @@ void device_loop(NetDevice* device, Ethernet* ether) {
 
         if (pfd[0].revents & POLLIN) {
             // Data is available to read
-            char* buffer = malloc(ETHER_MAX_SIZE);
-            int nbytes = read(device->tap_fd, buffer, ETHER_MAX_SIZE);
+            char* buffer = malloc(ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE);
+            int nbytes = read(device->tap_fd, buffer, ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE);
             if (nbytes < 0) {
                 perror("read");
             } else {
                 Frame* fr = calloc(1, sizeof(Frame));
                 *fr = (Frame) {
                     .ether = ether, 
-                    .data  = (uint8_t*)buffer,
+                    .data  = (uint8_t*)buffer + DEVICE_HEADER_RESERVE,
                     .size  = (size_t)nbytes,
                 };
                 submit_task(MK_TASK(frame_unmarshal, fr));
