@@ -1,5 +1,6 @@
 #ifndef __VNET_IP_H__
 #define __VNET_IP_H__
+#include <stdatomic.h>      // atomic operation
 
 #include <netutil/ip.h>
 #include "ethernet.h"
@@ -47,7 +48,7 @@ typedef struct ip_state {
     struct tcp_state *tcp;
 
     ip_addr_t ip;
-    uint16_t seg_count;          ///< Ensure the sent message have unique ID
+    atomic_ushort     seg_count;          ///< Ensure the sent message have unique ID
 
     pthread_mutex_t   recv_mutex;
     khash_t(ip_msg)  *recv_messages; 
@@ -59,7 +60,7 @@ errval_t ip_init(
 );
 
 errval_t ip_marshal(    
-    IP* ip, ip_addr_t dst_ip, uint8_t proto, const void* data, const size_t size
+    IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const size_t size
 );
 
 errval_t ip_unmarshal(
