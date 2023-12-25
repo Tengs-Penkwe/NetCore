@@ -10,9 +10,11 @@ bridge="$3"
 # fi
 
 ##### TAP Device #####
+sudo ip tuntap add dev $tap mode tap user tengs
 sudo ip link set $tap up
 sudo ip link set $tap promisc on
 sudo ip addr add 10.0.2.1/24 dev $tap
+sudo sysctl -w net.ipv6.conf.tap0.disable_ipv6=1
 
 #### Bridge #####
 # sudo ip link add name $bridge type bridge
