@@ -2,10 +2,19 @@
 #define __VNET_TCP_H__
 
 #include <netutil/tcp.h>
-#include "tcp_server.h"
 
 #define TCP_DEFAULT_SERVER    128
 #define TCP_DEFAULT_CONN      64
+
+__BEGIN_DECLS
+
+typedef struct tcp_server TCP_server;
+
+typedef void (*tcp_server_callback) (
+    struct tcp_server* server,
+    const void* data, const size_t size,
+    const ip_addr_t src_ip, const trans_port_t src_port
+);
 
 typedef struct tcp_state {
     struct ip_state* ip;
@@ -30,11 +39,13 @@ errval_t tcp_unmarshal(
 );
 
 errval_t tcp_server_register(
-    TCP* tcp, int fd, struct aos_rpc* rpc, const trans_port_t port, const tcp_server_callback callback
+    TCP* tcp, int fd, const trans_port_t port, const tcp_server_callback callback
 );
 
 errval_t tcp_server_deregister(
     TCP* tcp, const trans_port_t port
 );
+
+__END_DECLS
 
 #endif  //__VNET_TCP_H__

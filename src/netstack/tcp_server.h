@@ -2,17 +2,12 @@
 #define __TCP_SERVER_H__
 
 #include <netutil/tcp.h>
+#include <netstack/tcp.h>
 #include "tcp_connect.h"
 
-struct tcp_state;
-struct tcp_server;
-typedef void (*tcp_server_callback) (
-    struct tcp_server* server,
-    const void* data, const size_t size,
-    const ip_addr_t src_ip, const trans_port_t src_port
-);
+typedef struct tcp_state TCP;
+typedef struct tcp_server TCP_server;
 
-struct tcp_server;
 typedef struct tcp_connection {
     struct tcp_server    *server;
     // Who send it
@@ -49,7 +44,6 @@ typedef struct tcp_server {
     // collections_hash_table *connections;  // All the messages it holds
 } TCP_server;
 
-typedef struct tcp_state TCP;
 errval_t server_init(
     TCP* tcp, TCP_server* server, int fd, struct aos_rpc* rpc, trans_port_t my_port, tcp_server_callback callback
 );
