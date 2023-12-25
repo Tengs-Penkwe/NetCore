@@ -26,15 +26,65 @@ static errval_t signal_init(void) {
     return SYS_ERR_OK;
 }
 
-int main(int argc, char* argv[]) {
-    (void) argc;
-    (void) argv;
+#include "ketopt.h"
+
+ko_longopt_t longopts[] = {
+    { "help",      ko_no_argument,       'h' },
+    { "version",   ko_no_argument,       'v' },
+    { "tap-path",  ko_optional_argument,  0  },
+    { "tap-name",  ko_optional_argument,  0  },
+    { "workers",   ko_optional_argument,  0  },
+    { "log-level", ko_optional_argument,  0  },
+    { "log-file",  ko_optional_argument,  0  },
+    { NULL,        0,                     0  }
+};
+
+int main(int argc, char *argv[]) {
     errval_t err;
+
+    ketopt_t opt = KETOPT_INIT;
+    int c;
+    char *tap_path = "/dev/net/tun", *tap_name = "tap0";
+    int workers = 8; // default number of workers
+    char *log_file = NULL;
+    int log_level = LOG_LEVEL_INFO; // default log level
+
+    while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
+        switch (c) {
+        case 'h': // Help
+            printf("Usage: %s [options]\n", argv[0]);
+            return 0;
+        case 'v': // Version
+            printf("Version 0.0.1\n");
+            return 0;
+        case 0: // Long options without a short equivalent
+            if (opt.longidx == 2) { // tap-path
+                tap_path = opt.arg;
+            } else if (opt.longidx == 3) { // tap-name
+                tap_name = opt.arg;
+            } else if (opt.longidx == 4) { // workers
+                workers = atoi(opt.arg);
+            } else if (opt.longidx == 5) { // log-level
+                log_level = atoi(opt.arg);
+            } else if (opt.longidx == 6) { // log-file
+                log_file = opt.arg;
+            }
+            break;
+        case '?': // Unknown option
+            printf("What do you want ?");
+            return 1;
+        default:
+            break;
+        }
+    }
+
+    //TODO: log initialization
+    (void) log_file;
+    (void) log_level;
 
     NetDevice* device = calloc(1, sizeof(NetDevice));
     assert(device);
-    //TODO: Parse it from command line
-    err = device_init(device, "/dev/net/tun", "tap0");
+    err = device_init(device, tap_path, tap_name);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the Network Device");
     }
@@ -51,8 +101,7 @@ int main(int argc, char* argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize the signals");
     }
 
-    ///TODO: parse argument in main.c to decide threadpool size
-    err = thread_pool_init(8);
+    err = thread_pool_init(workers);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the thread pool");
     }
