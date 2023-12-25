@@ -36,8 +36,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_ETHER_UNKNOWN_TYPE,      "Unknown Ethernet type other than ARP or IP") \
     X(NET_ERR_ARP_WRONG_FIELD,         "Wrong Field in ARP packet") \
     X(NET_ERR_ARP_WRONG_IP_ADDRESS,    "Wrong Destination IP address for the ARP request") \
-    X(NET_ERR_ARP_NO_MAC_ADDRESS,      "Can't find the MAC address given IP address") \
-    X(NET_ERR_IPv4_NO_MAC_ADDRESS,     "We don't have MAC address associated with given IPv4 address") \
+    X(NET_ERR_ARP_NO_MAC_ADDRESS,      "Can't find the MAC address of given IPv4 address") \
     X(NET_ERR_IPv4_WRONG_FIELD,        "Wrong Field in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_CHECKSUM,     "Wrong checksum in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
