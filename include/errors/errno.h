@@ -23,6 +23,8 @@ typedef uintptr_t errval_t;
     X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \
     X(EVENT_HASH_EXIST_ON_INSERT,     "The hash table is configure as none-overwritten for duplicated key")  \
     X(EVENT_HASH_NOT_EXIST,           "The element associated with the key doesn't exist in the hash table")  \
+    X(EVENT_LIST_EXIST_ON_INSERT,     "The add-only list is configure as none-overwritten for duplicated key")  \
+    X(EVENT_LIST_NOT_EXIST,           "The element associated with the key doesn't exist in the add-only list")  \
 
 #define NETWORK_ERR_CODES \
     X(NET_ERR_DEVICE_INIT,             "Can't initialize the network device") \
