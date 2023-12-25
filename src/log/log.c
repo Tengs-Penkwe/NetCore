@@ -50,7 +50,7 @@ static const char* module_to_string(enum log_module module) {
 
 void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
 {
-    static char buffer[1024]; 
+    char buffer[256]; 
     const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
 
     pid_t tid = syscall(SYS_gettid);

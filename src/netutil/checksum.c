@@ -80,7 +80,7 @@ uint16_t tcp_udp_checksum(const void *data_no_iph, struct pseudo_ip_header phead
     phdr.len_no_iph   = htons(pheader.len_no_iph);
 
     // Calculate the sum
-    static uint8_t buf[65536];
+    uint8_t buf[65536];     //TODO: don't use such a big stack !!
     memcpy(buf, &phdr, sizeof(phdr));
     memcpy(buf + sizeof(phdr), data_no_iph, pheader.len_no_iph );
 
