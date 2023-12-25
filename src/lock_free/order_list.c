@@ -1,7 +1,6 @@
 #include <lock_free/order_list.h>
 
 errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy policy) {
-
     switch (policy)
     {
     case LS_OVERWRITE_ON_EXIST:
@@ -13,7 +12,7 @@ errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy po
     case LS_FAIL_ON_EXIST:
         lfds711_list_aso_init_valid_on_current_logical_core(
             &list->list, cmp_func,
-            LFDS711_LIST_ASO_INSERT_RESULT_FAILURE_EXISTING_KEY,
+            LFDS711_LIST_ASO_EXISTING_KEY_FAIL,
             NULL);
         break;
     default:
@@ -65,7 +64,7 @@ errval_t list_get_by_key(OrdList* list, void* key, void** ret_data) {
 
     struct lfds711_list_aso_element *le = NULL;
 
-    if (lfds711_list_a_get_by_key(&list->list, key, &le) == 1) { // Found the element
+    if (lfds711_list_aso_get_by_key(&list->list, key, &le) == 1) { // Found the element
         assert(le);
         *ret_data = LFDS711_LIST_ASO_GET_VALUE_FROM_ELEMENT(*le);
         return SYS_ERR_OK;
