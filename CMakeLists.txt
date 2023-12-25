@@ -65,10 +65,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -
 # Common compile options for C++ files
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
 
-# Debug-specific compile options
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -O0")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
-
 # Define the executable
 add_executable(TCP-IP ${C_SOURCES} ${CPP_SOURCES})
 target_link_libraries(TCP-IP lfds711)
