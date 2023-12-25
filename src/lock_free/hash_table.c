@@ -67,7 +67,7 @@ errval_t hash_get_by_key(HashTable* hash, Hash_key key, void** ret_data) {
 
     struct lfds711_hash_a_element *he = NULL;
 
-    if (lfds711_hash_a_get_by_key(&hash->hash, key_compare_func, key_hash_func, &key, &he) == 1) { // Found the element
+    if (lfds711_hash_a_get_by_key(&hash->hash, key_compare_func, key_hash_func, (void*)key, &he) == 1) { // Found the element
         assert(he);
         *ret_data = LFDS711_HASH_A_GET_VALUE_FROM_ELEMENT(*he);
         return SYS_ERR_OK;

@@ -58,8 +58,6 @@ errval_t ethernet_marshal(
     
     data -= sizeof(struct eth_hdr);
     size += sizeof(struct eth_hdr);
-    LOG_ERR("HERE");
-    print_mac_address(&ether->mac);
 
     struct eth_hdr* packet = (struct eth_hdr*) data;
     *packet = (struct eth_hdr){
