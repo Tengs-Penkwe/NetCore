@@ -53,11 +53,11 @@ struct icmp_hdr {
 #define ICMPH_
 
 /// ECHO
-#define ICMPH_ECHO_ID(hdr)  (*(uint16_t*)((void*)(hdr) + 4))
-#define ICMPH_ECHO_SEQ(hdr) (*(uint16_t*)((void*)(hdr) + 6))
+#define ICMPH_ECHO_ID(hdr)  (*(uint16_t*)((uint8_t*)(hdr) + 4))
+#define ICMPH_ECHO_SEQ(hdr) (*(uint16_t*)((uint8_t*)(hdr) + 6))
 
-#define ICMPH_ECHO_ID_SET(hdr, id)  (*(uint16_t*)((void*)(hdr) + 4) = (id))
-#define ICMPH_ECHO_SEQ_SET(hdr,seq) (*(uint16_t*)((void*)(hdr) + 6) = (seq))
+#define ICMPH_ECHO_ID_SET(hdr, id)  (*(uint16_t*)((uint8_t*)(hdr) + 4) = (id))
+#define ICMPH_ECHO_SEQ_SET(hdr,seq) (*(uint16_t*)((uint8_t*)(hdr) + 6) = (seq))
 
 
 #endif

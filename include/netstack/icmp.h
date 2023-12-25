@@ -17,7 +17,7 @@ typedef struct icmp_data {
     union {
         struct icmp_echo echo;
     };
-    void* data;
+    uint8_t* data;
     uint32_t size;
 } __attribute__((__packed__)) ICMP_data;
 
@@ -32,7 +32,7 @@ errval_t icmp_send(
 );
 
 errval_t icmp_unmarshal(
-    ICMP* icmp, ip_addr_t src_ip, void* addr, size_t size
+    ICMP* icmp, ip_addr_t src_ip, uint8_t* addr, size_t size
 );
 
 
