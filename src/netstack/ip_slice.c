@@ -1,86 +1,79 @@
 #include "ip_slice.h"
+#include <event/timer.h>
+#include <event/threadpool.h>
 
-// static void check_get_mac(void* message) {
-//     LOG_TRIVIAL("check bind");
-//     errval_t err;
-//     IP_message* msg = message;
-//     IP* ip = msg->ip;
-//     assert(msg && ip);
+static void close_sending_message(void* send) {
+    IP_send* msg = send; assert(msg);
 
-//     mac_addr dst_mac = MAC_NULL;
-//     err = mac_lookup(ip, msg->sent.dst_ip, &dst_mac);
-//     if (err_no(err) == NET_ERR_IPv4_NO_MAC_ADDRESS) {
+    ip_msg_key_t msg_key = MSG_KEY(msg->dst_ip, msg->id);
+    // collections_hash_delete(ip->send_messages, msg_key);
+    (void) msg_key;
+    free(msg->data);
 
-//         LOG_INFO("Can't find the Corresponding IP address, sent request, retry later in %d ms", msg->sent.retry_interval);
-//         msg->sent.retry_interval *= 2;
-//         if (msg->sent.retry_interval >= IP_GIVEUP_SEND_US) goto close_message; 
+    IP_NOTE("Close sending a message"); 
+    USER_PANIC("NYI");
+}
 
-//         err = deferred_event_register(&msg->defer, ip->ws, msg->sent.retry_interval, MKCLOSURE(check_get_mac, (void*)msg));
-//         if (err_is_fail(err)) {
-//             free_message(msg);
-//             USER_PANIC_ERR(err, "We can't register a deferred event to deal with the IP message"
-//                                 "TODO: let's deal with it later");
-//         }
-//     } else if (err_is_fail(err)) {
+static void check_get_mac(void* send) {
+    IP_VERBOSE("Check if we got the MAC address");
+    errval_t err;
+    IP_send* msg = send; assert(msg);
+    IP* ip = msg->ip;    assert(ip);
 
-//         DEBUG_ERR(err, "Can't handle this binding error in a closure, but the process continue");
-//         goto close_message;
-//     } else {
-//         assert(maccmp(msg->sent.dst_mac, MAC_NULL));
-//         msg->sent.dst_mac = dst_mac;
+    assert(maccmp(msg->dst_mac, MAC_NULL));
+    err = mac_lookup(ip, msg->dst_ip, &msg->dst_mac);
+    if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
+
+        msg->retry_interval *= 2;
+        if (msg->retry_interval >= IP_GIVEUP_SEND_US) return close_sending_message();
+        IP_INFO("Can't find the Corresponding IP address, sent request, retry later in %d ms", msg->retry_interval / 1000);
+
+        submit_delayed_task(msg->retry_interval, MK_TASK(check_get_mac, (void*)msg));
+
+    } else if (err_is_fail(err)) {
+
+        DEBUG_ERR(err, "Can't handle this binding error in a closure, but the process continue");
+        return close_sending_message();
+
+    } else {
+        assert(!maccmp(msg->dst_mac, MAC_NULL));
         
-//         // Begin sending message
-//         msg->sent.retry_interval = IP_RETRY_SEND_US;
-//         assert(msg->id == 0);  // It should be the first message in this binding ?     
-//         err = deferred_event_register(&msg->defer, ip->ws, msg->sent.retry_interval, MKCLOSURE(check_send_message, (void*)msg));
-//         if (err_is_fail(err)) {
-//             free_message(msg);
-//             USER_PANIC_ERR(err, "We can't register a deferred event to deal with the IP message"
-//                                 "TODO: let's deal with it later");
-//         }
-//     }
-//     LOG_TRIVIAL("Exit check bind");
-//     return;
+        // Begin sending message
+        msg->retry_interval = IP_RETRY_SEND_US;
+        assert(msg->id == 0);  // It should be the first message in this binding since it requires MAC address
 
-// close_message:
-//     free_message((void*)msg);
-//     LOG_ERR("Can't get the ARP done, close sending a message"); 
-// }
+        submit_delayed_task(msg->retry_interval, MK_TASK(check_send_message, (void*)msg));
 
-// static void check_send_message(void* message) {
-//     LOG_TRIVIAL("Check sending a message");
-//     errval_t err;
-//     IP_message* msg = message;
-//     IP* ip = msg->ip;
-//     assert(msg && ip);
+    }
+    IP_VERBOSE("Exit check bind");
+    return;
+}
 
-//     if (msg->sent.retry_interval > IP_GIVEUP_SEND_US) goto close_message;
+static void check_send_message(void* send) {
+    IP_VERBOSE("Check sending a message");
+    errval_t err;
+    IP_send* msg = send; assert(msg);
+    IP* ip = msg->ip;    assert(ip);
 
-//     err = ip_send(msg);
-//     if (err_is_fail(err)) {
-//         DEBUG_ERR(err, "We failed sending an IP packet, but we won't give up, we will try another in %d milliseconds !", msg->sent.retry_interval / 1000);
-//         msg->sent.retry_interval *= 2;
-//     } 
+    if (msg->retry_interval > IP_GIVEUP_SEND_US) return close_sending_message();
+
+    err = ip_slice(msg);
+    if (err_is_fail(err)) {
+        msg->retry_interval *= 2;
+        DEBUG_ERR(err, "We failed sending an IP packet, but we won't give up, we will try another in %d milliseconds !", msg->retry_interval / 1000);
+    } 
     
-//     if (msg->sent.size == msg->whole_size) { // We are done sending !
-//         LOG_DEBUG("We done sending an IP message ! size: %d, retry interval in ms: %d", msg->whole_size, msg->sent.retry_interval / 1000);
-//         goto close_message;
-//     }
+    if (msg->sent_size == msg->whole_size) { // We are done sending !
+        IP_DEBUG("We done sending an IP message ! size: %d, retry interval in ms: %d", msg->whole_size, msg->retry_interval / 1000);
+        return close_sending_message();
+    }
 
-//     err = deferred_event_register(&msg->defer, ip->ws, msg->sent.retry_interval, MKCLOSURE(check_send_message, (void*)msg));
-//     if (err_is_fail(err)) {
-//         DEBUG_ERR(err, "We can't re-register ourselves sending message");
-//         goto close_message;
-//     }
+    //TODO: make it failable, 
+    submit_delayed_task(msg->retry_interval, MK_TASK(check_send_message, (void*)msg));
 
-//     LOG_TRIVIAL("Done Checking a sending message, ttl: %d us, whole size: %d, snet size: %d", msg->sent.retry_interval / 1000, msg->whole_size, msg->sent.size);
-//     return;
-
-// close_message:
-//     uint64_t msg_key = MSG_KEY(msg->sent.dst_ip, msg->id);
-//     collections_hash_delete(ip->send_messages, msg_key);
-//     LOG_ERR("Close sending a message"); 
-// }
+    IP_VERBOSE("Done Checking a sending message, ttl: %d us, whole size: %d, snet size: %d", msg->retry_interval / 1000, msg->whole_size, msg->sent_size);
+    return;
+}
 
 
 /// Assumption: sending is serial, there is only 1 thread sending a slice at one time

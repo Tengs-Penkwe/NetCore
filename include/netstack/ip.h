@@ -56,6 +56,10 @@ typedef struct ip_state {
     khash_t(ip_msg)  *send_messages;
 } IP;
 
+errval_t mac_lookup(
+    IP* ip, ip_addr_t dst_ip, mac_addr* dst_mac
+);
+
 errval_t ip_init(
     IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
 );
