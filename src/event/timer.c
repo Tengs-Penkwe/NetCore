@@ -69,7 +69,7 @@ void submit_delayed_task(delayed_us delay, Task task) {
     enqueue(&timer.queue, (void*)dt);
 
     /// Send the signal to timer
-    assert(pthread_kill(timer.thread, SIG_TELL_TIMER));
+    assert(pthread_kill(timer.thread, SIG_TELL_TIMER) == 0);
 }
 
 static void* timer_thread (void* arg) {
