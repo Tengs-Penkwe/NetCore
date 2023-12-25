@@ -28,6 +28,10 @@ errval_t thread_pool_init(size_t workers)
             return SYS_ERR_FAIL;
         }
     }
+    // 4. Wake up all workers 
+    for (size_t i = 0; i < workers; i++) {
+        sem_post(&pool.sem);
+    }
 
     LOG_INFO("Thread pool: %d initialized", workers);
     return SYS_ERR_OK;
@@ -43,9 +47,12 @@ void *thread_function(void* arg) {
     assert(arg == NULL);
     LOG_INFO("Pool Worker started !");
 
-    QUEUE_INIT_BARRIER;
-    Task *task = NULL;
+    // Initialization barrier for lock-free queue
+    QUEUE_INIT_BARRIER;    
+    // Wait until all workers are ready
+    sem_wait(&pool.sem);
 
+    Task *task = NULL;
     while(true) {
         if (dequeue(&pool.queue, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
             sem_wait(&pool.sem);
