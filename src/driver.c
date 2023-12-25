@@ -12,7 +12,7 @@ static errval_t signal_init(void) {
     // Initialize the signal set
     sigset_t set;
     sigemptyset(&set);
-    sigaddset(&set, SIG_TELL_TIMER);
+    // sigaddset(&set, SIG_TELL_TIMER);
     sigaddset(&set, SIG_TIGGER_SUBMIT);
 
     // Block The signal for timer

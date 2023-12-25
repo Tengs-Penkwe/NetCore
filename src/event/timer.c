@@ -12,45 +12,12 @@
 struct Timer timer;
 
 static void* timer_thread (void*) __attribute__((noreturn));
-static void time_to_submit_task(int sig, siginfo_t *si, void *uc);
-static void dequeue_delayed_tasks(void);
-
-static void dequeue_delayed_tasks(void) {
-    /// 1. dequeue the delayed event
-    Delayed_task* dt = NULL;
-
-    if (dequeue(&timer.queue, (void*)&dt) == EVENT_DEQUEUE_EMPTY) {
-        USER_PANIC_ERR(EVENT_DEQUEUE_EMPTY, "Received a signal, but there is no delayed task!");
-    }
-    assert(dt);
-
-    /// 2. Register the timed event to the signal
-    struct sigevent sev = { 0 };
-    sev.sigev_notify = SIGEV_SIGNAL;
-    sev.sigev_signo  = SIG_TIGGER_SUBMIT;
-    sev.sigev_value.sival_ptr = dt;
-
-    timer_t timerid;
-    /// 2.1 Create monontic timer (not real time) 
-    timer_create(CLOCK_MONOTONIC, &sev, &timerid);
-
-    struct itimerspec its = {
-        .it_value = {
-            .tv_sec  =  dt->delay / 1000000,         // Micro-second to Second
-            .tv_nsec = (dt->delay % 1000000) * 100,  // Left to Nano-second
-        },
-        .it_interval = { 0 },   // No repeat
-    };
-
-    timer_settime(timerid, 0, &its, NULL);
-}
 
 /// @brief      For Timer
 /// @param task 
-static void time_to_submit_task(int sig, siginfo_t *si, void *uc) {
-    assert(sig == SIG_TIGGER_SUBMIT);
-    (void) uc;
-    Delayed_task* dt = si->si_value.sival_ptr;
+static void time_to_submit_task(union sigval sig_data) {
+    TIMER_ERR("Wake !");
+    Delayed_task* dt = sig_data.sival_ptr;
     Task task = dt->task;
     submit_task(task);
     free(dt);
@@ -68,8 +35,7 @@ void submit_delayed_task(delayed_us delay, Task task) {
     };
     enqueue(&timer.queue, (void*)dt);
 
-    /// Send the signal to timer
-    assert(pthread_kill(timer.thread, SIG_TELL_TIMER) == 0);
+    sem_post(&timer.sem);
 }
 
 static void* timer_thread (void* arg) {
@@ -77,21 +43,41 @@ static void* timer_thread (void* arg) {
     TIMER_INFO("Timer thread started !");
     queue_init_barrier();
 
-    /// 1. Register the sigaction to receiver Timer's Signal: SIGUSER1
-    struct sigaction sa;
-    sa.sa_flags     = SA_SIGINFO;
-    sa.sa_sigaction = time_to_submit_task;
-    sigaction(SIG_TIGGER_SUBMIT, &sa, NULL);
-
-    /// 2. Set the signal set
-    sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, SIG_TELL_TIMER);
-    /// 2.1 wait for the signal from workers
-    int sig;
     while (true) {
-        sigwait(&set, &sig);
-        dequeue_delayed_tasks();
+        sem_wait(&timer.sem);
+
+        /// 1. dequeue the delayed event
+        Delayed_task* dt = NULL;
+
+        //TODO: test if the queue is empty
+        if (dequeue(&timer.queue, (void*)&dt) == EVENT_DEQUEUE_EMPTY) {
+            USER_PANIC_ERR(EVENT_DEQUEUE_EMPTY, "Received a signal, but there is no delayed task!");
+        }
+        assert(dt);
+
+        /// 2. Register the timed event to the signal
+        struct sigevent sev = { 0 };
+        sev.sigev_notify = SIGEV_SIGNAL;
+        sev.sigev_signo  = SIG_TIGGER_SUBMIT;
+        sev.sigev_value.sival_ptr = dt;
+
+        sev.sigev_notify = SIGEV_THREAD;
+        sev.sigev_notify_function = time_to_submit_task;
+        sev.sigev_value.sival_ptr = dt;
+
+        /// 2.1 Create monontic timer (not real time) 
+        timer_t timerid;
+        timer_create(CLOCK_MONOTONIC, &sev, &timerid);
+
+        struct itimerspec its = {
+            .it_value = {
+                .tv_sec  = (dt->delay / 1000000),        // Micro-second to Second
+                .tv_nsec = (dt->delay % 1000000) * 100,  // Left to Nano-second
+            },
+            .it_interval = { 0 },   // No repeat
+        };
+
+        timer_settime(timerid, 0, &its, NULL);
     }
 }
 
@@ -100,6 +86,11 @@ errval_t timer_thread_init(void) {
     err = queue_init(&timer.queue);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock-free queue for timer");
 
+    if (sem_init(&timer.sem, 0, 0) != 0) {
+        perror("Initializing semaphore for timer");
+        return SYS_ERR_INIT_FAIL;
+    }
+
     if (pthread_create(&timer.thread, NULL, timer_thread, NULL) != 0) {
         LOG_ERR("Can't create the timer thread");
         return SYS_ERR_FAIL;
@@ -107,4 +98,9 @@ errval_t timer_thread_init(void) {
 
     TIMER_INFO("Timer Module initialized");
     return SYS_ERR_OK;
+}
+
+void timer_thread_destroy(void) {
+    //TODO: free all the things
+    sem_destroy(&timer.sem);
 }

@@ -6,7 +6,7 @@
 #include "threadpool.h"
 #include <lock_free/queue.h>  // Lock-free structures
 
-#define SIG_TELL_TIMER      SIGUSR1
+// #define SIG_TELL_TIMER      SIGUSR1
 #define SIG_TIGGER_SUBMIT   SIGUSR2
 
 typedef uint64_t delayed_us;
@@ -17,6 +17,7 @@ typedef struct {
 } Delayed_task;
 
 struct Timer {
+    sem_t      sem;
     Queue      queue;
     pthread_t  thread;
 };
@@ -24,6 +25,7 @@ struct Timer {
 __BEGIN_DECLS
 
 errval_t timer_thread_init(void);
+void timer_thread_destroy(void);
 
 void submit_delayed_task(delayed_us delay, Task task);
 
