@@ -53,6 +53,7 @@ static void time_to_submit_task(int sig, siginfo_t *si, void *uc) {
     Delayed_task* dt = si->si_value.sival_ptr;
     Task task = dt->task;
     submit_task(task);
+    free(dt);
 }
 
 /// @brief      For Worker 
