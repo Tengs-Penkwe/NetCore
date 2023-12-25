@@ -23,7 +23,7 @@ errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy po
 
     list->policy = policy;
 
-    list_init_barrier();
+    LIST_INIT_BARRIER;
     ///TODO: we should use the barrier in other core, but due to the reality, we ignore it now
 
     return SYS_ERR_OK;

@@ -43,7 +43,7 @@ void *thread_function(void* arg) {
     assert(arg == NULL);
     LOG_INFO("Pool Worker started !");
 
-    queue_init_barrier();
+    QUEUE_INIT_BARRIER;
     Task *task = NULL;
 
     while(true) {

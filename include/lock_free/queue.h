@@ -22,10 +22,7 @@ typedef struct {
 
 __BEGIN_DECLS
 
-static inline void queue_init_barrier(void)
-{
-    LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE;
-}
+#define QUEUE_INIT_BARRIER LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
 
 errval_t queue_init(Queue* queue);
 void queue_destroy(Queue* queue);

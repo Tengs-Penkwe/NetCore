@@ -22,7 +22,7 @@ errval_t hash_init(HashTable* hash, enum hash_policy policy) {
 
     hash->policy = policy;
 
-    hash_init_barrier();
+    HASH_INIT_BARRIER;
 
     ///TODO: we should use the barrier in other core, but due to the reality, we ignore it now
     return SYS_ERR_OK;

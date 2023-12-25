@@ -48,10 +48,7 @@ static inline void key_hash_func(void const *key, lfds711_pal_uint_t *hash)
     return;
 }
 
-static inline void hash_init_barrier(void)
-{
-    LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE;
-}
+#define HASH_INIT_BARRIER LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
 
 errval_t hash_init(HashTable* hash, enum hash_policy policy);
 void hash_destroy(HashTable* hash);
