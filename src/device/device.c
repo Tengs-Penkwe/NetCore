@@ -1,5 +1,6 @@
 #include <device/device.h>
 #include <netutil/dump.h>
+#include <netutil/htons.h>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -73,7 +74,7 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
         perror("ioctl(SIOCGIFHWADDR)");
         return NET_ERR_DEVICE_GET_MAC;
     }
-    *ret_mac = mem2mac(device->ifr.ifr_hwaddr.sa_data);
+    *ret_mac = ntoh6(mem2mac(device->ifr.ifr_hwaddr.sa_data));
 
     return SYS_ERR_OK;
 }

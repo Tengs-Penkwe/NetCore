@@ -21,8 +21,7 @@ errval_t ethernet_init(
     assert(!maccmp(mac, MAC_NULL));
     ether->mac = mac;
 
-    ETHER_INFO("My MAC address is: ");
-    print_mac_address(&ether->mac);
+    ETHER_INFO("My MAC address is: %lX", frommac(ether->mac));
 
     // 2. Set the IP address
     /// TODO: dynamic IP using DHCP
