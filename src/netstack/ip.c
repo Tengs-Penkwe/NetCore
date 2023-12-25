@@ -435,10 +435,8 @@ static errval_t ip_handle(IP_message* msg) {
     switch (msg->proto) {
     case IP_PROTO_ICMP:
         IP_VERBOSE("Received a ICMP packet");
-LOG_ERR("msg: %p, seg: %p, data: %p", msg, msg->seg, msg->data);
         err = icmp_unmarshal(msg->ip->icmp, msg->recvd.src_ip, msg->data, msg->recvd.size);
         RETURN_ERR_PRINT(err, "Error when unmarshalling an ICMP message");
-LOG_ERR("msg: %p, seg: %p, data: %p", msg, msg->seg, msg->data);
         break;
     case IP_PROTO_UDP:
         IP_VERBOSE("Received a UDP packet");
