@@ -117,8 +117,9 @@ static errval_t mac_lookup(
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't get the corresponding MAC address of IP address");
         errval_t error = arp_send(ip->arp, ARP_OP_REQ, dst_ip, MAC_BROADCAST);
-        DEBUG_ERR(error, "I Can't even send an ARP request after I can't find the MAC for given IP");
-        return err_push(err, NET_ERR_IPv4_NO_MAC_ADDRESS);
+        if (err_is_fail(error)) 
+            DEBUG_ERR(error, "I Can't even send an ARP request after I can't find the MAC for given IP");
+        return err;
     }
 
     assert(!(maccmp(*dst_mac, MAC_NULL) || maccmp(*dst_mac, MAC_BROADCAST)));
@@ -129,7 +130,7 @@ static errval_t mac_lookup(
 errval_t ip_init(
     IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
 ) {
-    // errval_t err;
+    errval_t err;
     assert(ip && ether && arp);
 
     ip->ip = my_ip;
@@ -137,6 +138,7 @@ errval_t ip_init(
     ip->arp = arp;
 
     ip->seg_count = 0;
+
     if (pthread_mutex_init(&ip->recv_mutex, NULL) != 0) {
         ARP_ERR("Can't initialize the mutex for IP");
         return SYS_ERR_FAIL;
@@ -145,10 +147,10 @@ errval_t ip_init(
     ip->recv_messages = kh_init(ip_msg);
     ip->send_messages = kh_init(ip_msg);
 
-    // ip->icmp = calloc(1, sizeof(ICMP));
-    // assert(ip->icmp);
-    // err = icmp_init(ip->icmp, ip);
-    // RETURN_ERR_PRINT(err, "Can't initialize global ICMP state");
+    ip->icmp = calloc(1, sizeof(ICMP));
+    assert(ip->icmp);
+    err = icmp_init(ip->icmp, ip);
+    RETURN_ERR_PRINT(err, "Can't initialize global ICMP state");
 
     // ip->udp = calloc(1, sizeof(UDP));
     // assert(ip->udp);
@@ -400,7 +402,7 @@ errval_t ip_unmarshal(
     ip_addr_t src_ip = ntohl(packet->src);
     mac_addr src_mac = MAC_NULL;
     err = mac_lookup(ip, src_ip, &src_mac);
-    if (err_no(err) == NET_ERR_IPv4_NO_MAC_ADDRESS) {
+    if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
         USER_PANIC_ERR(err, "You received a message, but you don't know the IP-MAC pair ?");
     } else
         RETURN_ERR_PRINT(err, "Can't find binding for given IP address");
@@ -426,16 +428,17 @@ errval_t ip_unmarshal(
  * 
  * @return Returns error code indicating success or failure.
  */
-__attribute_maybe_unused__
 static errval_t ip_handle(IP_message* msg) {
-    // errval_t err;
+    errval_t err;
     IP_VERBOSE("An IP Message has been assemble, now let's process it");
 
     switch (msg->proto) {
     case IP_PROTO_ICMP:
         IP_VERBOSE("Received a ICMP packet");
-        // err = icmp_unmarshal(msg->ip->icmp, msg->recvd.src_ip, msg->, msg->recvd.size);
-        // RETURN_ERR_PRINT(err, "Error when unmarshalling an ICMP message");
+LOG_ERR("msg: %p, seg: %p, data: %p", msg, msg->seg, msg->data);
+        err = icmp_unmarshal(msg->ip->icmp, msg->recvd.src_ip, msg->data, msg->recvd.size);
+        RETURN_ERR_PRINT(err, "Error when unmarshalling an ICMP message");
+LOG_ERR("msg: %p, seg: %p, data: %p", msg, msg->seg, msg->data);
         break;
     case IP_PROTO_UDP:
         IP_VERBOSE("Received a UDP packet");
@@ -457,5 +460,145 @@ static errval_t ip_handle(IP_message* msg) {
     }
 
     IP_VERBOSE("Done unmarshalling a IPv4 message");
+    return SYS_ERR_OK;
+}
+
+static errval_t ip_send(
+    IP* ip, const ip_addr_t dst_ip, const mac_addr dst_mac,
+    const uint16_t id, const uint8_t proto,
+    const uint8_t *data, const uint32_t sent_size, const uint32_t whole_size)
+{
+    errval_t err;
+
+    int size_left = (int)(whole_size - sent_size);
+
+    // 1. Marshal the Ethernet packet
+    int offset = sent_size;   assert(offset >= 0 && offset % 8 == 0);
+    const size_t seg_size = size_left < (int)IP_MTU ? (size_t)size_left : IP_MTU;
+    const size_t pkt_size = seg_size + sizeof(struct ip_hdr);
+    offset /= 8;
+
+    uint16_t flag_offset = offset & IP_OFFMASK;
+    // Reserved Field should be 0
+    OFFSET_RF_SET(flag_offset, 0);
+    ///TODO: come with a threashold to set this flag
+    OFFSET_DF_SET(flag_offset, 0);
+    // More Fragment Field should be 0 for last fragementation
+    if (size_left <= (int)IP_MTU) OFFSET_MF_SET(flag_offset, 0);    
+    else                          OFFSET_MF_SET(flag_offset, 1);
+    
+    // 2. Prepare the send buffer
+    uint8_t* data_to_send = NULL;
+    if (sent_size == 0 && size_left <= (int)IP_MTU) { // Means we don't do copy, send directly
+        data_to_send = (uint8_t*)data;
+        ///ALARM: should have reserved space before !
+        data_to_send -= sizeof(struct ip_hdr);
+    } else {
+        data_to_send = malloc(pkt_size);
+        memcpy(data_to_send + sizeof(struct ip_hdr), data + offset, pkt_size);
+    }
+
+    // 3. Fill the header
+    struct ip_hdr *packet = (struct ip_hdr*) data_to_send;
+    *packet = (struct ip_hdr) {
+        .ihl     = 0x5,
+        .version = 0x4,
+        .tos     = 0x00,
+        .len     = htons(pkt_size),
+        .id      = htons(id),
+        .offset  = htons(flag_offset),
+        .ttl     = 0xFF,
+        .proto   = proto,
+        .chksum  = 0,
+        .src     = htonl(ip->ip),
+        .dest    = htonl(dst_ip),
+    };
+    uint16_t checksum = inet_checksum(packet, sizeof(struct ip_hdr));
+    packet->chksum = checksum;
+
+    // 4. Send the packet
+    err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, (uint8_t*)packet, pkt_size);
+    RETURN_ERR_PRINT(err, "Can't send the IPv4 packet");
+
+    IP_VERBOSE("End sending IP Message");
+    return SYS_ERR_OK;
+}
+
+errval_t ip_marshal(    
+    IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const size_t size
+) {
+    errval_t err;
+    IP_DEBUG("Sending a message, ip:%p, dst_ip: %p, data: %p, size: %d ", ip, dst_ip, data, size);
+    assert(ip && data);
+
+    // 1. Assign ID
+    uint16_t id = (uint16_t) atomic_fetch_add(&ip->seg_count, 1);
+
+    // 2. Get destination MAC
+    mac_addr dst_mac =  MAC_NULL;
+    err = mac_lookup(ip, dst_ip, &dst_mac);
+    if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
+        USER_PANIC_ERR(err, "TODO: add get MAC logic");
+    } else if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't establish binding for given IP address");
+        return err;
+    } 
+    assert(!maccmp(dst_mac, MAC_NULL));
+
+    if (size < IP_MTU) { // Don't need to create IP_message structure
+        err = ip_send(ip, dst_ip, dst_mac, id, proto,
+                      data, // ALARM: Should have reserved space before
+                      0, size);
+        RETURN_ERR_PRINT(err, "Can't send the non-segmented IP packet");
+    }
+
+    // // 2. Avoid duplication
+    // uint64_t msg_key = MSG_KEY(dst_ip, id);
+    // IP_message* msg = collections_hash_find(ip->send_messages, msg_key);
+    // assert(msg == NULL);    // Must be null, since we don't have a binding
+
+    // // 2.1 Create the message
+    // msg = calloc(1, sizeof(IP_message));
+    // assert(msg);
+    // *msg = (IP_message) {
+    //     .ip         = ip,
+    //     .proto      = proto,
+    //     .id         = id,
+    //     .whole_size = size,
+    //     .alloc_size = size,  // Redundant
+    //     .data       = data,
+    //     .sent       = { 
+    //         .size   = 0, 
+    //         .retry_interval = IP_RETRY_SEND_US,
+    //         .dst_ip  = dst_ip,
+    //         .dst_mac = MAC_NULL,
+    //     },
+    // };
+    // assert(msg->data);
+
+    // // 2.2 Add it to the hash table
+    // collections_hash_insert(ip->send_messages, msg_key, msg);
+
+    // // 3. Try to find the MAC
+    // mac_addr dst_mac =  MAC_NULL;
+    // err = mac_lookup(ip, dst_ip, &dst_mac);
+    // if (err_no(err) == NET_ERR_IPv4_NO_MAC_ADDRESS) {
+
+    //     LOG_INFO("We don't have MAC for this IP: %p", dst_ip);
+    //     msg->sent.retry_interval = ARP_WAIT_US;
+
+    //     // Register Evenet to check later
+    //     err = deferred_event_register(&msg->defer, ip->ws, msg->sent.retry_interval, MKCLOSURE(check_get_mac, (void*)msg));
+    //     if (err_is_fail(err)) {
+    //         free_message(msg);
+    //         USER_PANIC_ERR(err, "We can't register a deferred event to deal with the IP message\n TODO: let's deal with it later");
+    //     }
+    // } else if (err_is_fail(err)) {
+    //     DEBUG_ERR(err, "Can't establish binding for given IP address");
+    //     return err;
+    // } else {
+    //     msg->sent.dst_mac = dst_mac;
+    //     check_send_message((void *)msg);
+    // }
     return SYS_ERR_OK;
 }
