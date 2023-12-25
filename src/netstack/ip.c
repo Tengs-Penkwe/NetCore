@@ -243,7 +243,7 @@ static errval_t ip_assemble(
         };
 
         ///TODO: What if 2 threads received duplicate segmentation at the same time ?
-        if (no_frag == 0 || (more_frag == 0 && offset == 0)) { // Which means this isn't a segmented packet
+        if (no_frag == 1 || (more_frag == 0 && offset == 0)) { // Which means this isn't a segmented packet
             assert(offset == 0 && more_frag == 0);
 
             msg->data = addr;
@@ -269,11 +269,15 @@ static errval_t ip_assemble(
         pthread_mutex_lock(&ip->recv_mutex);
         int ret;
         key = kh_put(ip_msg, ip->recv_messages, msg_key, &ret); 
-        if (!ret) { // Can't put key into hash table
-            kh_del(ip_msg, ip->recv_messages, key);
+        switch (ret) {
+        case -1:    // The operation failed
             pthread_mutex_unlock(&ip->recv_mutex);
-            ///TODO: deal with this error
             USER_PANIC("Can't add a new message with seqno: %d to hash table", id);
+        case 1:     // the bucket is empty 
+        case 2:     // the element in the bucket has been deleted 
+        case 0: 
+            break;
+        default:    USER_PANIC("Can't be this case: %d", ret);
         }
         // Set the value of key
         kh_value(ip->recv_messages, key) = msg;
