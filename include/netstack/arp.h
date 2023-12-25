@@ -19,6 +19,7 @@ typedef struct arp_state {
 
 #define ARP_HASH_KEY(ip)   (Hash_key)(ip)
 static_assert(sizeof(Hash_key) == sizeof(void*));
+static_assert(sizeof(void*)    >= sizeof(mac_addr));
 
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip

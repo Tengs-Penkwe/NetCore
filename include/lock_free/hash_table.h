@@ -21,6 +21,8 @@ typedef struct {
 
 typedef uint64_t Hash_key;
 
+static_assert(sizeof(Hash_key) == sizeof(void*));
+
 __BEGIN_DECLS
 
 static inline int key_compare_func(void const *new_key, void const *existing_key)
