@@ -103,7 +103,6 @@ static inline void close_message(void* message) {
 
     assert(msg->seg == NULL);
     // Free the message itself and set it to NULL
-    LOG_ERR("HERE: message %p", message);
     free(message);
     message = NULL;
 }
@@ -243,8 +242,8 @@ static errval_t ip_assemble(
         };
 
         ///TODO: What if 2 threads received duplicate segmentation at the same time ?
-        if (no_frag == 1 || (more_frag == 0 && offset == 0)) { // Which means this isn't a segmented packet
-            assert(offset == 0 && more_frag == 0);
+        if (no_frag == true || (more_frag == false && offset == 0)) { // Which means this isn't a segmented packet
+            assert(offset == 0 && more_frag == false);
 
             msg->data = addr;
             assert(msg->alloc_size == 0);
@@ -263,6 +262,7 @@ static errval_t ip_assemble(
 
         // Root of AVL tree
         msg->seg = malloc(sizeof(Mseg));  assert(msg->seg);
+        msg->seg->offset = offset;
 
         ///TODO: Should I lock it before kh_get, if thread A is changing the hash table while thread
         // B is reading it, will it cause problem ? 
@@ -289,19 +289,20 @@ static errval_t ip_assemble(
         assert(msg->proto == proto);
         ///ALARM: global state, also modified in check_recvd_message
         msg->recvd.times_to_live /= 1.5;  // We got 1 more packet, wait less time
-    }
 
-    Mseg* seg = malloc(sizeof(Mseg)); assert(seg);
-    seg->offset = offset;
-    if (seg != Mseg_insert(&msg->seg, seg)) { // Already exists !
-        IP_ERR("We have duplicate IP message segmentation");
-        free(seg);
-        return NET_ERR_IPv4_DUPLITCATE_SEG;
+        Mseg* seg = malloc(sizeof(Mseg)); assert(seg);
+        seg->offset = offset;
+        if (seg != Mseg_insert(&msg->seg, seg)) { // Already exists !
+            IP_ERR("We have duplicate IP message segmentation with offset: %d", seg->offset);
+            dump_ipv4_header((const struct ip_hdr*) (addr - sizeof(struct ip_hdr)));
+            free(seg);
+            return NET_ERR_IPv4_DUPLITCATE_SEG;
+        }
     }
 
     uint32_t needed_size = offset + size;
     // If this the laset packet, we now know the final size
-    if (more_frag == 0) {
+    if (more_frag == false) {
         assert(no_frag == false);
         assert(msg->whole_size == SIZE_DONT_KNOW);
         msg->whole_size = offset + size;
@@ -322,8 +323,10 @@ static errval_t ip_assemble(
 
     // If the message is complete, we trigger the check message,
     if (msg->recvd.size == msg->whole_size) {
+        IP_ERR("Completed");
         check_recvd_message((void*) msg);
     } else {
+        IP_WARN("Later");
         submit_delayed_task(msg->recvd.times_to_live, MK_TASK(check_recvd_message, (void*)msg));
     }
     
