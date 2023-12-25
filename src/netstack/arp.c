@@ -7,16 +7,15 @@
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip
 ) {
+    errval_t err;
     assert(arp && ether);
     arp->ether = ether;
     arp->ip = ip;
-    arp->hosts = kh_init(ip_mac); 
 
-    if (pthread_mutex_init(&arp->mutex, NULL) != 0) {
-        ARP_ERR("Can't initialize the mutex for ARP");
-        return SYS_ERR_FAIL;
-    }
+    err = hash_init(&arp->hosts, FAIL_ON_EXIST);
+    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
+    ARP_INFO("ARP Module initialized");
     return SYS_ERR_OK;
 }
 
@@ -55,27 +54,19 @@ void arp_register(
     ARP* arp, ip_addr_t ip, mac_addr mac 
 ) {
     assert(arp);
-    khint_t key;
-    
-    // Try to find if it already exists
-    if (kh_get(ip_mac, arp->hosts, ip) != kh_end(arp->hosts)) { // Already exists
-        ARP_INFO("The IP-MAC pair already exists!");
-        return;
-    }
-    ///TODO: Should I lock it before kh_get, if thread A is changing the hash table while thread
-    // B is reading it, will it cause problem ? 
-    pthread_mutex_lock(&arp->mutex);
+    // assert(!maccmp(mac, MAC_NULL));
+    // assert(!maccmp(mac, MAC_BROADCAST))
 
-    int ret;
-    key = kh_put(ip_mac, arp->hosts, ip, &ret); 
-    if (!ret) { // Can't put key into hash table
-        kh_del(ip_mac, arp->hosts, key);
-        ARP_ERR("Can't add a new key to IP-MAC hash table");
-    }
-    // Set the value of key
-    kh_value(arp->hosts, key) = mac;
+    // in 64-bit machine, a pointer is big enough to store the mac_addr, so we cast the value mac to a void pointer, not its address
+    void* macaddr_as_pointer = NULL;
+    memcpy(&macaddr_as_pointer, &mac, sizeof(mac_addr));
 
-    pthread_mutex_unlock(&arp->mutex);
+    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer);
+    if (err_no(err) == EVENT_HASH_EXIST_ON_INSERT) {
+        ARP_INFO("The IP-MAC pair already exists");
+    } else if (err_is_fail(err)) {
+        DEBUG_ERR(err, "ARP can't insert this IP-MAC to the hash table !");
+    }
 }
 
 errval_t arp_lookup_ip (
@@ -90,14 +81,15 @@ errval_t arp_lookup_mac(
     ARP* arp, ip_addr_t ip, mac_addr* ret_mac
 ) {
     assert(arp && ret_mac);
+    errval_t err;
+    void* macaddr_as_pointer = NULL;
 
-    khint_t key = kh_get(ip_mac, arp->hosts, ip);
-    if (key == kh_end(arp->hosts)) { //Doesn't exist
-        ARP_NOTE("The MAC address of wanted IP doesn't exist!");
-        print_ip_address(ip);
-        return NET_ERR_ARP_NO_MAC_ADDRESS;
-    }
-    *ret_mac = kh_value(arp->hosts, key);
+    err = hash_get_by_key(&arp->hosts, ARP_HASH_KEY(ip), &macaddr_as_pointer);
+    RETURN_ERR_PRINT(err, "Can't find the MAC address of given IPv4 address");
+
+    assert(macaddr_as_pointer);
+    *ret_mac = voidptr2mac(macaddr_as_pointer);
+
     return SYS_ERR_OK;
 }
 

@@ -25,8 +25,8 @@ errval_t ethernet_init(
     /// TODO: dynamic IP using DHCP
     ip_addr_t my_ip = 0x0A00020F;
 
-    // 3. Set up the ARP
-    ether->arp = calloc(1, sizeof(ARP));
+    // 3. Set up the ARP: it contains the lock free hash table, which must be 128-bytes aligned
+    ether->arp = aligned_alloc(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES, sizeof(ARP));
     if (ether->arp == NULL) {
         USER_PANIC("Failed to allocate the ARP");
     }

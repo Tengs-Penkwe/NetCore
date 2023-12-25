@@ -2,22 +2,23 @@
 #define __VNET_ARP__
 
 #include <netutil/ip.h>
-#include "khash.h"
 #include <pthread.h>
+#include <lock_free/hash_table.h>
 
 __BEGIN_DECLS
 
-/// The hash table of IP-MAC
-KHASH_MAP_INIT_INT(ip_mac, mac_addr) 
 /// Forward Declaration
 typedef struct ethernet_state Ethernet;
 
 typedef struct arp_state {
-    struct ethernet_state *ether;
-    ip_addr_t              ip;
-    pthread_mutex_t        mutex;
-    khash_t(ip_mac)       *hosts;   
+    alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) 
+        HashTable hosts;    // Must be 128-bytes aligned
+    Ethernet     *ether;
+    ip_addr_t     ip;
 } ARP;
+
+#define ARP_HASH_KEY(ip)   (Hash_key)(ip)
+static_assert(sizeof(Hash_key) == sizeof(void*));
 
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip
