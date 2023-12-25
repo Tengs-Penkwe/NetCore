@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
 
     device_loop(device, ether);
 
-    LOG_ERR("Ending !");
+    LOG_ERR("Ending TODO: free resources!");
 
     //TODO: join all the worker in thread pool
     //TODO: Ethernet Destroy
