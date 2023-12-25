@@ -96,12 +96,14 @@ static inline void close_message(void* message) {
         // Free the allocated data:
         free(msg->data);
         // if message come here directly, data should be free'd in lower module
+
+        // Destroy mutex
+        pthread_mutex_destroy(&msg->mutex);
     }
 
     assert(msg->seg == NULL);
-    // Destroy mutex
-    pthread_mutex_destroy(&msg->mutex);
     // Free the message itself and set it to NULL
+    LOG_ERR("HERE: message %p", message);
     free(message);
     message = NULL;
 }
@@ -214,7 +216,7 @@ static errval_t ip_assemble(
 ) {
     // errval_t err;
     assert(ip && addr);
-    IP_DEBUG("Assembling a message, ID: %d, addr: %p, size: %d, offset: %d, more_frag: %d", id, addr, size, offset, more_frag);
+    IP_DEBUG("Assembling a message, ID: %d, addr: %p, size: %d, offset: %d, no_frag: %d, more_frag: %d", id, addr, size, offset, no_frag, more_frag);
 
     ip_msg_key_t msg_key = MSG_KEY(src_ip, id);
     IP_message* msg = NULL;
@@ -223,7 +225,7 @@ static errval_t ip_assemble(
     khint64_t key = kh_get(ip_msg, ip->recv_messages, msg_key);
     // Try to find if it already exists
     if (key == kh_end(ip->recv_messages)) {  // This message doesn't exist yet
-        msg = calloc(1, sizeof(IP_message)); assert(msg);
+        msg = malloc(sizeof(IP_message)); assert(msg);
         *msg = (IP_message) {
             .ip         = ip,
             .proto      = proto,
@@ -285,7 +287,7 @@ static errval_t ip_assemble(
         msg->recvd.times_to_live /= 1.5;  // We got 1 more packet, wait less time
     }
 
-    Mseg* seg = calloc(1, sizeof(Mseg)); assert(seg);
+    Mseg* seg = malloc(sizeof(Mseg)); assert(seg);
     seg->offset = offset;
     if (seg != Mseg_insert(&msg->seg, seg)) { // Already exists !
         IP_ERR("We have duplicate IP message segmentation");
