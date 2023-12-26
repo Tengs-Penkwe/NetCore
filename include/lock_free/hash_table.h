@@ -6,6 +6,7 @@
 #include "liblfds711.h"  // Lock-free structures
 
 #define HASH_BUCKETS      64
+#define INIT_FREE         64    
 
 enum hash_policy {
     HS_OVERWRITE_ON_EXIST,
@@ -17,6 +18,8 @@ typedef struct {
         struct lfds711_hash_a_state    hash;
     alignas(ATOMIC_ISOLATION) 
         struct lfds711_btree_au_state  buckets[HASH_BUCKETS];
+    alignas(ATOMIC_ISOLATION)
+        struct lfds711_freelist_state  freelist;
     enum hash_policy                   policy;
 } HashTable __attribute__((aligned(ATOMIC_ISOLATION))); 
 

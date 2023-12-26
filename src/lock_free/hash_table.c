@@ -1,6 +1,14 @@
 #include <lock_free/hash_table.h>
 
 errval_t hash_init(HashTable* hash, enum hash_policy policy) {
+    
+    if (((uintptr_t)&hash->hash % ATOMIC_ISOLATION != 0)    ||
+        ((uintptr_t)&hash->buckets % ATOMIC_ISOLATION != 0) ||
+        ((uintptr_t)&hash->freelist % ATOMIC_ISOLATION != 0) 
+    ) {
+        return SYS_ERR_BAD_ALIGNMENT;
+    }
+
     switch (policy)
     {
     case HS_OVERWRITE_ON_EXIST:
@@ -20,6 +28,17 @@ errval_t hash_init(HashTable* hash, enum hash_policy policy) {
         return SYS_ERR_FAIL;
     }
 
+    // 2. Initialize the free list
+    lfds711_freelist_init_valid_on_current_logical_core(&hash->freelist, NULL, 0, NULL);
+    
+    struct lfds711_freelist_element* fe = calloc(INIT_FREE, sizeof(struct lfds711_freelist_element));
+    for (int i = 0; i < INIT_FREE; i++) {
+        struct lfds711_hash_a_element* he = aligned_alloc(ATOMIC_ISOLATION, sizeof(struct lfds711_hash_a_element));
+        memset(he, 0x00, sizeof(struct lfds711_hash_a_element));
+        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(fe[i], he);
+        lfds711_freelist_push(&hash->freelist, &fe[i], NULL);
+    }
+
     hash->policy = policy;
     ///TODO: we should use the barrier in other core, but due to the reality, we ignore it now
     return SYS_ERR_OK;
@@ -27,13 +46,20 @@ errval_t hash_init(HashTable* hash, enum hash_policy policy) {
 
 void hash_destroy(HashTable* hash) {
     assert(hash);
-    LOG_ERR("Clean it");
+    LOG_ERR("Clean it"
+    "1. free the freelist and all elements inside"
+    );
 }
 
 errval_t hash_insert(HashTable* hash, Hash_key key, void* data) {
     // TODO: have some pre-allocated structure to avoid malloc-free costs for duplicated key ?
     // Likely, it should be a free list
-    struct lfds711_hash_a_element* he = aligned_alloc(ATOMIC_ISOLATION, sizeof(struct lfds711_hash_a_element));
+    struct lfds711_freelist_element* fe = NULL;
+    if (lfds711_freelist_pop(&hash->freelist, &fe, NULL) == 0) {
+        USER_PANIC("Can't be this case, we refill after using it");
+    }
+    struct lfds711_hash_a_element* he = LFDS711_FREELIST_GET_VALUE_FROM_ELEMENT(*fe);
+    assert(he);
 
     LFDS711_HASH_A_SET_KEY_IN_ELEMENT(*he, key);
     LFDS711_HASH_A_SET_VALUE_IN_ELEMENT(*he, data);
@@ -44,6 +70,9 @@ errval_t hash_insert(HashTable* hash, Hash_key key, void* data) {
     switch (result)
     {
     case LFDS711_HASH_A_PUT_RESULT_SUCCESS:
+        he = aligned_alloc(ATOMIC_ISOLATION, sizeof(struct lfds711_hash_a_element));
+        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(*fe, he);
+        lfds711_freelist_push(&hash->freelist, fe, NULL);
         break;
     case LFDS711_HASH_A_PUT_RESULT_SUCCESS_OVERWRITE:
         assert(hash->policy == HS_OVERWRITE_ON_EXIST);
@@ -51,7 +80,7 @@ errval_t hash_insert(HashTable* hash, Hash_key key, void* data) {
         break;
     case LFDS711_HASH_A_PUT_RESULT_FAILURE_EXISTING_KEY:
         assert(hash->policy == HS_FAIL_ON_EXIST);
-        free(he);   //TODO: eliminate the cost of malloc+free for duplicated key
+        lfds711_freelist_push(&hash->freelist, fe, NULL);
         return EVENT_HASH_EXIST_ON_INSERT;
     default:
         USER_PANIC("unknown result: %d", result);
