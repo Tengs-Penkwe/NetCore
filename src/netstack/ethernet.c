@@ -28,7 +28,7 @@ errval_t ethernet_init(
     ip_addr_t my_ip = 0x0A00020F;
 
     // 3. Set up the ARP: it contains the lock free hash table, which must be 128-bytes aligned
-    ether->arp = aligned_alloc(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES, sizeof(ARP));
+    ether->arp = aligned_alloc(HASH_ALIGN, sizeof(ARP));
     if (ether->arp == NULL) {
         USER_PANIC("Failed to allocate the ARP");
     }
@@ -45,6 +45,17 @@ errval_t ethernet_init(
 
     ETHER_INFO("Ethernet Moule initialized");
     return SYS_ERR_OK;
+}
+
+void ethernet_destroy(
+    Ethernet* ether
+) {
+    assert(ether);
+    
+    arp_destroy(ether->arp);
+    ip_destroy(ether->ip);
+
+    LOG_ERR("NYI");
 }
 
 errval_t ethernet_marshal(
@@ -75,7 +86,7 @@ errval_t ethernet_unmarshal(
     Ethernet* ether, uint8_t* data, size_t size
 ) {
     errval_t err;
-    struct eth_hdr* packet = (struct eth_hdr*) data;
+    struct eth_hdr *packet = (struct eth_hdr *)data;
     ETHER_VERBOSE("Unmarshalling %d bytes at %p", size, data);
 
     /// 1. Decide if the packet is for us

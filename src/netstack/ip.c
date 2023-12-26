@@ -9,25 +9,6 @@
 #include "ip_gather.h"
 #include "ip_slice.h"
 
-errval_t mac_lookup(
-    IP* ip, ip_addr_t dst_ip, mac_addr* dst_mac
-) {
-    errval_t err;
-    assert(ip);
-
-    err = arp_lookup_mac(ip->arp, dst_ip, dst_mac);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "Can't get the corresponding MAC address of IP address");
-        errval_t error = arp_send(ip->arp, ARP_OP_REQ, dst_ip, MAC_BROADCAST);
-        if (err_is_fail(error)) 
-            DEBUG_ERR(error, "I Can't even send an ARP request after I can't find the MAC for given IP");
-        return err;
-    }
-
-    assert(!(maccmp(*dst_mac, MAC_NULL) || maccmp(*dst_mac, MAC_BROADCAST)));
-
-    return SYS_ERR_OK;
-}
 
 errval_t ip_init(
     IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
@@ -65,6 +46,17 @@ errval_t ip_init(
 
     IP_INFO("IP Module initialized");
     return SYS_ERR_OK;
+}
+
+void ip_destroy(
+    IP* ip
+) {
+    assert(ip);
+    
+    pthread_mutex_destroy(&ip->mutex);
+    free(ip);
+    
+    IP_ERR("NYI");
 }
 
 errval_t ip_unmarshal(
@@ -138,7 +130,7 @@ errval_t ip_unmarshal(
     // 2.1 Find or Create the binding
     ip_addr_t src_ip = ntohl(packet->src);
     mac_addr src_mac = MAC_NULL;
-    err = mac_lookup(ip, src_ip, &src_mac);
+    err = mac_lookup_and_send(ip->arp, src_ip, &src_mac);
     if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
         USER_PANIC_ERR(err, "You received a message, but you don't know the IP-MAC pair ?");
     } else
@@ -162,7 +154,7 @@ errval_t ip_marshal(
     IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const size_t size
 ) {
     errval_t err;
-    IP_DEBUG("Sending a message, ip:%p, dst_ip: %p, data: %p, size: %d ", ip, dst_ip, data, size);
+    IP_DEBUG("Sending a message, dst_ip: %p, data: %p, size: %d", dst_ip, data, size);
     assert(ip && data);
 
     // 1. Assign ID
@@ -170,7 +162,7 @@ errval_t ip_marshal(
 
     // 2. Get destination MAC
     mac_addr dst_mac =  MAC_NULL;
-    err = mac_lookup(ip, dst_ip, &dst_mac);
+    err = mac_lookup_and_send(ip->arp, dst_ip, &dst_mac);
     if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
         USER_PANIC_ERR(err, "TODO: add get MAC logic");
     } else if (err_is_fail(err)) {
@@ -215,7 +207,7 @@ errval_t ip_marshal(
 
     // // 3. Try to find the MAC
     // mac_addr dst_mac =  MAC_NULL;
-    // err = mac_lookup(ip, dst_ip, &dst_mac);
+    // err = mac_lookup_and_send(ip->arp, dst_ip, &dst_mac);
     // if (err_no(err) == NET_ERR_IPv4_NO_MAC_ADDRESS) {
 
     //     LOG_INFO("We don't have MAC for this IP: %p", dst_ip);

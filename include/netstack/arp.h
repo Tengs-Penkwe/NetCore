@@ -25,6 +25,10 @@ errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip
 );
 
+void arp_destroy(
+    ARP* arp
+);
+
 #define ARP_RESERVE_SIZE  sizeof(struct eth_hdr)
 errval_t arp_send(
     ARP* arp, uint16_t opration,
@@ -33,6 +37,10 @@ errval_t arp_send(
 
 void arp_register(
     ARP* arp, ip_addr_t ip, mac_addr mac 
+);
+
+errval_t mac_lookup_and_send(
+    ARP* arp, ip_addr_t dst_ip, mac_addr* dst_mac
 );
 
 errval_t arp_lookup_ip (

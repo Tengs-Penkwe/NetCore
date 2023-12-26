@@ -19,6 +19,16 @@ errval_t arp_init(
     return SYS_ERR_OK;
 }
 
+void arp_destroy(
+    ARP* arp
+) {
+    assert(arp);
+    hash_destroy(&arp->hosts);
+    free(arp);
+
+    ARP_NOTE("ARP module destroyed!");
+}
+
 errval_t arp_send(
     ARP* arp, uint16_t opration,
     ip_addr_t dst_ip, mac_addr dst_mac
@@ -47,6 +57,26 @@ errval_t arp_send(
     RETURN_ERR_PRINT(err, "Can't marshall the ARP message");
     free(data_with_reserve);
     
+    return SYS_ERR_OK;
+}
+
+errval_t mac_lookup_and_send(
+    ARP* arp, ip_addr_t dst_ip, mac_addr* dst_mac
+) {
+    errval_t err;
+    assert(arp);
+
+    err = arp_lookup_mac(arp, dst_ip, dst_mac);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't get the corresponding MAC address of IP address");
+        errval_t error = arp_send(arp, ARP_OP_REQ, dst_ip, MAC_BROADCAST);
+        if (err_is_fail(error)) 
+            DEBUG_ERR(error, "I Can't even send an ARP request after I can't find the MAC for given IP");
+        return err;
+    }
+
+    assert(!(maccmp(*dst_mac, MAC_NULL) || maccmp(*dst_mac, MAC_BROADCAST)));
+
     return SYS_ERR_OK;
 }
 

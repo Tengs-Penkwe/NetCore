@@ -4,9 +4,13 @@
 #include <stdint.h>
 #include <netutil/etharp.h>
 
+__BEGIN_DECLS
+
 #define ETHER_MTU            1500
 /// 1500 (MTU) + 14 (Header) + 4(FCS) + 4 (VLAN Tag) + 4 (QinQ Tag) => round to 256
 #define ETHER_MAX_SIZE       1536
+
+typedef struct net_device NetDevice;
 
 typedef struct ethernet_state {
     mac_addr mac;
@@ -16,7 +20,11 @@ typedef struct ethernet_state {
 } Ethernet;
 
 errval_t ethernet_init(
-    struct net_device *device, Ethernet* ether
+    NetDevice *device, Ethernet* ether
+);
+
+void ethernet_destroy(
+    Ethernet* ether
 );
 
 errval_t ethernet_marshal(
@@ -26,5 +34,7 @@ errval_t ethernet_marshal(
 errval_t ethernet_unmarshal(
     Ethernet* ether, uint8_t* data, size_t size
 );
+
+__END_DECLS
 
 #endif //__VNET_ETHERNET_H__

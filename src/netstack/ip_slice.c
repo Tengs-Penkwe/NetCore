@@ -26,7 +26,7 @@ void check_get_mac(void* send) {
     IP* ip = msg->ip;    assert(ip);
 
     assert(maccmp(msg->dst_mac, MAC_NULL));
-    err = mac_lookup(ip, msg->dst_ip, &msg->dst_mac);
+    err = mac_lookup_and_send(ip->arp, msg->dst_ip, &msg->dst_mac);
     if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
 
         msg->retry_interval *= 2;
