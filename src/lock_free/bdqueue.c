@@ -2,7 +2,8 @@
 
 errval_t bdqueue_init(BdQueue* queue, BQelem *element_array, size_t number_elems) {
     // Alignment
-    assert((uint64_t)queue % LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES == 0);
+    assert((uint64_t)queue % BDQUEUE_ALIGN == 0);
+    // TODO: assert number_elems is power of 2
     // 1. Initialize the unbounded multi-producer, multi-consumer queue
     lfds711_queue_bmm_init_valid_on_current_logical_core(queue, element_array, number_elems, NULL);
 

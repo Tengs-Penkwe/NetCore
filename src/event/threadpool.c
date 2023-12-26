@@ -4,7 +4,7 @@
 #include <stdio.h>     //perror
 
 // Global variable defined in threadpool.h
-alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) Pool pool;
+Pool pool;
 
 errval_t thread_pool_init(size_t workers) 
 {

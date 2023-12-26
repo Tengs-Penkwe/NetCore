@@ -11,7 +11,7 @@ __BEGIN_DECLS
 typedef struct ethernet_state Ethernet;
 
 typedef struct arp_state {
-    alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) 
+    alignas(HASH_ALIGN) 
         HashTable hosts;    // Must be 128-bytes aligned
     Ethernet     *ether;
     ip_addr_t     ip;

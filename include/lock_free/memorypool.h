@@ -12,7 +12,7 @@ typedef struct {
     // Metadata
     size_t      bytes;
     size_t      amount;
-} MemPool __attribute__((aligned(QUEUE_ALIGN)));
+} MemPool __attribute__((aligned(BDQUEUE_ALIGN)));
 
 errval_t pool_init(MemPool* pool, size_t bytes, size_t amount);
 errval_t pool_alloc(MemPool* pool, void** addr);

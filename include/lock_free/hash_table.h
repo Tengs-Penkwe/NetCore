@@ -6,18 +6,21 @@
 
 #define HASH_BUCKETS      64
 
+#define HASH_INIT_BARRIER   LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
+#define HASH_ALIGN          LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES
+
 enum hash_policy {
     HS_OVERWRITE_ON_EXIST,
     HS_FAIL_ON_EXIST,
 };
 
 typedef struct {
-    alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) 
+    alignas(HASH_ALIGN) 
         struct lfds711_hash_a_state    hash;
-    alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) 
+    alignas(HASH_ALIGN) 
         struct lfds711_btree_au_state  buckets[HASH_BUCKETS];
     enum hash_policy                   policy;
-} HashTable; 
+} HashTable __attribute__((aligned(HASH_ALIGN))); 
 
 typedef uint64_t Hash_key;
 
@@ -47,8 +50,6 @@ static inline void key_hash_func(void const *key, lfds711_pal_uint_t *hash)
 
     return;
 }
-
-#define HASH_INIT_BARRIER LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
 
 errval_t hash_init(HashTable* hash, enum hash_policy policy);
 void hash_destroy(HashTable* hash);
