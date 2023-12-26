@@ -16,7 +16,8 @@ typedef uintptr_t errval_t;
     X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
     X(SYS_ERR_ALLOC_FAIL,             "Some kind of allocation (malloc, new) failed") \
     X(SYS_ERR_INIT_FAIL,              "Some kind of initializaton (thread, mutex) failed") \
-    X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet")
+    X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet") \
+    X(SYS_ERR_BAD_ALIGNMENT,          "The alignment requirement is not satisfied") \
 
 #define EVENT_ERR_CODES \
     X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
