@@ -11,14 +11,17 @@
 
 typedef uint64_t delayed_us;
 
+typedef void (*task_fail) (void* delayed_task);
+
 typedef struct {
     delayed_us delay;
+    task_fail  fail;
     Task       task;
 } Delayed_task;
 
 struct Timer {
-    sem_t      sem;
     Queue      queue;
+    sem_t      sem;
     pthread_t  thread;
 };
 

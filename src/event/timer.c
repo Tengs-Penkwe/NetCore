@@ -18,8 +18,11 @@ static void* timer_thread (void*) __attribute__((noreturn));
 static void time_to_submit_task(union sigval sig_data) {
     TIMER_ERR("Wake !");
     Delayed_task* dt = sig_data.sival_ptr;
-    Task task = dt->task;
-    submit_task(task);
+
+    errval_t err = submit_task(dt->task);
+    if (err_is_fail(err)) {
+        (dt->fail)((void*) dt);
+    }
     free(dt);
 }
 
@@ -41,7 +44,7 @@ void submit_delayed_task(delayed_us delay, Task task) {
 static void* timer_thread (void* arg) {
     assert(arg == NULL);
     TIMER_INFO("Timer thread started !");
-    QUEUE_INIT_BARRIER;
+    BDQUEUE_INIT_BARRIER;
 
     while (true) {
         sem_wait(&timer.sem);

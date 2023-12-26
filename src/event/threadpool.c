@@ -4,14 +4,15 @@
 #include <stdio.h>     //perror
 
 // Global variable defined in threadpool.h
-Pool pool;
+alignas(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES) Pool pool;
 
 errval_t thread_pool_init(size_t workers) 
 {
     errval_t err;
     assert(workers > 0);
 
-    err = queue_init(&pool.queue);
+    // 1. Unbounded, MPMC queue
+    err = bdqueue_init(&pool.queue, pool.elements, TASK_QUEUE_SIZE);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock free queue");
 
     // 1.2 Semaphore to notify woker 
@@ -27,10 +28,6 @@ errval_t thread_pool_init(size_t workers)
             LOG_ERR("Can't create worker thread");
             return SYS_ERR_FAIL;
         }
-    }
-    // 4. Wake up all workers 
-    for (size_t i = 0; i < workers; i++) {
-        sem_post(&pool.sem);
     }
 
     LOG_INFO("Thread pool: %d initialized", workers);
@@ -48,13 +45,11 @@ void *thread_function(void* arg) {
     LOG_INFO("Pool Worker started !");
 
     // Initialization barrier for lock-free queue
-    QUEUE_INIT_BARRIER;    
-    // Wait until all workers are ready
-    sem_wait(&pool.sem);
+    BDQUEUE_INIT_BARRIER;    
 
     Task *task = NULL;
     while(true) {
-        if (dequeue(&pool.queue, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
+        if (debdqueue(&pool.queue, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
             sem_wait(&pool.sem);
         } else {
             assert(task);
@@ -65,12 +60,16 @@ void *thread_function(void* arg) {
     }
 }
 
-void submit_task(Task task) {
+errval_t submit_task(Task task) {
+    errval_t err;
 
     // free after dequeue
     Task* task_copy = malloc(sizeof(Task));
     *task_copy = task;
 
-    enqueue(&pool.queue, task_copy);
+    err = enbdqueue(&pool.queue, NULL, task_copy);
+    RETURN_ERR_PRINT(err, "The Task Queue is full !");
+
     sem_post(&pool.sem);
+    return SYS_ERR_OK;
 }
