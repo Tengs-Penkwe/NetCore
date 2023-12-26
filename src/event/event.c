@@ -14,9 +14,6 @@ void frame_unmarshal(void* frame) {
     uint8_t  *data  = fr->data;
     size_t    size  = fr->size;
 
-    printf("Read %d bytes from TAP device\n", size);
-    dump_packet_info(data);
-
     err = ethernet_unmarshal(ether, data, size);
     if (err_no(err) == NET_ERR_IPv4_SEG_LATER_FREE) {
         // We need to keep the buffer for later assembling
@@ -28,7 +25,6 @@ void frame_unmarshal(void* frame) {
         // Handled a frame successfully
         free(data - DEVICE_HEADER_RESERVE);
     }
-    printf("========================================\n");
     
     free(frame);
 }

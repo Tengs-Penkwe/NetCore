@@ -60,9 +60,9 @@ errval_t device_send(NetDevice* device, void* data, size_t size) {
     }
     assert((size_t)written == size);
 
-    printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
     printf("Written %zd bytes to TAP device\n", written);
     dump_packet_info(data);
+    printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
     return SYS_ERR_OK;
 }
 
@@ -108,6 +108,9 @@ void device_loop(NetDevice* device, Ethernet* ether) {
                     .data  = (uint8_t*)buffer + DEVICE_HEADER_RESERVE,
                     .size  = (size_t)nbytes,
                 };
+                printf("Read %d bytes from TAP device\n", fr->size);
+                dump_packet_info(fr->data);
+                printf("========================================\n");
                 submit_task(MK_TASK(frame_unmarshal, fr));
             }
             // free(buffer); Can't free it here, thread need it, must be free'd in task thread
