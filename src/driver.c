@@ -109,6 +109,7 @@ int main(int argc, char *argv[]) {
     }
 
     MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
+    memset(mempool, 0x00, sizeof(MemPool));
     err = mempool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the memory mempool");
