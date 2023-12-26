@@ -22,6 +22,7 @@ typedef struct {
     BQelem      elements[TASK_QUEUE_SIZE];
     sem_t       sem;
     pthread_t  *threads;
+    size_t      workers;
 } ThreadPool __attribute__((aligned(BDQUEUE_ALIGN))) ;
 
 extern ThreadPool g_threadpool;

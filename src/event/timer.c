@@ -13,8 +13,6 @@ struct Timer timer;
 
 static void* timer_thread (void*) __attribute__((noreturn));
 
-/// @brief      For Timer
-/// @param task 
 static void time_to_submit_task(union sigval sig_data) {
     TIMER_ERR("Wake !");
     Delayed_task* dt = sig_data.sival_ptr;
@@ -26,9 +24,6 @@ static void time_to_submit_task(union sigval sig_data) {
     free(dt);
 }
 
-/// @brief      For Worker 
-/// @param delay 
-/// @param task 
 void submit_delayed_task(delayed_us delay, Task task) {
     /// Push the delayed task to queue
     Delayed_task* dt = malloc(sizeof(Delayed_task));
@@ -104,6 +99,9 @@ errval_t timer_thread_init(void) {
 }
 
 void timer_thread_destroy(void) {
+    assert(pthread_cancel(timer.thread) == 0);
+    queue_destroy(&timer.queue);
     //TODO: free all the things
     sem_destroy(&timer.sem);
+    TIMER_ERR("NYI: destroy Timer Moudle");
 }

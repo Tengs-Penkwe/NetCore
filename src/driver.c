@@ -153,8 +153,7 @@ static void driver_exit(int signum) {
     ethernet_destroy(g_driver.ether);
     device_close(g_driver.device);
     mempool_destroy(g_driver.mempool);
-    //TODO: join all the worker in thread pool
-
-
+    thread_pool_destroy();
+    timer_thread_destroy();
     LOG_ERR("Bye Bye !");
 }

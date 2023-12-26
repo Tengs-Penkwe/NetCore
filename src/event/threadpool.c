@@ -10,6 +10,7 @@ errval_t thread_pool_init(size_t workers)
 {
     errval_t err;
     assert(workers > 0);
+    g_threadpool.workers = workers;
 
     // 1. Unbounded, MPMC queue
     err = bdqueue_init(&g_threadpool.queue, g_threadpool.elements, TASK_QUEUE_SIZE);
@@ -35,9 +36,19 @@ errval_t thread_pool_init(size_t workers)
 }
 
 void thread_pool_destroy(void) {
-    LOG_ERR("TODO: Need to destroy all the cond and mutex, free all resources");
+    bdqueue_destroy(&g_threadpool.queue);
+
+    for (size_t i = 0; i < g_threadpool.workers; i++) 
+        assert(pthread_cancel(g_threadpool.threads[i]) == 0);
+    EVENT_ERR("TODO: let the thread itself do some cleaning");
+
     sem_destroy(&g_threadpool.sem);
+
     free(g_threadpool.threads);
+    g_threadpool.threads = NULL;
+
+    memset(&g_threadpool, 0, sizeof(g_threadpool));
+    EVENT_ERR("Threadpool destroyed !");
 }
 
 void *thread_function(void* arg) {
