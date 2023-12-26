@@ -30,12 +30,10 @@
 // 10 Seconds
 #define IP_GIVEUP_RECV_US    10000000
 
-__BEGIN_DECLS
-
-typedef struct ip_message IP_message;
+typedef struct ip_recv IP_recv;
 
 /// The hash table of IP-MAC
-KHASH_MAP_INIT_INT64(ip_msg, IP_message*) 
+KHASH_MAP_INIT_INT64(ip_recv, IP_recv*) 
 
 typedef uint64_t ip_msg_key_t ;
 // Use source IP + Sequence Number as hash table key
@@ -51,10 +49,11 @@ typedef struct ip_state {
     ip_addr_t ip;
     atomic_ushort     seg_count;          ///< Ensure the sent message have unique ID
 
-    pthread_mutex_t   recv_mutex;
-    khash_t(ip_msg)  *recv_messages; 
-    khash_t(ip_msg)  *send_messages;
+    pthread_mutex_t   mutex;
+    khash_t(ip_recv) *recv_messages; 
 } IP;
+
+__BEGIN_DECLS
 
 errval_t mac_lookup(
     IP* ip, ip_addr_t dst_ip, mac_addr* dst_mac
