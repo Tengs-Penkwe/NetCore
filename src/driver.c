@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize Network Module");
     }
 
-    MemPool* mempool = aligned_alloc(BDQUEUE_ALIGN, sizeof(MemPool));
+    MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
     err = mempool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the memory mempool");

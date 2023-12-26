@@ -22,7 +22,6 @@ errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy po
 
     list->policy = policy;
 
-    LIST_INIT_BARRIER;
     ///TODO: we should use the barrier in other core, but due to the reality, we ignore it now
 
     return SYS_ERR_OK;
@@ -35,7 +34,7 @@ void list_destroy(OrdList* list) {
 
 errval_t list_insert(OrdList* list, void* data) {
 
-    struct lfds711_list_aso_element *le = aligned_alloc(LIST_ALIGN, sizeof(struct lfds711_list_aso_element));
+    struct lfds711_list_aso_element *le = aligned_alloc(ATOMIC_ISOLATION, sizeof(struct lfds711_list_aso_element));
     LFDS711_LIST_ASO_SET_VALUE_IN_ELEMENT(*le, data);
 
     struct lfds711_list_aso_element *dup_le = NULL;

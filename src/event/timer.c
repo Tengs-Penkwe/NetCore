@@ -39,7 +39,7 @@ void submit_delayed_task(delayed_us delay, Task task) {
 static void* timer_thread (void* arg) {
     assert(arg == NULL);
     TIMER_INFO("Timer thread started !");
-    BDQUEUE_INIT_BARRIER;
+    CORES_SYNC_BARRIER;
 
     while (true) {
         sem_wait(&timer.sem);

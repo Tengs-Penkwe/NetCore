@@ -2,6 +2,7 @@
 #define __LOCK_FREE_QUEUE_H__
 
 #include <common.h>      // BEGIN, END DECLS
+#include "defs.h"
 #include "liblfds711.h"  // Lock-free structures
 
 #define INIT_QUEUE_SIZE             128
@@ -21,8 +22,6 @@ typedef struct {
 } Queue;
 
 __BEGIN_DECLS
-
-#define QUEUE_INIT_BARRIER LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
 
 errval_t queue_init(Queue* queue);
 void queue_destroy(Queue* queue);

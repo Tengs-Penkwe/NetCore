@@ -23,7 +23,7 @@ typedef struct {
     sem_t       sem;
     pthread_t  *threads;
     size_t      workers;
-} ThreadPool __attribute__((aligned(BDQUEUE_ALIGN))) ;
+} ThreadPool __attribute__((aligned(ATOMIC_ISOLATION))) ;
 
 extern ThreadPool g_threadpool;
 

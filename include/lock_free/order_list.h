@@ -2,10 +2,8 @@
 #define __LOCK_FREE_LIST_H__
 
 #include <common.h>      // BEGIN, END DECLS
+#include "defs.h"
 #include "liblfds711.h"  // Lock-free structures
-
-#define LIST_INIT_BARRIER   LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
-#define LIST_ALIGN          LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES
 
 enum list_policy {
     LS_OVERWRITE_ON_EXIST,
@@ -13,13 +11,12 @@ enum list_policy {
 };
 
 typedef struct {
-    alignas(LIST_ALIGN) 
+    alignas(ATOMIC_ISOLATION) 
         struct lfds711_list_aso_state list;
     enum list_policy                  policy;
-} OrdList __attribute__((aligned(LIST_ALIGN)));
+} OrdList __attribute__((aligned(ATOMIC_ISOLATION)));
 
 typedef int (*list_key_compare)(void const *new_key, void const *existing_key);
-
 
 __BEGIN_DECLS
 

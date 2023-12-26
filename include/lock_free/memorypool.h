@@ -12,7 +12,7 @@ typedef struct memory_pool {
     // Metadata
     size_t      bytes;
     size_t      amount;
-} MemPool __attribute__((aligned(BDQUEUE_ALIGN)));
+} MemPool __attribute__((aligned(ATOMIC_ISOLATION)));
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount);
 void     mempool_destroy(MemPool* pool);
