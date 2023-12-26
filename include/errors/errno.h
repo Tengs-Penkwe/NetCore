@@ -22,6 +22,7 @@ typedef uintptr_t errval_t;
     X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
     X(EVENT_ENQUEUE_FULL,             "The task queue is full")  \
     X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \
+    X(EVENT_MEMPOOL_EMPTY,            "The memory pool is empty")  \
     X(EVENT_HASH_EXIST_ON_INSERT,     "The hash table is configure as none-overwritten for duplicated key")  \
     X(EVENT_HASH_NOT_EXIST,           "The element associated with the key doesn't exist in the hash table")  \
     X(EVENT_LIST_EXIST_ON_INSERT,     "The add-only list is configure as none-overwritten for duplicated key")  \
