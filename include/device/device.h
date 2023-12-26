@@ -5,6 +5,7 @@
 #include <netstack/ethernet.h>
 
 #include <linux/if.h>   //struct ifreq
+typedef struct memory_pool MemPool;
 
 /// IPv4: Max 60, 
 /// TCP : Max 60, UDP : 8, ICMP : 8
@@ -26,7 +27,7 @@ __BEGIN_DECLS
 errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_name);
 errval_t device_send(NetDevice* device, void* data, size_t size);
 errval_t device_get_mac(NetDevice* device, mac_addr* ret_mac);
-errval_t device_loop(NetDevice* device, Ethernet* ether);
+errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* pool);
 
 __END_DECLS
 

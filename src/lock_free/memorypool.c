@@ -67,6 +67,14 @@ void pool_free(MemPool* pool, void* addr) {
 }
 
 void pool_destroy(MemPool* pool) {
-    assert(pool);
-    USER_PANIC("NYI");
+    assert(pool && pool->pool && pool->elems);
+
+    free(pool->pool);
+    pool->pool = NULL;
+
+    free(pool->elems);
+    pool->elems = NULL;
+
+    free(pool);
+    LOG_ERR("NYI");
 }

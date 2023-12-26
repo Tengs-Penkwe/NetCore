@@ -3,7 +3,7 @@
 
 #include <lock_free/bdqueue.h>
 
-typedef struct {
+typedef struct memory_pool {
     // Use Bounded MPMC Queue as backend
     BdQueue     queue;  //ALARM: alignment required !
     BQelem     *elems;

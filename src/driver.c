@@ -5,6 +5,7 @@
 #include <event/threadpool.h>
 #include <event/event.h>
 #include <event/timer.h>
+#include <lock_free/memorypool.h>
 
 #include <stdio.h>  //perror
 
@@ -96,14 +97,20 @@ int main(int argc, char *argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize Network Module");
     }
 
-    err = signal_init();
+    MemPool* mempool = aligned_alloc(BDQUEUE_ALIGN, sizeof(MemPool));
+    err = pool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the signals");
+        USER_PANIC_ERR(err, "Can't Initialize the memory mempool");
     }
 
     err = thread_pool_init(workers);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the thread pool");
+        USER_PANIC_ERR(err, "Can't Initialize the thread mempool");
+    }
+
+    err = signal_init();
+    if (err_is_fail(err)) {
+        USER_PANIC_ERR(err, "Can't Initialize the signals");
     }
 
     err = timer_thread_init();
@@ -111,12 +118,12 @@ int main(int argc, char *argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize the Timer");
     }
 
-    err = device_loop(device, ether);
+    err = device_loop(device, ether, mempool);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Enter device loop !");
     }
 
-    LOG_ERR("Ending TODO: free resources!");
+    USER_PANIC("Ending TODO: free resources!");
 
     //TODO: join all the worker in thread pool
     //TODO: Ethernet Destroy

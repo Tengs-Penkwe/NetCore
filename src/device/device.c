@@ -1,3 +1,4 @@
+#include <driver.h>
 #include <device/device.h>
 #include <netutil/dump.h>
 #include <netutil/htons.h>
@@ -14,6 +15,7 @@
 
 #include <event/event.h>
 #include <event/threadpool.h>
+#include <lock_free/memorypool.h>
 
 errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_name) {
     // errval_t err;
@@ -85,7 +87,62 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     return SYS_ERR_OK;
 }
 
-errval_t device_loop(NetDevice* device, Ethernet* ether) {
+static errval_t handle_frame(NetDevice* device, Ethernet* ether, MemPool* mempool) {
+    errval_t err;
+
+    Frame* frame = calloc(1, sizeof(Frame));
+    assert(frame);
+    *frame = (Frame) {
+        .ether   = ether,
+        .data    = NULL,
+        .data_shift = 0,
+        .size    = 0,
+        .mempool = mempool,
+        .buf_is_from_pool = true,
+    };
+
+    err = pool_alloc(mempool, (void**)&frame->data);
+    if (err_no(err) == EVENT_MEMPOOL_EMPTY) {
+        EVENT_ERR("We don't have more memory in the mempool !");
+
+        assert(frame->data == NULL);
+        frame->data = malloc(MEMPOOL_BYTES);
+        frame->buf_is_from_pool = false;
+
+    } else if (err_is_fail(err)) {
+        USER_PANIC_ERR(err, "Shouldn't happen");
+    }
+
+    int nbytes = read(device->tap_fd, frame->data + DEVICE_HEADER_RESERVE, ETHER_MAX_SIZE);
+    if (nbytes <= 0) {
+        perror("read packet from TAP device failed, but the loop continue");
+        frame_free(frame);
+    } else {
+        frame->data_shift = DEVICE_HEADER_RESERVE;
+        frame->data  += frame->data_shift;
+        frame->size  = (size_t)nbytes,
+
+        device->recvd += 1;
+
+        // printf("========================================\n");
+        // printf("Read %d bytes from TAP device\n", frame->size);
+        // dump_packet_info(frame->data);
+
+        err = submit_task(MK_TASK(frame_unmarshal, frame));
+        if (err_is_fail(err)) {
+
+            assert(err_no(err) == EVENT_ENQUEUE_FULL);
+            EVENT_WARN("The task queue is full, we need to drop this packet!");
+
+            frame_free(frame);
+            device->fail_process += 1;
+        }
+    }
+    // free(buffer); Can't free it here, thread need it, must be free'd in task thread
+    return SYS_ERR_OK;
+}
+
+errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* mempool) {
     assert(device && ether);
     errval_t err;
 
@@ -99,39 +156,12 @@ errval_t device_loop(NetDevice* device, Ethernet* ether) {
         if (ret < 0) {
             perror("poll");
             close(device->tap_fd);
-            return NET_ERR_DEVICE_FAIL;
+            return NET_ERR_DEVICE_FAIL_POLL;
         }
 
         if (pfd[0].revents & POLLIN) {
-            // Allocation with reserved space for header
-            char* buffer = malloc(ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE);
-
-            int nbytes = read(device->tap_fd, buffer + DEVICE_HEADER_RESERVE, ETHER_MAX_SIZE);
-            if (nbytes < 0) {
-                perror("read packet from TAP device failed, but the loop continue");
-            } else {
-                Frame* fr = calloc(1, sizeof(Frame));
-                *fr = (Frame) {
-                    .ether = ether, 
-                    .data  = (uint8_t*)buffer + DEVICE_HEADER_RESERVE,
-                    .size  = (size_t)nbytes,
-                };
-
-                device->recvd += 1;
-
-                // printf("========================================\n");
-                // printf("Read %d bytes from TAP device\n", fr->size);
-                // dump_packet_info(fr->data);
-                err = submit_task(MK_TASK(frame_unmarshal, fr));
-                if (err_is_fail(err)) {
-                    assert(err_no(err) == EVENT_ENQUEUE_FULL);
-                    EVENT_WARN("The task queue is full, we need to drop this packet!");
-                    free(fr);
-                    free(buffer);
-                    device->fail_process += 1;
-                }
-            }
-            // free(buffer); Can't free it here, thread need it, must be free'd in task thread
+            err = handle_frame(device, ether, mempool);
+            RETURN_ERR_PRINT(err, "Can't handle this frame");
         }
     }
 }
