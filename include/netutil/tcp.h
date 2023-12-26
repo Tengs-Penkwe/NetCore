@@ -34,7 +34,7 @@ struct tcp_hdr {
 #define TCP_ECE  0x40
 #define TCP_CWR  0x80
 
-typedef uint16_t trans_port_t;
+typedef uint16_t tcp_port_t;
 
 __BEGIN_DECLS
 

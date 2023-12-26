@@ -13,7 +13,7 @@ typedef struct tcp_server TCP_server;
 typedef void (*tcp_server_callback) (
     struct tcp_server* server,
     const void* data, const size_t size,
-    const ip_addr_t src_ip, const trans_port_t src_port
+    const ip_addr_t src_ip, const tcp_port_t src_port
 );
 
 typedef struct tcp_state {
@@ -29,7 +29,7 @@ errval_t tcp_init(
 );
 
 errval_t tcp_marshal(
-    TCP* tcp, const ip_addr_t dst_ip, const trans_port_t src_port, const trans_port_t dst_port,
+    TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
     void* addr, size_t size
 );
@@ -39,11 +39,11 @@ errval_t tcp_unmarshal(
 );
 
 errval_t tcp_server_register(
-    TCP* tcp, int fd, const trans_port_t port, const tcp_server_callback callback
+    TCP* tcp, int fd, const tcp_port_t port, const tcp_server_callback callback
 );
 
 errval_t tcp_server_deregister(
-    TCP* tcp, const trans_port_t port
+    TCP* tcp, const tcp_port_t port
 );
 
 __END_DECLS

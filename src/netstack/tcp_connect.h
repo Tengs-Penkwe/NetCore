@@ -37,11 +37,11 @@ typedef struct tcp_message {
     union {
         struct {
             ip_addr_t    dst_ip;
-            trans_port_t dst_port;
+            tcp_port_t   dst_port;
         } send;
         struct {
             ip_addr_t    src_ip;
-            trans_port_t src_port;
+            tcp_port_t   src_port;
         } recv;
     };
     Flags        flags;
