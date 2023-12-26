@@ -3,24 +3,28 @@
 
 #include <netutil/udp.h>
 #include <lock_free/hash_table.h>
+#include <ipc/rpc.h>
+#include <stdatomic.h>
 
-#define UDP_DEFAULT_BND     256
+#define UDP_DEFAULT_BND     128
 
 // Forward Declaration
 struct udp_state;
 struct udp_server;
+typedef struct rpc rpc_t;
 
 typedef void (*udp_server_callback) (
     struct udp_server* server,
-    const void* data, const size_t size,
+    const uint8_t* data, const size_t size,
     const ip_addr_t src_ip, const udp_port_t src_port
 );
 
-#define UDP_KEY(port)    (uint64_t)(port)
+#define UDP_HASH_KEY(port)    (Hash_key)(port)
 
 typedef struct udp_server {
+    atomic_bool         is_live;
     struct udp_state   *udp;
-    int                 fd;
+    struct rpc         *rpc;
     udp_port_t          port;
     udp_server_callback callback;
 } UDP_server ;
@@ -45,15 +49,15 @@ void udp_destroy(
 
 errval_t udp_marshal(
     UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
-    void* addr, size_t size
+    uint8_t* addr, size_t size
 );
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, void* addr, size_t size
+    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, size_t size
 );
 
 errval_t udp_server_register(
-    UDP* udp, int fd, const udp_port_t port, const udp_server_callback callback
+    UDP* udp, struct rpc* rpc, const udp_port_t port, const udp_server_callback callback
 );
 
 errval_t udp_server_deregister(

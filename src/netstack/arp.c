@@ -11,8 +11,8 @@ errval_t arp_init(
     assert(arp && ether);
     arp->ether = ether;
     arp->ip = ip;
-
-    err = hash_init(&arp->hosts, HS_FAIL_ON_EXIST);
+    
+    err = hash_init(&arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");
@@ -93,7 +93,7 @@ void arp_register(
     void* macaddr_as_pointer = NULL;
     memcpy(&macaddr_as_pointer, &mac, sizeof(mac_addr));
 
-    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer);
+    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer, false);
     if (err_no(err) == EVENT_HASH_EXIST_ON_INSERT) {
         ARP_INFO("The IP-MAC pair already exists");
     } else if (err_is_fail(err)) {

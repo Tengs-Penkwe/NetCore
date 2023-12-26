@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include <lock_free/hash_table.h>
 
+#define  ARP_HASH_BUCKETS     128
+
 __BEGIN_DECLS
 
 /// Forward Declaration
@@ -12,9 +14,11 @@ typedef struct ethernet_state Ethernet;
 
 typedef struct arp_state {
     alignas(ATOMIC_ISOLATION) 
-        HashTable hosts;    // Must be 128-bytes aligned
-    Ethernet     *ether;
-    ip_addr_t     ip;
+        HashTable  hosts;    // Must be 128-bytes aligned
+    alignas(ATOMIC_ISOLATION) 
+        HashBucket buckets[ARP_HASH_BUCKETS];
+    Ethernet      *ether;
+    ip_addr_t      ip;
 } ARP;
 
 #define ARP_HASH_KEY(ip)   (Hash_key)(ip)

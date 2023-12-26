@@ -34,10 +34,11 @@ errval_t ip_init(
     err = icmp_init(ip->icmp, ip);
     RETURN_ERR_PRINT(err, "Can't initialize global ICMP state");
 
-    // ip->udp = calloc(1, sizeof(UDP));
-    // assert(ip->udp);
-    // err = udp_init(ip->udp, ip);
-    // RETURN_ERR_PRINT(err, "Can't initialize global UDP state");
+    ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP));
+    memset(ip->udp, 0x00, sizeof(UDP));
+    assert(ip->udp);
+    err = udp_init(ip->udp, ip);
+    RETURN_ERR_PRINT(err, "Can't initialize global UDP state");
 
     // ip->tcp = calloc(1, sizeof(TCP));
     // assert(ip->tcp);

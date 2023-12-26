@@ -235,8 +235,8 @@ errval_t ip_handle(IP_recv* msg) {
         break;
     case IP_PROTO_UDP:
         IP_VERBOSE("Received a UDP packet");
-        // err = udp_unmarshal(msg->ip->udp, msg->src_ip, msg->, msg->recvd_size);
-        // RETURN_ERR_PRINT(err, "Error when unmarshalling an UDP message");
+        err = udp_unmarshal(msg->ip->udp, msg->src_ip, msg->data, msg->recvd_size);
+        RETURN_ERR_PRINT(err, "Error when unmarshalling an UDP message");
         break;
     case IP_PROTO_IGMP:
     case IP_PROTO_UDPLITE:

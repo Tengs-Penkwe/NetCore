@@ -8,9 +8,12 @@
 errval_t udp_init(
     UDP* udp, IP* ip
 ) {
+    errval_t err;
     assert(udp && ip);
     udp->ip = ip;
 
+    err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_BND, HS_OVERWRITE_ON_EXIST);
+    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of UDP servers");
 
     return SYS_ERR_OK;
 }
@@ -19,12 +22,15 @@ void udp_destroy(
     UDP* udp
 ) {
     assert(udp);
-    UDP_ERR("TODO: free the hash table");
+    hash_destroy(&udp->servers);
+    memset(udp, 0x00, sizeof(UDP));
+    free(udp);
+    UDP_ERR("UDP Module destroyed !");
 }
 
 errval_t udp_marshal(
     UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
-    void* addr, size_t size
+    uint8_t* addr, size_t size
 ) {
     errval_t err;
     assert(udp && addr);
@@ -58,8 +64,9 @@ errval_t udp_marshal(
 }
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, void* addr, size_t size
+    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, size_t size
 ) {
+    errval_t err;
     assert(udp && addr);
     LOG_DEBUG("Received an UDP packet, source IP: %p, addr:%p, size: %d", src_ip, addr, size);
 
@@ -86,54 +93,113 @@ errval_t udp_unmarshal(
         // }
     }
 
-    UDP_server* server = collections_hash_find(udp->servers, UDP_KEY(dst_port));
-
     addr += sizeof(struct udp_hdr);
     size -= sizeof(struct udp_hdr);
 
-    if (server == NULL) {
-        LOG_ERR("We don't have UDP server on this port: %d", dst_port);
+    UDP_server* server = NULL;
+    err = hash_get_by_key(&udp->servers, UDP_HASH_KEY(dst_port), (void**)&server);
+    switch (err_no(err))
+    {
+    case SYS_ERR_OK:
+        if (atomic_load(&server->is_live) == false) {
+            UDP_ERR("We received packet for a dead UDP server on this port: %d", dst_port);
+            return NET_ERR_UDP_PORT_NOT_REGISTERED;
+        } else {
+            server->callback(server, addr, size, src_ip, src_port);
+            UDP_DEBUG("We handled an UDP packet at port: %d", dst_port);
+            return SYS_ERR_OK;
+        }
+        assert(0);
+    case EVENT_HASH_NOT_EXIST:
+        UDP_ERR("We don't have UDP server on this port: %d", dst_port);
         return NET_ERR_UDP_PORT_NOT_REGISTERED;
-    } else {
-        server->callback(server, addr, size, src_ip, src_port);
-        LOG_DEBUG("We handled an UDP packet at port: %d", dst_port);
+    default:
+        DEBUG_ERR(err, "Unknown Error Code");
+        return err;
     }
-
-    return SYS_ERR_OK;
 }
 
 errval_t udp_server_register(
-    UDP* udp, int fd, const udp_port_t port, const udp_server_callback callback
+    UDP* udp, rpc_t* rpc, const udp_port_t port, const udp_server_callback callback
 ) {
     assert(udp);
-    UDP_server* server = collections_hash_find(udp->servers, UDP_KEY(port));
-    
-    if (server != NULL) return NET_ERR_UDP_PORT_REGISTERED;
-    server = calloc(1, sizeof(UDP_server));
-    assert(server);
+    errval_t err_get, err_insert;
 
+    UDP_server* server = NULL; 
+
+    //TODO: reconsider the multithread contention here
+    err_get = hash_get_by_key(&udp->servers, UDP_HASH_KEY(port), (void**)&server);
+    switch (err_no(err_get))
+    {
+    case SYS_ERR_OK:    // We may meet a dead server, since the hash table is add-only, we can't remove it
+        assert(server);
+        // TODO: do we really need atomic ?
+        if (atomic_load(&server->is_live) == false) {
+            goto the_port_is_actually_free;
+        } else {
+            return NET_ERR_UDP_PORT_REGISTERED;
+        }
+        assert(0);
+    case EVENT_HASH_NOT_EXIST:
+        server = calloc(1, sizeof(UDP_server));
+        goto the_port_is_actually_free;
+    default:
+        DEBUG_ERR(err_get, "Unknown Error Code");
+        return err_get;
+    }
+
+the_port_is_actually_free:
+    assert(server);
     *server = (UDP_server) {
         .udp      = udp,
-        .fd       = fd,
-        .chan     = rpc,
+        .rpc      = rpc,
         .port     = port,
         .callback = callback,
     };
+    atomic_store(&server->is_live, true);
 
-    collections_hash_insert(udp->servers, UDP_KEY(port), server);
+    assert(err_no(err_get) == EVENT_HASH_NOT_EXIST);
 
-    return SYS_ERR_OK;
+    err_insert = hash_insert(&udp->servers, UDP_HASH_KEY(port), server, false);
+    switch (err_no(err_insert)) 
+    {
+    case SYS_ERR_OK:
+        return SYS_ERR_OK;
+    case EVENT_HASH_OVERWRITE_ON_INSERT:
+        free(server);
+        UDP_ERR("Another process also wants to register the UDP port and he/she gets it")
+        return NET_ERR_UDP_PORT_REGISTERED;
+    default:
+        DEBUG_ERR(err_insert, "Unknown Error Code");
+        return err_insert;
+    }
 }
 
 errval_t udp_server_deregister(
     UDP* udp, const udp_port_t port
 ) {
     assert(udp);
-    UDP_server* server = collections_hash_find(udp->servers, UDP_KEY(port));
+    errval_t err;
     
-    if (server != NULL) return NET_ERR_UDP_PORT_NOT_REGISTERED;
-    collections_hash_delete(udp->servers, UDP_KEY(port));
-    LOG_INFO("We deleted a UDP server at port: %d", port);
-
-    return SYS_ERR_OK;
+    UDP_server* server = NULL;
+    err = hash_get_by_key(&udp->servers, UDP_HASH_KEY(port), (void**)&server);
+    switch (err_no(err))
+    {
+    case SYS_ERR_OK:
+        if (atomic_load(&server->is_live) == false) {
+            UDP_ERR("A process try to de-register a dead UDP server on this port: %d", port);
+            return NET_ERR_UDP_PORT_NOT_REGISTERED;
+        } else {
+            atomic_store(&server->is_live, true);
+            UDP_INFO("We deleted a UDP server at port: %d", port);
+            return SYS_ERR_OK;
+        }
+        assert(0);
+    case EVENT_HASH_NOT_EXIST:
+        UDP_ERR("A process try to de-register a not existing UDP server on this port: %d", port);
+        return NET_ERR_UDP_PORT_NOT_REGISTERED;
+    default:
+        DEBUG_ERR(err, "Unknown Error Code");
+        return err;
+    }
 }
