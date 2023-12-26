@@ -9,6 +9,11 @@
 
 #include <stdio.h>  //perror
 
+// Global Structure
+Driver g_driver;
+
+static void driver_exit(int signum);
+
 static errval_t signal_init(void) {
     // Initialize the signal set
     sigset_t set;
@@ -20,6 +25,12 @@ static errval_t signal_init(void) {
     // Note: we are in main thread !
     if (sigprocmask(SIG_BLOCK, &set, NULL) != 0) {
         perror("sigprocmask");
+        return SYS_ERR_FAIL;
+    }
+
+    // Setup SIGINT handler
+    if (signal(SIGINT, driver_exit) == SIG_ERR) {
+        perror("Unable to set signal handler for SIGINT");
         return SYS_ERR_FAIL;
     }
 
@@ -98,7 +109,7 @@ int main(int argc, char *argv[]) {
     }
 
     MemPool* mempool = aligned_alloc(BDQUEUE_ALIGN, sizeof(MemPool));
-    err = pool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
+    err = mempool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the memory mempool");
     }
@@ -118,6 +129,13 @@ int main(int argc, char *argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize the Timer");
     }
 
+    g_driver = (Driver) {
+        .ether      = ether,
+        .device     = device,
+        .mempool    = mempool,
+        .threadpool = &g_threadpool,
+    };
+
     err = device_loop(device, ether, mempool);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Enter device loop !");
@@ -130,4 +148,12 @@ int main(int argc, char *argv[]) {
     thread_pool_destroy();
     close(device->tap_fd);
     return 0;
+}
+
+static void driver_exit(int signum) {
+    (void) signum;
+    assert(g_driver.ether);
+    ethernet_destroy(g_driver.ether);
+
+    LOG_ERR("Bye Bye !");
 }

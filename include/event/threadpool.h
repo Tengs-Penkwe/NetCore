@@ -17,15 +17,14 @@ typedef struct {
 #define MK_TASK(h,a)    (Task){ /*handler*/ (h), /*arg*/ (a) }
 #define NOP_TASK        MK_TASK(NULL, NULL)
 
-
 typedef struct {
     BdQueue     queue;  //ALRAM: Alignment required !
     BQelem      elements[TASK_QUEUE_SIZE];
     sem_t       sem;
     pthread_t  *threads;
-} Pool __attribute__((aligned(BDQUEUE_ALIGN))) ;
+} ThreadPool __attribute__((aligned(BDQUEUE_ALIGN))) ;
 
-extern Pool pool;
+extern ThreadPool g_threadpool;
 
 __BEGIN_DECLS
 
