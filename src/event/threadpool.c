@@ -57,7 +57,6 @@ void *thread_function(void* arg) {
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
-    // sleep(1);
 
     Task *task = NULL;
     while(true) {
