@@ -2,6 +2,7 @@
 #include <event/threadpool.h>
 #include <event/timer.h>
 #include <stdio.h>     //perror
+#include <stdlib.h>
 
 // Global variable defined in threadpool.h
 ThreadPool g_threadpool;
@@ -57,6 +58,9 @@ void *thread_function(void* arg) {
 
     // Initialization barrier for lock-free queue
     BDQUEUE_INIT_BARRIER;    
+    // Simply sleep for 1 second can solve all the synchronization problems at booting
+    sleep(1);
+    EVENT_ERR("TODO: Find root causes of the synchronization problems")
 
     Task *task = NULL;
     while(true) {
