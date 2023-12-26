@@ -83,7 +83,7 @@ add_executable(USER ${USER_C_SRCS} ${USER_CPP_SRCS})
 # Custom command to run the TCP-IP executable
 add_custom_command(
     OUTPUT TCP-IP_RUN
-    COMMAND TCP-IP
+    COMMAND TCP-IP &
     DEPENDS TCP-IP
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
     COMMENT "Running TCP-IP executable"
@@ -92,7 +92,7 @@ add_custom_command(
 # Custom command to run the USER executable
 add_custom_command(
     OUTPUT USER_RUN
-    COMMAND USER
+    COMMAND USER &
     DEPENDS USER
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
     COMMENT "Running USER executable"

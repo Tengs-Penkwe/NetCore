@@ -33,6 +33,12 @@ static errval_t signal_init(void) {
         perror("Unable to set signal handler for SIGINT");
         return SYS_ERR_FAIL;
     }
+    
+    // Setup SIGTERM handler
+    if (signal(SIGTERM, driver_exit) == SIG_ERR) {
+        perror("Unable to set signal handler for SIGTERM");
+        return SYS_ERR_FAIL;
+    }
 
     LOG_INFO("Signals set");
     return SYS_ERR_OK;
