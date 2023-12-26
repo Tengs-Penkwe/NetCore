@@ -1,4 +1,8 @@
+#include <netutil/htons.h>
+#include <netutil/checksum.h>
+#include <netstack/ip.h>
 #include "ip_slice.h"
+
 #include <event/timer.h>
 #include <event/threadpool.h>
 
@@ -14,7 +18,7 @@ static void close_sending_message(void* send) {
     USER_PANIC("NYI");
 }
 
-static void check_get_mac(void* send) {
+void check_get_mac(void* send) {
     IP_VERBOSE("Check if we got the MAC address");
     errval_t err;
     IP_send* msg = send; assert(msg);
@@ -25,7 +29,10 @@ static void check_get_mac(void* send) {
     if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
 
         msg->retry_interval *= 2;
-        if (msg->retry_interval >= IP_GIVEUP_SEND_US) return close_sending_message();
+        if (msg->retry_interval >= IP_GIVEUP_SEND_US) {
+            close_sending_message((void*)msg);
+            return;
+        }
         IP_INFO("Can't find the Corresponding IP address, sent request, retry later in %d ms", msg->retry_interval / 1000);
 
         submit_delayed_task(msg->retry_interval, MK_TASK(check_get_mac, (void*)msg));
@@ -33,7 +40,8 @@ static void check_get_mac(void* send) {
     } else if (err_is_fail(err)) {
 
         DEBUG_ERR(err, "Can't handle this binding error in a closure, but the process continue");
-        return close_sending_message();
+        close_sending_message((void*)msg);
+        return;
 
     } else {
         assert(!maccmp(msg->dst_mac, MAC_NULL));
@@ -49,13 +57,16 @@ static void check_get_mac(void* send) {
     return;
 }
 
-static void check_send_message(void* send) {
+void check_send_message(void* send) {
     IP_VERBOSE("Check sending a message");
     errval_t err;
     IP_send* msg = send; assert(msg);
     IP* ip = msg->ip;    assert(ip);
 
-    if (msg->retry_interval > IP_GIVEUP_SEND_US) return close_sending_message();
+    if (msg->retry_interval > IP_GIVEUP_SEND_US) {
+        close_sending_message((void *)msg);
+        return;
+    }
 
     err = ip_slice(msg);
     if (err_is_fail(err)) {
@@ -65,7 +76,8 @@ static void check_send_message(void* send) {
     
     if (msg->sent_size == msg->whole_size) { // We are done sending !
         IP_DEBUG("We done sending an IP message ! size: %d, retry interval in ms: %d", msg->whole_size, msg->retry_interval / 1000);
-        return close_sending_message();
+        close_sending_message((void*)msg);
+        return;
     }
 
     //TODO: make it failable, 
@@ -87,7 +99,7 @@ errval_t ip_send(
     errval_t err; assert(ip && data);
     
     // 1. Calculate the information of segmentation
-    assert(send_from >= 0 && send_from % 8 == 0);
+    assert(send_from % 8 == 0);
     uint16_t offset = send_from / 8;
     uint16_t flag_offset = offset & IP_OFFMASK;
 
@@ -146,8 +158,7 @@ errval_t ip_slice(IP_send* msg) {
     const uint16_t  sent_size  = msg->sent_size;
     const uint8_t  *data       = msg->data;
     assert(sent_size < whole_size);
-    assert(whole_size <= 0xFFFF);  // 65,535
-    assert(sent_size >= 0 && sent_size % 8 == 0);
+    assert(sent_size % 8 == 0);
 
     // 2. Marshal and send sliceS
     for (int size_left = (int)(whole_size - sent_size); size_left > 0; size_left -= IP_MTU) {
