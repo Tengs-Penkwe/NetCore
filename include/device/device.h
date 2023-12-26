@@ -3,6 +3,7 @@
 
 #include <common.h>
 #include <netstack/ethernet.h>
+#include <time.h>       // For clock_gettime and struct timespec
 
 #include <linux/if.h>   //struct ifreq
 typedef struct memory_pool MemPool;
@@ -13,13 +14,13 @@ typedef struct memory_pool MemPool;
 /// Round up to 8
 
 typedef struct net_device {
-    int          tap_fd; ///< TAP device file descriptor
-    struct ifreq ifr;    ///< Interface request structure used for socket ioctl's
-    size_t       recvd;  ///< How many packets have we received
-    size_t       fail_process;
-    size_t       sent;   // Maybe inaccurate because multi-threading
-    size_t       fail_sent;
-
+    int             tap_fd;  ///< TAP device file descriptor
+    struct ifreq    ifr;     ///< Interface request structure used for socket ioctl's
+    size_t          recvd;   ///< How many packets have we received
+    size_t          fail_process;
+    size_t          sent;    // Maybe inaccurate because multi-threading
+    size_t          fail_sent;
+    struct timespec start_time;
 } NetDevice ;
 
 __BEGIN_DECLS
