@@ -80,8 +80,8 @@ errval_t ip_unmarshal(
     if (header_size != sizeof(struct ip_hdr)) {
         IP_NOTE("The IP Header has %d Bytes, We don't have special treatment for it", header_size);
     }
-    if (!(header_size > IPH_LEN_MIN && header_size < IPH_LEN_MAX)) {
-        IP_ERR("IPv4 Header to Big or Small: %d", size);
+    if (!(header_size >= IPH_LEN_MIN && header_size <= IPH_LEN_MAX)) {
+        IP_ERR("IPv4 Header to Big or Small: %d", header_size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
 
@@ -90,7 +90,7 @@ errval_t ip_unmarshal(
         LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
-    if (!(size > IP_LEN_MIN && size < IP_LEN_MAX)) {
+    if (!(size >= IP_LEN_MIN && size <= IP_LEN_MAX)) {
         LOG_ERR("IPv4 Packet to Big or Small: %d", size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
