@@ -2,8 +2,9 @@
 #define __VNET_UDP_H__
 
 #include <netutil/udp.h>
+#include <lock_free/hash_table.h>
 
-#define UPD_DEFAULT_BND     128
+#define UDP_DEFAULT_BND     256
 
 // Forward Declaration
 struct udp_state;
@@ -20,18 +21,26 @@ typedef void (*udp_server_callback) (
 typedef struct udp_server {
     struct udp_state   *udp;
     int                 fd;
-    struct aos_rpc     *chan;
     udp_port_t          port;
     udp_server_callback callback;
 } UDP_server ;
 
 typedef struct udp_state {
-    struct ip_state* ip;
-    // collections_hash_table* servers;
-} UDP;
+    alignas(ATOMIC_ISOLATION) 
+        HashTable    servers;
+    alignas(ATOMIC_ISOLATION) 
+        HashBucket   buckets[UDP_DEFAULT_BND];
+    struct ip_state *ip;
+} UDP __attribute__((aligned(ATOMIC_ISOLATION)));
+
+__BEGIN_DECLS
 
 errval_t udp_init(
     UDP* udp, struct ip_state* ip
+);
+
+void udp_destroy(
+    UDP* udp
 );
 
 errval_t udp_marshal(
@@ -44,11 +53,13 @@ errval_t udp_unmarshal(
 );
 
 errval_t udp_server_register(
-    UDP* udp, int fd, struct aos_rpc* rpc, const udp_port_t port, const udp_server_callback callback
+    UDP* udp, int fd, const udp_port_t port, const udp_server_callback callback
 );
 
 errval_t udp_server_deregister(
     UDP* udp, const udp_port_t port
 );
+
+__END_DECLS
 
 #endif  //__VNET_UDP_H__
