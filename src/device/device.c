@@ -44,6 +44,10 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     *device = (NetDevice) {
         .tap_fd = tap_fd,
         .ifr    = ifr,
+        .recvd  = 0,
+        .fail_process = 0,
+        .sent   = 0,
+        .fail_sent = 0,
     };
 
     return SYS_ERR_OK;
@@ -56,9 +60,11 @@ errval_t device_send(NetDevice* device, void* data, size_t size) {
     ssize_t written = write(device->tap_fd, data, size);
     if (written < 0) {
         perror("write to TAP device");
+        device->fail_sent += 1;
         return NET_ERR_DEVICE_SEND;
     }
     assert((size_t)written == size);
+    device->sent += 1;
 
     // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
     // printf("Written %zd bytes to TAP device\n", written);
@@ -79,28 +85,30 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     return SYS_ERR_OK;
 }
 
-void device_loop(NetDevice* device, Ethernet* ether) {
+errval_t device_loop(NetDevice* device, Ethernet* ether) {
     assert(device && ether);
+    errval_t err;
 
     // Set up polling
     struct pollfd pfd[1];
     pfd[0].fd = device->tap_fd;
     pfd[0].events = POLLIN;
 
-    while (1) {
+    while (true) {
         int ret = poll(pfd, 1, -1); // Wait indefinitely
         if (ret < 0) {
             perror("poll");
             close(device->tap_fd);
-            return;
+            return NET_ERR_DEVICE_FAIL;
         }
 
         if (pfd[0].revents & POLLIN) {
-            // Data is available to read
+            // Allocation with reserved space for header
             char* buffer = malloc(ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE);
+
             int nbytes = read(device->tap_fd, buffer + DEVICE_HEADER_RESERVE, ETHER_MAX_SIZE);
             if (nbytes < 0) {
-                perror("read");
+                perror("read packet from TAP device failed, but the loop continue");
             } else {
                 Frame* fr = calloc(1, sizeof(Frame));
                 *fr = (Frame) {
@@ -108,15 +116,19 @@ void device_loop(NetDevice* device, Ethernet* ether) {
                     .data  = (uint8_t*)buffer + DEVICE_HEADER_RESERVE,
                     .size  = (size_t)nbytes,
                 };
+
+                device->recvd += 1;
+
                 // printf("========================================\n");
                 // printf("Read %d bytes from TAP device\n", fr->size);
                 // dump_packet_info(fr->data);
-                errval_t err = submit_task(MK_TASK(frame_unmarshal, fr));
+                err = submit_task(MK_TASK(frame_unmarshal, fr));
                 if (err_is_fail(err)) {
                     assert(err_no(err) == EVENT_ENQUEUE_FULL);
-                    EVENT_WARN("The task queue is full, we need to drop some packet !");
+                    EVENT_WARN("The task queue is full, we need to drop this packet!");
                     free(fr);
                     free(buffer);
+                    device->fail_process += 1;
                 }
             }
             // free(buffer); Can't free it here, thread need it, must be free'd in task thread

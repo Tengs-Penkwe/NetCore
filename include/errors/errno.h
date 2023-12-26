@@ -30,6 +30,7 @@ typedef uintptr_t errval_t;
 #define NETWORK_ERR_CODES \
     X(NET_ERR_DEVICE_INIT,             "Can't initialize the network device") \
     X(NET_ERR_DEVICE_SEND,             "Can't send raw packet by network device") \
+    X(NET_ERR_DEVICE_FAIL,             "Device failed") \
     X(NET_ERR_DEVICE_GET_MAC,          "Can't get MAC address of my network device") \
     X(NET_ERR_ETHER_WRONG_MAC,         "Destination MAC address of received message doesn't meet with our MAC") \
     X(NET_ERR_ETHER_NO_MAC,            "Can't get MAC address of my ethernet") \

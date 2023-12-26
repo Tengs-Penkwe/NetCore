@@ -111,7 +111,10 @@ int main(int argc, char *argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize the Timer");
     }
 
-    device_loop(device, ether);
+    err = device_loop(device, ether);
+    if (err_is_fail(err)) {
+        USER_PANIC_ERR(err, "Can't Enter device loop !");
+    }
 
     LOG_ERR("Ending TODO: free resources!");
 
