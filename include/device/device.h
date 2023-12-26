@@ -25,6 +25,7 @@ typedef struct net_device {
 __BEGIN_DECLS
 
 errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_name);
+void     device_close(NetDevice* device);
 errval_t device_send(NetDevice* device, void* data, size_t size);
 errval_t device_get_mac(NetDevice* device, mac_addr* ret_mac);
 errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* pool);

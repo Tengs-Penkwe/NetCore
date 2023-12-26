@@ -154,6 +154,7 @@ static void driver_exit(int signum) {
     (void) signum;
     assert(g_driver.ether);
     ethernet_destroy(g_driver.ether);
+    device_close(g_driver.device);
 
     LOG_ERR("Bye Bye !");
 }

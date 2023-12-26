@@ -55,6 +55,33 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     return SYS_ERR_OK;
 }
 
+void device_close(NetDevice* device) {
+    assert(device);
+    
+    // Close the TAP device
+    assert(device->tap_fd >= 0);
+    close(device->tap_fd);
+    DEVICE_ERR("Closed TAP device %s (fd: %d)\n", device->ifr.ifr_name, device->tap_fd);
+
+    // Print device statistics
+    DEVICE_ERR(
+        "Device Statistics for %s:\n"
+        "  Packets Received: %zu\n"
+        "  Packets Failed to Process: %zu\n"
+        "  Packets Sent: %zu\n"
+        "  Packets Failed to Send: %zu\n",
+        device->ifr.ifr_name,
+        device->recvd,
+        device->fail_process,
+        device->sent,
+        device->fail_sent
+    );
+
+    memset(device, 0, sizeof(NetDevice));
+    free(device);
+    device = NULL;
+}
+
 errval_t device_send(NetDevice* device, void* data, size_t size) {
     assert(device && data && size);
 
