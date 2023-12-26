@@ -36,6 +36,7 @@ const char *level_colors[] = {
 static const char* module_to_string(enum log_module module) {
     switch (module) {
         case LOG:              return "LOG";
+        case MODULE_EVENT:     return "EVENT";
         case MODULE_TIMER:     return "TIMER";
         case MODULE_DEVICE:    return "DEVICE";
         case MODULE_ETHER:     return "ETHER";

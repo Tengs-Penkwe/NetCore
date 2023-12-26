@@ -34,6 +34,7 @@ enum log_level {
 
 #define LOG_MODULE_LEVELS \
     X(LOG,                      CURRENT_LOG_LEVEL) \
+    X(MODULE_EVENT,             CURRENT_LOG_LEVEL) \
     X(MODULE_TIMER,             CURRENT_LOG_LEVEL) \
     X(MODULE_DEVICE,            CURRENT_LOG_LEVEL) \
     X(MODULE_ETHER,             CURRENT_LOG_LEVEL) \
@@ -69,6 +70,14 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define LOG_NOTE(fmt, ...)            LOG(LOG, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)            LOG(LOG, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define LOG_ERR(fmt, ...)             LOG(LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+
+// Define logging macros for EVENT module
+#define EVENT_VERBOSE(fmt, ...)       LOG(MODULE_EVENT, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define EVENT_INFO(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define EVENT_DEBUG(fmt, ...)         LOG(MODULE_EVENT, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define EVENT_NOTE(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define EVENT_WARN(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define EVENT_ERR(fmt, ...)           LOG(MODULE_EVENT, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
 // Define logging macros for DRIVER module
 #define TIMER_VERBOSE(fmt, ...)       LOG(MODULE_TIMER, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
