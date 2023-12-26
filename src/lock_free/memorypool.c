@@ -37,7 +37,26 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     pool->bytes = bytes;
     pool->amount = amount;
 
+    EVENT_NOTE("Memory Pool initialized at %p, has %d pieces, each has %d bytes, add up to %d MiB",
+               pool->pool, amount, bytes, amount * bytes / 1024 / 1024);
+
     return SYS_ERR_OK;
+}
+
+void mempool_destroy(MemPool* mempool) {
+    bdqueue_destroy(&mempool->queue);
+    assert(mempool->elems);
+    free(mempool->elems);
+    
+    assert(&mempool->pool);
+    free(mempool->pool);
+    
+    assert(mempool);
+    memset(mempool, 0, sizeof(MemPool));
+    free(mempool);
+    mempool = NULL;
+
+    EVENT_ERR("Memory pool destroyed");
 }
 
 errval_t pool_alloc(MemPool* pool, void** addr) {

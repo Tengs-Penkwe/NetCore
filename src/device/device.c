@@ -68,7 +68,7 @@ void device_close(NetDevice* device) {
         "Device Statistics for %s:\n"
         "  Packets Received: %zu\n"
         "  Packets Failed to Process: %zu\n"
-        "  Packets Sent: %zu\n"
+        "  Packets Sent (In-accurate): %zu\n"
         "  Packets Failed to Send: %zu\n",
         device->ifr.ifr_name,
         device->recvd,

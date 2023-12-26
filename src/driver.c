@@ -142,11 +142,8 @@ int main(int argc, char *argv[]) {
     }
 
     USER_PANIC("Ending TODO: free resources!");
-
-    //TODO: join all the worker in thread pool
-    //TODO: Ethernet Destroy
-    thread_pool_destroy();
-    close(device->tap_fd);
+    
+    driver_exit(0);
     return 0;
 }
 
@@ -155,6 +152,9 @@ static void driver_exit(int signum) {
     assert(g_driver.ether);
     ethernet_destroy(g_driver.ether);
     device_close(g_driver.device);
+    mempool_destroy(g_driver.mempool);
+    //TODO: join all the worker in thread pool
+
 
     LOG_ERR("Bye Bye !");
 }

@@ -15,6 +15,7 @@ typedef struct memory_pool {
 } MemPool __attribute__((aligned(BDQUEUE_ALIGN)));
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount);
+void     mempool_destroy(MemPool* pool);
 errval_t pool_alloc(MemPool* pool, void** addr);
 void pool_free(MemPool* pool, void* addr);
 void pool_destroy(MemPool* pool);
