@@ -21,6 +21,7 @@ static void time_to_submit_task(union sigval sig_data) {
     if (err_is_fail(err)) {
         (dt->fail)((void*) dt);
     }
+    LOG_ERR("Asserit it's free'd");
     free(dt);
 }
 
