@@ -5,7 +5,8 @@
 
 typedef struct memory_pool {
     // Use Bounded MPMC Queue as backend
-    BdQueue     queue;  //ALARM: alignment required !
+    alignas(ATOMIC_ISOLATION)
+        BdQueue queue;  //ALARM: alignment required !
     BQelem     *elems;
     // Pointer to memory pool
     void       *pool;
