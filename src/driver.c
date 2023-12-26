@@ -156,4 +156,5 @@ static void driver_exit(int signum) {
     thread_pool_destroy();
     timer_thread_destroy();
     LOG_ERR("Bye Bye !");
+    exit(EXIT_SUCCESS);
 }
