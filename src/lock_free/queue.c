@@ -1,6 +1,7 @@
 #include <lock_free/queue.h>
 
 errval_t queue_init(Queue* queue) {
+    USER_PANIC("Wrong Implementation !");
     // 1. Initialize the unbounded multi-producer, multi-consumer queue
     lfds711_queue_umm_init_valid_on_current_logical_core(&queue->queue, &queue->dummy_element, NULL);
 
@@ -32,6 +33,7 @@ void queue_destroy(Queue* queue) {
 
 void enqueue(Queue* queue, void* data) {
     /// We try to get an element (contains a queue element) in free list, if there isn't, create one
+    USER_PANIC("Wrong Implementation !");
     struct lfds711_freelist_element *fe = NULL;
     while (true) {
         if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) == 0) { // No node in free list !
@@ -61,6 +63,7 @@ void enqueue(Queue* queue, void* data) {
 /// @return  1 means succeded, 0 means failed (empty)
 errval_t dequeue(Queue* queue, void** ret_data) 
 {
+    USER_PANIC("Wrong Implementation !");
     struct lfds711_queue_umm_element *qe = NULL;
     if (lfds711_queue_umm_dequeue(&queue->queue, &qe) == 1) // Means we dequeued one element
     {
