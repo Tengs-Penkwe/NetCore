@@ -4,7 +4,7 @@
 #include <stdio.h>     // perror
 
 // Global variable defined in threadpool.h
-ThreadPool g_threadpool;
+alignas(ATOMIC_ISOLATION) ThreadPool g_threadpool;
 
 errval_t thread_pool_init(size_t workers) 
 {

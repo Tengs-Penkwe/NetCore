@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <sched.h>      //sched_yield
 
-struct Timer timer;
+alignas(ATOMIC_ISOLATION) struct Timer timer;
 
 static void* timer_thread (void*) __attribute__((noreturn));
 

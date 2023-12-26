@@ -9,17 +9,20 @@
 #define ADDITIONAL_LIST_ELEMENTS    4
 
 typedef struct {
-    struct lfds711_queue_umm_state   queue;
-    struct lfds711_queue_umm_element dummy_element;
-    struct lfds711_queue_umm_element elements[INIT_QUEUE_SIZE];
+    alignas(ATOMIC_ISOLATION)
+        struct lfds711_freelist_state    freelist;
+    alignas(ATOMIC_ISOLATION)
+        struct lfds711_freelist_state    usedlist;
+    struct lfds711_freelist_element      free_ele[INIT_QUEUE_SIZE];
 
     // struct lfds711_prng_st_state    *psts;
     // struct lfds711_freelist_element
     //      volatile (*elimination_array)[LFDS711_FREELIST_ELIMINATION_ARRAY_ELEMENT_SIZE_IN_FREELIST_ELEMENTS];
-    struct lfds711_freelist_state    freelist;
-    struct lfds711_freelist_state    usedlist;
-    struct lfds711_freelist_element  free_ele[INIT_QUEUE_SIZE];
-} Queue;
+
+    struct lfds711_queue_umm_state   queue;
+    struct lfds711_queue_umm_element dummy_element;
+    struct lfds711_queue_umm_element elements[INIT_QUEUE_SIZE];
+} Queue __attribute__((aligned(ATOMIC_ISOLATION))) ;
 
 __BEGIN_DECLS
 
