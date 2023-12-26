@@ -1,6 +1,6 @@
 #include <lock_free/memorypool.h>
 
-errval_t pool_init(MemPool* pool, size_t bytes, size_t amount) {
+errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     assert(pool && bytes > 0 && amount > 0);
     errval_t err;
 

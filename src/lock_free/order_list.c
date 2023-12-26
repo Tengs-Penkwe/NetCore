@@ -35,7 +35,7 @@ void list_destroy(OrdList* list) {
 
 errval_t list_insert(OrdList* list, void* data) {
 
-    struct lfds711_list_aso_element *le = aligned_alloc(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES, sizeof(struct lfds711_list_aso_element));
+    struct lfds711_list_aso_element *le = aligned_alloc(LIST_ALIGN, sizeof(struct lfds711_list_aso_element));
     LFDS711_LIST_ASO_SET_VALUE_IN_ELEMENT(*le, data);
 
     struct lfds711_list_aso_element *dup_le = NULL;

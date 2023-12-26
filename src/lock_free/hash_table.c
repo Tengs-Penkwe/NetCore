@@ -36,7 +36,7 @@ void hash_destroy(HashTable* hash) {
 errval_t hash_insert(HashTable* hash, Hash_key key, void* data) {
     // TODO: have some pre-allocated structure to avoid malloc-free costs for duplicated key ?
     // Likely, it should be a free list
-    struct lfds711_hash_a_element* he = aligned_alloc(LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES, sizeof(struct lfds711_hash_a_element));
+    struct lfds711_hash_a_element* he = aligned_alloc(HASH_ALIGN, sizeof(struct lfds711_hash_a_element));
 
     LFDS711_HASH_A_SET_KEY_IN_ELEMENT(*he, key);
     LFDS711_HASH_A_SET_VALUE_IN_ELEMENT(*he, data);
