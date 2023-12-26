@@ -33,7 +33,7 @@ typedef struct tcp_server {
 
     // The process who has this server
     int                    fd;
-    struct aos_rpc        *chan;       // Send message back to process
+    struct rpc            *chan;       // Send message back to process
     tcp_server_callback    callback;   // Triggered when a message is received
 
     // Server state
@@ -45,7 +45,7 @@ typedef struct tcp_server {
 } TCP_server;
 
 errval_t server_init(
-    TCP* tcp, TCP_server* server, int fd, struct aos_rpc* rpc, tcp_port_t my_port, tcp_server_callback callback
+    TCP* tcp, TCP_server* server, int fd, struct rpc* rpc, tcp_port_t my_port, tcp_server_callback callback
 );
 
 void server_shutdown(

@@ -6,6 +6,7 @@ const char* err_code_strings[] = {
     SYSTEM_ERR_CODES
     EVENT_ERR_CODES
     NETWORK_ERR_CODES
+    IPC_ERR_CODES
 #undef X
 };
 
