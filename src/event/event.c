@@ -16,12 +16,19 @@ void frame_unmarshal(void* frame) {
 
     printf("Read %d bytes from TAP device\n", size);
     dump_packet_info(data);
+
     err = ethernet_unmarshal(ether, data, size);
-    if (err_is_fail(err)) {
+    if (err_no(err) == NET_ERR_IPv4_SEG_LATER_FREE) {
+        // We need to keep the buffer for later assembling
+        // DONT free it here
+    } else if (err_is_fail(err)) {
         DEBUG_ERR(err, "We meet an error when processing this frame, but the process continue");
+        free(data - DEVICE_HEADER_RESERVE);
+    } else {
+        // Handled a frame successfully
+        free(data - DEVICE_HEADER_RESERVE);
     }
     printf("========================================\n");
     
-    free(data - DEVICE_HEADER_RESERVE);
     free(frame);
 }
