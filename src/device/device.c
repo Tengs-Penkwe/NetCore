@@ -60,9 +60,9 @@ errval_t device_send(NetDevice* device, void* data, size_t size) {
     }
     assert((size_t)written == size);
 
-    printf("Written %zd bytes to TAP device\n", written);
-    dump_packet_info(data);
-    printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+    // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+    // printf("Written %zd bytes to TAP device\n", written);
+    // dump_packet_info(data);
     return SYS_ERR_OK;
 }
 
@@ -108,10 +108,16 @@ void device_loop(NetDevice* device, Ethernet* ether) {
                     .data  = (uint8_t*)buffer + DEVICE_HEADER_RESERVE,
                     .size  = (size_t)nbytes,
                 };
-                printf("Read %d bytes from TAP device\n", fr->size);
-                dump_packet_info(fr->data);
-                printf("========================================\n");
-                submit_task(MK_TASK(frame_unmarshal, fr));
+                // printf("========================================\n");
+                // printf("Read %d bytes from TAP device\n", fr->size);
+                // dump_packet_info(fr->data);
+                errval_t err = submit_task(MK_TASK(frame_unmarshal, fr));
+                if (err_is_fail(err)) {
+                    assert(err_no(err) == EVENT_ENQUEUE_FULL);
+                    EVENT_WARN("The task queue is full, we need to drop some packet !");
+                    free(fr);
+                    free(buffer);
+                }
             }
             // free(buffer); Can't free it here, thread need it, must be free'd in task thread
         }
