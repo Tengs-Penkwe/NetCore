@@ -10,8 +10,8 @@
 #include <lock_free/bdqueue.h>
 
 typedef struct {
-    void (*function)(void*);
-    void* argument;
+    void (*process)(void*);
+    void *task;
 } Task;
 
 #define MK_TASK(h,a)    (Task){ /*handler*/ (h), /*arg*/ (a) }
@@ -35,11 +35,6 @@ void thread_pool_destroy(void);
 // Function declarations
 void* thread_function(void* arg) __attribute__((noreturn));
 errval_t submit_task(Task task);
-
-static inline void process_task(Task task)
-{
-    (*task.function)(task.argument);
-}
 
 __END_DECLS
 

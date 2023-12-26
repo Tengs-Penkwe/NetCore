@@ -57,6 +57,7 @@ void *thread_function(void* arg) {
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
+    // sleep(1);
 
     Task *task = NULL;
     while(true) {
@@ -64,7 +65,7 @@ void *thread_function(void* arg) {
             sem_wait(&g_threadpool.sem);
         } else {
             assert(task);
-            process_task(*task);
+            (*task->process)(task->task);
             free(task);
             task = NULL;
         }
