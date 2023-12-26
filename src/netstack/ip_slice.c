@@ -13,6 +13,7 @@ static void close_sending_message(void* send) {
     // collections_hash_delete(ip->send_messages, msg_key);
     (void) msg_key;
     free(msg->data);
+    // TODO: ALARM: reserved header !
 
     IP_NOTE("Close sending a message"); 
     USER_PANIC("NYI");
