@@ -1,7 +1,6 @@
 #include <lock_free/queue.h>
 
 errval_t queue_init(Queue* queue) {
-    USER_PANIC("Wrong Implementation !");
     // 1. Initialize the unbounded multi-producer, multi-consumer queue
     lfds711_queue_umm_init_valid_on_current_logical_core(&queue->queue, &queue->dummy_element, NULL);
 
@@ -17,10 +16,13 @@ errval_t queue_init(Queue* queue) {
     // 2.3 Initialize the free list
     lfds711_freelist_init_valid_on_current_logical_core(&queue->freelist, NULL, 0, NULL);
 
+    // 2.3 Initialize the used list
+    lfds711_freelist_init_valid_on_current_logical_core(&queue->usedlist, NULL, 0, NULL);
+
     // 2.4: push all the list elements into free list first
     for (int i = 0; i < INIT_QUEUE_SIZE; i++) {
-        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(queue->list_e[i], &queue->elements[i]);
-        lfds711_freelist_push(&queue->freelist, &queue->list_e[i], NULL);
+        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(queue->free_ele[i], &queue->elements[i]);
+        lfds711_freelist_push(&queue->freelist, &queue->free_ele[i], NULL);
     }
 
     return SYS_ERR_OK;
@@ -33,7 +35,6 @@ void queue_destroy(Queue* queue) {
 
 void enqueue(Queue* queue, void* data) {
     /// We try to get an element (contains a queue element) in free list, if there isn't, create one
-    USER_PANIC("Wrong Implementation !");
     struct lfds711_freelist_element *fe = NULL;
     while (true) {
         if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) == 0) { // No node in free list !
@@ -51,7 +52,7 @@ void enqueue(Queue* queue, void* data) {
     assert(fe);
 
     struct lfds711_queue_umm_element *qe = LFDS711_FREELIST_GET_VALUE_FROM_ELEMENT(*fe);
-    lfds711_freelist_push(&queue->freelist, fe, NULL);
+    lfds711_freelist_push(&queue->usedlist, fe, NULL);
 
     LFDS711_QUEUE_UMM_SET_VALUE_IN_ELEMENT(*qe, data);
     lfds711_queue_umm_enqueue(&queue->queue, qe);
@@ -63,7 +64,6 @@ void enqueue(Queue* queue, void* data) {
 /// @return  1 means succeded, 0 means failed (empty)
 errval_t dequeue(Queue* queue, void** ret_data) 
 {
-    USER_PANIC("Wrong Implementation !");
     struct lfds711_queue_umm_element *qe = NULL;
     if (lfds711_queue_umm_dequeue(&queue->queue, &qe) == 1) // Means we dequeued one element
     {
@@ -71,7 +71,7 @@ errval_t dequeue(Queue* queue, void** ret_data)
 
         /// Get or create an element in free list
         struct lfds711_freelist_element *fe = NULL;
-        if (lfds711_freelist_pop(&queue->freelist, &fe, NULL) == 0) { // Means no node in free list
+        if (lfds711_freelist_pop(&queue->usedlist, &fe, NULL) == 0) { //No node in used list
             fe = malloc(sizeof(struct lfds711_freelist_element));
             assert(fe);
         } 

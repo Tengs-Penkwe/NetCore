@@ -15,9 +15,9 @@ typedef struct {
     // struct lfds711_prng_st_state    *psts;
     // struct lfds711_freelist_element
     //      volatile (*elimination_array)[LFDS711_FREELIST_ELIMINATION_ARRAY_ELEMENT_SIZE_IN_FREELIST_ELEMENTS];
-
     struct lfds711_freelist_state    freelist;
-    struct lfds711_freelist_element  list_e[INIT_QUEUE_SIZE];
+    struct lfds711_freelist_state    usedlist;
+    struct lfds711_freelist_element  free_ele[INIT_QUEUE_SIZE];
 } Queue;
 
 __BEGIN_DECLS
