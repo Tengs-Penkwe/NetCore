@@ -7,8 +7,8 @@
 #define IP_DF 0x4000U        /* dont fragment flag */
 #define IP_MF 0x2000U        /* more fragments flag */
 #define IP_OFFMASK 0x1fffU   /* mask for fragmenting bits */
-#define IP_LEN_MIN      20        /* minimum size of an ip header*/
-#define IP_LEN_MAX      0x10000   /* maximum size of an ip header*/
+#define IP_LEN_MIN       20       /* minimum size of an ip header*/
+#define IP_LEN_MAX       0xFFFF   /* maximum size of an ip header*/
 #define IP_PROTO_ICMP    1
 #define IP_PROTO_IGMP    2
 #define IP_PROTO_UDP     17
@@ -22,9 +22,11 @@
 typedef uint32_t ip_addr_t;
 #define MK_IP(a,b,c,d) (((a)<<24)|((b)<<16)|((c)<<8)|(d))
 
+#define IPH_LEN_MIN  20
+#define IPH_LEN_MAX  60
+
 #define IPH_V(hdr)  ((hdr)->version)
 #define IPH_HL(hdr) ((hdr)->ihl * 4)
-#define IPH_VHL_SET(hdr, v, hl) (hdr)->v_hl = (((v) << 4) | (hl))
 
 struct ip_hdr {
   /* header length */

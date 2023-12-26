@@ -75,16 +75,21 @@ errval_t ip_unmarshal(
     struct ip_hdr* packet = (struct ip_hdr*)data;
     
     /// 1. Decide if the packet is correct
-    if (IPH_V(packet) != 4) {
-        LOG_ERR("IP Protocal Version Mismatch");
+    if (packet->version != 4) {
+        IP_ERR("IP Protocal Version Mismatch");
         return NET_ERR_IPv4_WRONG_FIELD;
     }
     if (packet->tos != 0x00) {
-        LOG_ERR("We Don't Support TOS Field: %p, But I'll Ignore it for Now", packet->tos);
+        IP_ERR("We Don't Support TOS Field: %p, But I'll Ignore it for Now", packet->tos);
         // return NET_ERR_IPv4_WRONG_FIELD;
     }
-    if (IPH_HL(packet) != sizeof(struct ip_hdr)) {
-        LOG_ERR("We Only Support IP Header Length as 20 Bytes");
+
+    const uint16_t header_size = IPH_HL(packet);
+    if (header_size != sizeof(struct ip_hdr)) {
+        IP_NOTE("The IP Header has %d Bytes, We don't have special treatment for it", header_size);
+    }
+    if (!(header_size > IPH_LEN_MIN && header_size < IPH_LEN_MAX)) {
+        IP_ERR("IPv4 Header to Big or Small: %d", size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
 
@@ -101,7 +106,7 @@ errval_t ip_unmarshal(
     // 1.3 Checksum
     uint16_t packet_checksum = ntohs(packet->chksum);
     packet->chksum = 0;     // Set the it as 0 to calculate
-    uint16_t checksum = inet_checksum(packet, sizeof(struct ip_hdr));
+    uint16_t checksum = inet_checksum(packet, header_size);
     if (packet_checksum != ntohs(checksum)) {
         LOG_ERR("This IPv4 Pacekt Has Wrong Checksum %p, Should be %p", checksum, packet_checksum);
         return NET_ERR_IPv4_WRONG_CHECKSUM;
@@ -139,8 +144,8 @@ errval_t ip_unmarshal(
     } else
         RETURN_ERR_PRINT(err, "Can't find binding for given IP address");
 
-    data += sizeof(struct ip_hdr);
-    size -= sizeof(struct ip_hdr);
+    data += header_size;
+    size -= header_size;
 
     // 3. Assemble the IP message
     uint8_t proto = packet->proto;

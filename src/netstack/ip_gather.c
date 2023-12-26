@@ -176,6 +176,7 @@ errval_t ip_assemble(
         seg->offset = offset;
         if (seg != Mseg_insert(&msg->seg, seg)) { // Already exists !
             IP_ERR("We have duplicate IP message segmentation with offset: %d", seg->offset);
+            // TODO: this assumes header size is 20
             dump_ipv4_header((const struct ip_hdr*) (addr - sizeof(struct ip_hdr)));
             free(seg);
             return NET_ERR_IPv4_DUPLITCATE_SEG;
