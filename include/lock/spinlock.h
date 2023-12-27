@@ -9,6 +9,10 @@ static inline void spin_lock(atomic_flag* lock) {
     }
 }
 
+static inline bool spin_trylock(atomic_flag* lock) {
+    return atomic_flag_test_and_set(lock);
+}
+
 static inline void spin_unlock(atomic_flag* lock) {
     atomic_flag_clear(lock);
 }
