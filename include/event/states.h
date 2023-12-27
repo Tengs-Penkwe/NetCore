@@ -8,6 +8,12 @@
 #include <lock_free/memorypool.h>
 #include <event/threadpool.h>
 
+/* ***********************************************************
+ * 
+ *  State global to the whole process
+ *
+ ************************************************************/
+
 typedef struct driver {
     Ethernet    *ether;
     NetDevice   *device;  
@@ -31,5 +37,27 @@ typedef struct global_states {
 } GlobalStates;
 
 extern GlobalStates g_states;
+
+/* ***********************************************************
+ * 
+ *  State local to a thread
+ *
+ ************************************************************/
+
+#include <pthread.h>
+
+// Declare the key for thread-local storage
+extern pthread_key_t thread_state_key;
+
+typedef struct local_states {
+    const char  *my_name;
+    pid_t        my_pid;
+    int          output_fd;
+} LocalState;
+
+// Function prototypes
+void create_thread_state_key();
+void set_local_state(LocalState* new_state);
+LocalState* get_local_state();
 
 #endif // __EVENT_STATES_H__
