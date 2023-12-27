@@ -8,7 +8,11 @@
 #include <lock_free/memorypool.h>
 #include <event/states.h>
 
-#include <stdio.h>  //perror
+#include <stdio.h>         //perror
+#include <sys/syscall.h>   //syscall
+                           
+#include <fcntl.h>   // for open
+#include <unistd.h>  // for close
 
 static void driver_exit(int signum);
 
@@ -62,7 +66,7 @@ int main(int argc, char *argv[]) {
     int c;
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
-    char *log_file = NULL;
+    char *log_file = "log/output.ansi";
     int log_level = LOG_LEVEL_INFO; // default log level
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
@@ -94,44 +98,69 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //TODO: log initialization
-    (void) log_file;
-    (void) log_level;
+    int log_fd = open(log_file, O_WRONLY | O_CREAT, 0644);  // Open file for writing
+    if (log_fd == -1) {
+        LOG_ERR("Can't open the log file");
+        return -1;
+    }
+    g_states.log_fd = log_fd;
+
+    //TODO: free it ?
+    create_thread_state_key();
+    LocalState *master = calloc(1, sizeof(LocalState));
+    *master = (LocalState) {
+        .my_name   = "Master",
+        .my_pid    = syscall(SYS_gettid),
+        .output_fd = log_fd,
+    };
+    set_local_state(master);
+
+    err = log_init(log_level);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't Initialize the log system");
+        return -1;
+    }
 
     NetDevice* device = calloc(1, sizeof(NetDevice));
     assert(device);
     err = device_init(device, tap_path, tap_name);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the Network Device");
+        DEBUG_ERR(err, "Can't Initialize the Network Device");
+        return -1;
     }
 
     Ethernet* ether = calloc(1, sizeof(Ethernet));
     assert(ether);
     err = ethernet_init(device, ether);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize Network Module");
+        DEBUG_ERR(err, "Can't Initialize Network Module");
+        return -1;
     }
 
     MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
     memset(mempool, 0x00, sizeof(MemPool));
     err = mempool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the memory mempool");
+        DEBUG_ERR(err, "Can't Initialize the memory mempool");
+        return -1;
     }
 
     err = thread_pool_init(workers);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the thread mempool");
+        DEBUG_ERR(err, "Can't Initialize the thread mempool");
+        return -1;
     }
 
     err = signal_init();
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the signals");
+        DEBUG_ERR(err, "Can't Initialize the signals");
+        return -1;
     }
 
     err = timer_thread_init();
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Initialize the Timer");
+        DEBUG_ERR(err, "Can't Initialize the Timer");
+        return -1;
     }
     
     // Create and initialize a temporary structure
@@ -146,6 +175,7 @@ int main(int argc, char *argv[]) {
     err = device_loop(device, ether, mempool);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Bad thing happened in the device, loop going to shutdown!");
+        return -1;
     }
     
     driver_exit(0);
@@ -169,5 +199,8 @@ static void driver_exit(int signum) {
     timer_thread_destroy();
 
     LOG_ERR("Bye Bye !");
+    
+    log_close();
+
     exit(EXIT_SUCCESS);
 }

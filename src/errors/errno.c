@@ -1,5 +1,6 @@
 #include <errors/errno.h>
-#include <stdio.h>
+#include <stdio.h>      // sprintf
+#include <unistd.h>     // write
 
 const char* err_code_strings[] = {
 #define X(code, str) str,
@@ -22,12 +23,15 @@ char* err_getstring(errval_t errval) {
     return (char*)err_code_to_string(code);
 }
 
-void err_print_calltrace(errval_t err){
+void err_print_calltrace(errval_t err, int fd){
     if (err_is_fail(err)){
         enum err_code x;
         while( (x = err_no(err)) != 0 ){
-            printf("Failure: ( %20s )\n", err_getstring(x));
+            char err_string[64];
+            int len = sprintf(err_string, "Failure: ( %48s )\n", err_getstring(x));
+            write(fd, err_string, len);
             err = err >> ERR_SHIFT;
         }       
+        write(fd, "\n", 1);
     }
 }

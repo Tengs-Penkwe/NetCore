@@ -1,8 +1,19 @@
-#include <log.h>
+#include <errors/log.h>
 #include <stdio.h>
+#include <event/states.h>
 
-#include <sys/syscall.h>   //syscall
-#include <sys/types.h>     //pid_t
+errval_t log_init(int log_level) {
+    (void) log_level;
+
+    return SYS_ERR_OK;
+}
+
+void log_close() {
+    int log_fd = g_states.log_fd;
+    LOG_ERR("Need to close all log files");
+    
+    close(log_fd);
+}
 
 enum log_level log_matrix[LOG_MODULE_COUNT] = {
 #define X(module, level) level,
@@ -55,9 +66,12 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
     char buffer[256]; 
     const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
 
-    pid_t tid = syscall(SYS_gettid);
+    LocalState* local = get_local_state();
+    const char* name = local->my_name;
+    const int log_fd = local->output_fd;
+
     // Format the log prefix with level, module, file, line, and function
-    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%lu> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), tid, file, line, func);
+    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%s> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), name, file, line, func);
 
     // Append the formatted message
     if (msg != NULL && len < (int)sizeof(buffer)) {
@@ -71,5 +85,5 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
     const char *tail = level < LOG_LEVEL_INFO ? "\n" : "\x1B[0m\n";
     len += snprintf(buffer + len, sizeof(buffer) - len, tail);
 
-    sys_print(buffer, len);
+    write(log_fd, buffer, len);
 }

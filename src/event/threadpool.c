@@ -10,9 +10,6 @@
 // Global variable defined in threadpool.h
 alignas(ATOMIC_ISOLATION) ThreadPool g_threadpool;
 
-// Different for each worker;
-LocalState local;
-
 errval_t thread_pool_init(size_t workers) 
 {
     errval_t err;
@@ -48,6 +45,7 @@ errval_t thread_pool_init(size_t workers)
 
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
             LOG_ERR("Can't create worker thread");
+            free(g_threadpool.threads); free(local);
             return SYS_ERR_FAIL;
         }
     }

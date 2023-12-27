@@ -1,5 +1,6 @@
 #include <event/event.h>
 #include <event/timer.h>
+#include <event/states.h>
 
 #include <stdint.h>
 #include <stdio.h>      //perror
@@ -7,7 +8,8 @@
 #include <time.h>
 
 #include <pthread.h>
-#include <sched.h>      //sched_yield
+#include <sched.h>       //sched_yield
+#include <sys/syscall.h> //gettid
 
 alignas(ATOMIC_ISOLATION) struct Timer timer;
 
@@ -37,8 +39,11 @@ void submit_delayed_task(delayed_us delay, Task task) {
     sem_post(&timer.sem);
 }
 
-static void* timer_thread (void* arg) {
-    assert(arg == NULL);
+static void* timer_thread (void* localstates) {
+    assert(localstates);
+    LocalState* local = localstates;
+    set_local_state(local);
+
     TIMER_INFO("Timer thread started !");
     CORES_SYNC_BARRIER;
 
@@ -89,9 +94,17 @@ errval_t timer_thread_init(void) {
         perror("Initializing semaphore for timer");
         return SYS_ERR_INIT_FAIL;
     }
+    
+    LocalState *local = calloc(1, sizeof(LocalState));
+    *local = (LocalState) {
+        .my_name = "Timer",
+        .my_pid  = syscall(SYS_gettid),
+        .output_fd = (g_states.log_fd == 0) ? STDOUT_FILENO : g_states.log_fd,
+    };
 
-    if (pthread_create(&timer.thread, NULL, timer_thread, NULL) != 0) {
+    if (pthread_create(&timer.thread, NULL, timer_thread, (void*)local) != 0) {
         LOG_ERR("Can't create the timer thread");
+        free(local);
         return SYS_ERR_FAIL;
     }
 

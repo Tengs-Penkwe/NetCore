@@ -5,11 +5,15 @@
 #include <stdarg.h>
 #include <string.h>     //strrchr
 
+#include <common.h>
+#include <sys/unistd.h>
+
 __BEGIN_DECLS
 
+errval_t log_init(int log_level);
+void log_close(void);
+
 // The file descriptor 1 refers to standard output (STDOUT)
-#include <sys/unistd.h>
-#define sys_print(buf, len) write(1, buf, len)
 
 // X-macro lists for log levels and modules
 #define LOG_LEVELS \
@@ -30,20 +34,20 @@ enum log_level {
 };
 
 // Current Log Level Setting
-#define CURRENT_LOG_LEVEL LOG_LEVEL_NOTE
+#define COMMON_LOG_LEVEL LOG_LEVEL_NOTE
 
 #define LOG_MODULE_LEVELS \
-    X(LOG,                      CURRENT_LOG_LEVEL) \
-    X(MODULE_IPC,               CURRENT_LOG_LEVEL) \
-    X(MODULE_EVENT,             CURRENT_LOG_LEVEL) \
-    X(MODULE_TIMER,             CURRENT_LOG_LEVEL) \
-    X(MODULE_DEVICE,            CURRENT_LOG_LEVEL) \
-    X(MODULE_ETHER,             CURRENT_LOG_LEVEL) \
-    X(MODULE_ARP,               CURRENT_LOG_LEVEL) \
-    X(MODULE_IP,                CURRENT_LOG_LEVEL) \
-    X(MODULE_ICMP,              CURRENT_LOG_LEVEL) \
-    X(MODULE_UDP,               CURRENT_LOG_LEVEL) \
-    X(MODULE_TCP,               CURRENT_LOG_LEVEL)
+    X(LOG,                      COMMON_LOG_LEVEL) \
+    X(MODULE_IPC,               COMMON_LOG_LEVEL) \
+    X(MODULE_EVENT,             COMMON_LOG_LEVEL) \
+    X(MODULE_TIMER,             COMMON_LOG_LEVEL) \
+    X(MODULE_DEVICE,            COMMON_LOG_LEVEL) \
+    X(MODULE_ETHER,             COMMON_LOG_LEVEL) \
+    X(MODULE_ARP,               COMMON_LOG_LEVEL) \
+    X(MODULE_IP,                COMMON_LOG_LEVEL) \
+    X(MODULE_ICMP,              COMMON_LOG_LEVEL) \
+    X(MODULE_UDP,               COMMON_LOG_LEVEL) \
+    X(MODULE_TCP,               COMMON_LOG_LEVEL)
 
 enum log_module {
 #define X(module, level) module,

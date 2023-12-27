@@ -12,9 +12,8 @@
 
 #include <stdarg.h>         //va_list, va_start, va_end
 #include <stdio.h>          //snprintf
+#include <event/states.h>   //LocalState
 
-#include <sys/syscall.h>   //syscall
-#include <sys/types.h>     //pid_t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -39,8 +38,11 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
 
     char *leader = err_is_ok(err) ? "\x1B[1;32mSUCCESS" : "\x1B[1;91mERROR";
 
-    pid_t tid = syscall(SYS_gettid);
-    len = snprintf(str, sizeof(str), "%s<%lu>:%s() %s:%d\n%s: ", leader, tid, func, file, line, leader);
+    LocalState* local = get_local_state();
+    const char* name = local->my_name;
+    const int log_fd = local->output_fd;
+
+    len = snprintf(str, sizeof(str), "%s<%s>:%s() %s:%d\n%s: ", leader, name, func, file, line, leader);
     if (msg != NULL) {
         va_list ap;
         va_start(ap, msg);
@@ -49,13 +51,12 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
     }
 
     len += snprintf(str + len, sizeof(str) - len, "\x1B[0m\n");
-    sys_print(str, len);
+    write(log_fd, str, len);
 
     if (err_is_fail(err)) {
         leader = "Error calltrace:\n";
-        sys_print(leader, strlen(leader));
-        err_print_calltrace(err);
-        sys_print("\n", 1);
+        write(log_fd, leader, strlen(leader));
+        err_print_calltrace(err, log_fd);
     }
 }
 
@@ -84,10 +85,14 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
     vsnprintf(msg_str, sizeof(msg_str), msg, ap);
     va_end(ap);
 
-    pid_t tid = syscall(SYS_gettid);
+    LocalState* local = get_local_state();
+    const char* name = local->my_name;
+    const int log_fd = local->output_fd;
+
     char str[256];
-    snprintf(str, sizeof(str), "\x1B[1;91m<%lu>%s() %s:%d\n%s\x1B[0m\n", tid, func, file, line, msg_str);
-    sys_print(str, sizeof(str));
+    snprintf(str, sizeof(str), "\x1B[1;91m<%s>%s() %s:%d\n%s\x1B[0m\n", name, func, file, line, msg_str);
+    write(log_fd, str, sizeof(str));
+    write(STDERR_FILENO, str, sizeof(str));
 
     abort();
 }
