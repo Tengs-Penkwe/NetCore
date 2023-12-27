@@ -12,7 +12,7 @@ errval_t udp_init(
     assert(udp && ip);
     udp->ip = ip;
 
-    err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_BND, HS_OVERWRITE_ON_EXIST);
+    err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_SERVER, HS_OVERWRITE_ON_EXIST);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of UDP servers");
 
     return SYS_ERR_OK;
@@ -109,11 +109,18 @@ errval_t udp_unmarshal(
     switch (err_no(err))
     {
     case SYS_ERR_OK:
-        if (atomic_load(&server->is_live) == false) {
+        spin_lock(&server->lock);
+        if (server->is_live == false) {
+            spin_unlock(&server->lock);
             UDP_ERR("We received packet for a dead UDP server on this port: %d", dst_port);
             return NET_ERR_UDP_PORT_NOT_REGISTERED;
         } else {
+            //TODO: the spinlock is to prevent this situation:
+            // A sever was live when getting the key, but now it's overwitten and be put into freelist, then 
+            // other threads get and overwrite the memory of server structure, then we'll have invalid pointer
+            // This situation is extremly rare, I choose not to use spinlock
             server->callback(server, addr, size, src_ip, src_port);
+            spin_unlock(&server->lock);
             UDP_DEBUG("We handled an UDP packet at port: %d", dst_port);
             return SYS_ERR_OK;
         }
@@ -142,10 +149,11 @@ errval_t udp_server_register(
     {
     case SYS_ERR_OK:    // We may meet a dead server, since the hash table is add-only, we can't remove it
         assert(server);
-        // TODO: do we really need atomic ?
-        if (atomic_load(&server->is_live) == false) {
+        spin_lock(&server->lock);
+        if (server->is_live == false) {
             goto the_port_is_actually_free;
         } else {
+            spin_unlock(&server->lock);
             return NET_ERR_UDP_PORT_REGISTERED;
         }
         assert(0);
@@ -164,8 +172,10 @@ the_port_is_actually_free:
         .rpc      = rpc,
         .port     = port,
         .callback = callback,
+        .is_live  = true,
+        .lock     = ATOMIC_FLAG_INIT,
     };
-    atomic_store(&server->is_live, true);
+    spin_unlock(&server->lock);
 
     assert(err_no(err_get) == EVENT_HASH_NOT_EXIST);
 
@@ -175,6 +185,7 @@ the_port_is_actually_free:
     case SYS_ERR_OK:
         return SYS_ERR_OK;
     case EVENT_HASH_OVERWRITE_ON_INSERT:
+        //TODO: consider if multiple threads try to register the port
         free(server);
         UDP_ERR("Another process also wants to register the UDP port and he/she gets it")
         return NET_ERR_UDP_PORT_REGISTERED;
@@ -195,11 +206,14 @@ errval_t udp_server_deregister(
     switch (err_no(err))
     {
     case SYS_ERR_OK:
-        if (atomic_load(&server->is_live) == false) {
+        spin_lock(&server->lock);
+        if (server->is_live == false) {
+            spin_unlock(&server->lock);
             UDP_ERR("A process try to de-register a dead UDP server on this port: %d", port);
             return NET_ERR_UDP_PORT_NOT_REGISTERED;
         } else {
-            atomic_store(&server->is_live, true);
+            server->is_live = false;
+            spin_unlock(&server->lock);
             UDP_INFO("We deleted a UDP server at port: %d", port);
             return SYS_ERR_OK;
         }

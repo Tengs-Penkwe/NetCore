@@ -4,9 +4,9 @@
 #include <netutil/udp.h>
 #include <lock_free/hash_table.h>
 #include <ipc/rpc.h>
-#include <stdatomic.h>
+#include <lock/spinlock.h>
 
-#define UDP_DEFAULT_BND     128
+#define UDP_DEFAULT_SERVER     128
 
 // Forward Declaration
 struct udp_state;
@@ -22,7 +22,8 @@ typedef void (*udp_server_callback) (
 #define UDP_HASH_KEY(port)    (Hash_key)(port)
 
 typedef struct udp_server {
-    atomic_bool         is_live;
+    atomic_flag         lock;
+    bool                is_live;
     struct udp_state   *udp;
     struct rpc         *rpc;
     udp_port_t          port;
@@ -33,7 +34,7 @@ typedef struct udp_state {
     alignas(ATOMIC_ISOLATION) 
         HashTable    servers;
     alignas(ATOMIC_ISOLATION) 
-        HashBucket   buckets[UDP_DEFAULT_BND];
+        HashBucket   buckets[UDP_DEFAULT_SERVER];
     struct ip_state *ip;
 } UDP __attribute__((aligned(ATOMIC_ISOLATION)));
 
