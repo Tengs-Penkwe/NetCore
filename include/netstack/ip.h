@@ -64,11 +64,11 @@ void ip_destroy(
 );
 
 errval_t ip_marshal(    
-    IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const size_t size
+    IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const uint16_t size
 );
 
 errval_t ip_unmarshal(
-    IP* ip, uint8_t* data, size_t size
+    IP* ip, uint8_t* data, uint16_t size
 );
 
 __END_DECLS

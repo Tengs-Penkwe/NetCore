@@ -60,7 +60,7 @@ void ethernet_destroy(
 }
 
 errval_t ethernet_marshal(
-    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, size_t size
+    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, uint16_t size
 ) {
     errval_t err;
     assert(ether && data && 
@@ -72,19 +72,19 @@ errval_t ethernet_marshal(
 
     struct eth_hdr* packet = (struct eth_hdr*) data;
     *packet = (struct eth_hdr){
-        .src = hton6(ether->mac),
-        .dst = hton6(dst_mac),
+        .src  = hton6(ether->mac),
+        .dst  = hton6(dst_mac),
         .type = htons(type),
     };
 
-    err = device_send(ether->device, data, size);
+    err = device_send(ether->device, data, (size_t)size);
     RETURN_ERR_PRINT(err, "Device can't send the ethernet frame");
 
     return SYS_ERR_OK;
 }
 
 errval_t ethernet_unmarshal(
-    Ethernet* ether, uint8_t* data, size_t size
+    Ethernet* ether, uint8_t* data, uint16_t size
 ) {
     errval_t err;
     struct eth_hdr *packet = (struct eth_hdr *)data;

@@ -21,7 +21,7 @@ errval_t icmp_send(
     assert(icmp);
 
     uint8_t *data = NULL;
-    size_t size = 0;
+    uint16_t size = 0;
     switch (type) {
     case ICMP_ER:
         ICMP_VERBOSE("Sending a reply to a ICMP echo request !");
@@ -67,7 +67,7 @@ errval_t icmp_send(
 }
 
 errval_t icmp_unmarshal(
-    ICMP* icmp, ip_addr_t src_ip, uint8_t* addr, size_t size
+    ICMP* icmp, ip_addr_t src_ip, uint8_t* addr, uint16_t size
 ) {
     errval_t err;
     assert(icmp && addr);

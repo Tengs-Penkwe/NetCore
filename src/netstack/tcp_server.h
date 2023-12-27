@@ -57,7 +57,7 @@ errval_t server_listen(
 );
 
 errval_t server_marshal(
-    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, void* data, size_t size
+    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, void* data, uint16_t size
 );
 
 errval_t server_send(

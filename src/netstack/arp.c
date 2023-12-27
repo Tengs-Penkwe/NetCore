@@ -37,8 +37,8 @@ errval_t arp_send(
     errval_t err;
     assert(arp);
 
-    size_t send_size  = sizeof(struct arp_hdr);
-    size_t alloc_size = ARP_RESERVE_SIZE + send_size;
+    uint16_t send_size  = sizeof(struct arp_hdr);
+    uint16_t alloc_size = ARP_RESERVE_SIZE + send_size;
     uint8_t* data_with_reserve = malloc(alloc_size);
     assert(data_with_reserve);
 
@@ -126,7 +126,7 @@ errval_t arp_lookup_mac(
 }
 
 errval_t arp_unmarshal(
-    ARP* arp, uint8_t* data, size_t size
+    ARP* arp, uint8_t* data, uint16_t size
 ) {
     errval_t err;
     ARP_VERBOSE("Enter");

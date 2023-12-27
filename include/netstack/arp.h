@@ -56,7 +56,7 @@ errval_t arp_lookup_mac(
 );
 
 errval_t arp_unmarshal(
-    ARP* arp, uint8_t* data, size_t size
+    ARP* arp, uint8_t* data, uint16_t size
 );
 
 void arp_dump(ARP* arp, char** result);
