@@ -37,8 +37,8 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     pool->bytes = bytes;
     pool->amount = amount;
 
-    EVENT_NOTE("Memory Pool initialized at %p, has %d pieces, each has %d bytes, add up to %d MiB",
-               pool->pool, amount, bytes, amount * bytes / 1024 / 1024);
+    EVENT_NOTE("Memory Pool initialized at %p, has %d pieces, each has %d bytes, add up to %d KiB",
+               pool->pool, amount, bytes, amount * bytes / 1024);
 
     return SYS_ERR_OK;
 }
