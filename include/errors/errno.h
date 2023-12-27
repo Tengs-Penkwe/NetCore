@@ -16,7 +16,8 @@ typedef uintptr_t errval_t;
     X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
     X(SYS_ERR_ALLOC_FAIL,             "Some kind of allocation (malloc, new) failed") \
     X(SYS_ERR_INIT_FAIL,              "Some kind of initializaton (thread, mutex) failed") \
-    X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet")
+    X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet") \
+    X(SYS_ERR_BAD_ALIGNMENT,          "The alignment requirement is not satisfied") \
 
 #define EVENT_ERR_CODES \
     X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
@@ -24,6 +25,7 @@ typedef uintptr_t errval_t;
     X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \
     X(EVENT_MEMPOOL_EMPTY,            "The memory pool is empty")  \
     X(EVENT_HASH_EXIST_ON_INSERT,     "The hash table is configure as none-overwritten for duplicated key")  \
+    X(EVENT_HASH_OVERWRITE_ON_INSERT, "Overwritten the value of duplicated key since it's configured in this way")  \
     X(EVENT_HASH_NOT_EXIST,           "The element associated with the key doesn't exist in the hash table")  \
     X(EVENT_LIST_EXIST_ON_INSERT,     "The add-only list is configure as none-overwritten for duplicated key")  \
     X(EVENT_LIST_NOT_EXIST,           "The element associated with the key doesn't exist in the add-only list")  \
@@ -60,12 +62,16 @@ typedef uintptr_t errval_t;
     X(NET_ERR_TCP_WRONG_ACKNOWLEDGE,   "The Acknowledge number of this TCP message is wrong") \
     X(NET_ERR_TCP_MAX_CONNECTION,      "The TCP server is there, but it has too many connections")
 
+#define IPC_ERR_CODES \
+    X(IPC_ERR_INIT,                    "Can't initialize the IPC Module") \
+
 
 enum err_code {
 #define X(code, str) code,
     SYSTEM_ERR_CODES
     EVENT_ERR_CODES
     NETWORK_ERR_CODES
+    IPC_ERR_CODES
 #undef X
 };
 

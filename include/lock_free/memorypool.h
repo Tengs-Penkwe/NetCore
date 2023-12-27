@@ -5,14 +5,15 @@
 
 typedef struct memory_pool {
     // Use Bounded MPMC Queue as backend
-    BdQueue     queue;  //ALARM: alignment required !
+    alignas(ATOMIC_ISOLATION)
+        BdQueue queue;  //ALARM: alignment required !
     BQelem     *elems;
     // Pointer to memory pool
     void       *pool;
     // Metadata
     size_t      bytes;
     size_t      amount;
-} MemPool __attribute__((aligned(BDQUEUE_ALIGN)));
+} MemPool __attribute__((aligned(ATOMIC_ISOLATION)));
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount);
 void     mempool_destroy(MemPool* pool);

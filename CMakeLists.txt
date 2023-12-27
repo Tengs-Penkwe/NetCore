@@ -36,9 +36,9 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
 include_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/inc)
 link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
 
-# Add source files
-file(GLOB C_SOURCES 
-    "src/*.c"
+# Source files for the driver
+file(GLOB DRIVER_C_SRCS 
+    "src/driver.c"
     "src/netutil/*.c"  
     "src/netstack/*.c"        
     "src/event/*.c"
@@ -47,7 +47,14 @@ file(GLOB C_SOURCES
     "src/errors/*.c"
     "src/lock_free/*.c"
 )
-file(GLOB CPP_SOURCES "src/*.cpp")
+file(GLOB DRIVER_CPP_SRCS )
+
+# Source files for the user
+file(GLOB USER_C_SRCS 
+    "src/ipc/*.c"
+)
+
+file(GLOB USER_CPP_SRCS "src/user.cpp")
 
 # Common compile options for all targets
 add_compile_options(
@@ -59,28 +66,39 @@ add_compile_options(
     -Wno-unknown-pragmas            # For liblfds
     )
 
-# Common compile options for C files
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration")
-
-# Common compile options for C++ files
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
 
-# Define the executable
-add_executable(TCP-IP ${C_SOURCES} ${CPP_SOURCES})
+add_executable(TCP-IP ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
 target_link_libraries(TCP-IP lfds711)
+
+add_executable(USER ${USER_C_SRCS} ${USER_CPP_SRCS})
 
 # Specific compile options for a target
 # target_compile_options(YourExecutable PRIVATE -Wshadow -Wconversion)
 
-# Link libraries if there are any, e.g., pthread
-# target_link_libraries(TCP-IP [libraries...])
-
 # For tests, you might want to include another subdirectory
 # add_subdirectory(tests)
 
-# Custom target to run the executable
-add_custom_target(run
-    COMMAND TCP-IP
+# Custom command to run the TCP-IP executable
+add_custom_command(
+    OUTPUT TCP-IP_RUN
+    COMMAND TCP-IP &
     DEPENDS TCP-IP
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+    COMMENT "Running TCP-IP executable"
+)
+
+# Custom command to run the USER executable
+add_custom_command(
+    OUTPUT USER_RUN
+    COMMAND USER &
+    DEPENDS USER
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+    COMMENT "Running USER executable"
+)
+
+# Custom target to run both executables
+add_custom_target(run
+    DEPENDS USER_RUN TCP-IP_RUN 
 )

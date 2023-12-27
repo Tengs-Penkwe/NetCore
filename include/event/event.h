@@ -31,7 +31,6 @@ static inline void frame_free(Frame* frame)
     frame->data = NULL;
 
     free(frame);
-    frame = NULL;
 }
 
 void frame_unmarshal(void* frame);

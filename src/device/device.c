@@ -44,13 +44,23 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     DEVICE_INFO("TAP device %s opened, tapfd = %d", ifr.ifr_name, tap_fd);
 
     *device = (NetDevice) {
-        .tap_fd = tap_fd,
-        .ifr    = ifr,
-        .recvd  = 0,
+        .tap_fd       = tap_fd,
+        .ifr          = ifr,
+        .recvd        = 0,
         .fail_process = 0,
-        .sent   = 0,
-        .fail_sent = 0,
+        .sent         = 0,
+        .fail_sent    = 0,
+        .start_time   = { 0 },
     };
+    clock_gettime(CLOCK_REALTIME, &device->start_time);
+    
+    char start_time_str[64];
+    
+    clock_gettime(CLOCK_REALTIME, &device->start_time);
+    struct tm *tm_info = localtime(&device->start_time.tv_sec);
+    strftime(start_time_str, 64, "%Y-%m-%d %H:%M:%S", tm_info);
+
+    DEVICE_NOTE("Device initialization started at %s\n", start_time_str);
 
     return SYS_ERR_OK;
 }
@@ -62,14 +72,35 @@ void device_close(NetDevice* device) {
     assert(device->tap_fd >= 0);
     close(device->tap_fd);
     DEVICE_ERR("Closed TAP device %s (fd: %d)\n", device->ifr.ifr_name, device->tap_fd);
+    
+    // Record the end time
+    struct timespec end_time;
+    clock_gettime(CLOCK_REALTIME, &end_time);
 
+    // Calculate elapsed time
+    double elapsed_time = (end_time.tv_sec - device->start_time.tv_sec) +
+                          (end_time.tv_nsec - device->start_time.tv_nsec) / 1E9;
+
+    // Convert start and end times to human-readable strings
+    char start_time_str[64], end_time_str[64];
+    strftime(start_time_str, sizeof(start_time_str), "%Y-%m-%d %H:%M:%S", localtime(&device->start_time.tv_sec));
+    strftime(end_time_str, sizeof(end_time_str), "%Y-%m-%d %H:%M:%S", localtime(&end_time.tv_sec));
+
+    DEVICE_ERR(
+        "\n  Device started at %s\n"
+        "  Device closed at %s\n"
+        "  Device was open for %.3f seconds.",
+        start_time_str, end_time_str, elapsed_time
+    );
+
+    
     // Print device statistics
     DEVICE_ERR(
         "Device Statistics for %s:\n"
         "  Packets Received: %zu\n"
         "  Packets Failed to Process: %zu\n"
         "  Packets Sent (In-accurate): %zu\n"
-        "  Packets Failed to Send: %zu\n",
+        "  Packets Failed to Send: %zu",
         device->ifr.ifr_name,
         device->recvd,
         device->fail_process,

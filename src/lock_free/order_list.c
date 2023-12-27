@@ -1,6 +1,6 @@
 #include <lock_free/order_list.h>
 
-errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy policy) {
+errval_t ordlist_init(OrdList* list, list_key_compare cmp_func, enum ordlist_policy policy) {
     switch (policy)
     {
     case LS_OVERWRITE_ON_EXIST:
@@ -22,20 +22,19 @@ errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy po
 
     list->policy = policy;
 
-    LIST_INIT_BARRIER;
     ///TODO: we should use the barrier in other core, but due to the reality, we ignore it now
 
     return SYS_ERR_OK;
 }
 
-void list_destroy(OrdList* list) {
+void ordlist_destroy(OrdList* list) {
     assert(list);
     LOG_ERR("Clean it");
 }
 
-errval_t list_insert(OrdList* list, void* data) {
+errval_t ordlist_insert(OrdList* list, void* data) {
 
-    struct lfds711_list_aso_element *le = aligned_alloc(LIST_ALIGN, sizeof(struct lfds711_list_aso_element));
+    struct lfds711_list_aso_element *le = aligned_alloc(ATOMIC_ISOLATION, sizeof(struct lfds711_list_aso_element));
     LFDS711_LIST_ASO_SET_VALUE_IN_ELEMENT(*le, data);
 
     struct lfds711_list_aso_element *dup_le = NULL;
@@ -59,7 +58,7 @@ errval_t list_insert(OrdList* list, void* data) {
     return SYS_ERR_OK;
 }
 
-errval_t list_get_by_key(OrdList* list, void* key, void** ret_data) {
+errval_t ordlist_get_by_key(OrdList* list, void* key, void** ret_data) {
     assert(list && *ret_data == NULL);
 
     struct lfds711_list_aso_element *le = NULL;

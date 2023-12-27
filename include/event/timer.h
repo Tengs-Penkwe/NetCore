@@ -20,10 +20,10 @@ typedef struct {
 } Delayed_task;
 
 struct Timer {
-    Queue      queue;
+    Queue      queue;   // Alignment requirement
     sem_t      sem;
     pthread_t  thread;
-};
+} __attribute__((aligned(ATOMIC_ISOLATION)));
 
 __BEGIN_DECLS
 

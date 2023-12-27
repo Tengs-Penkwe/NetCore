@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <sched.h>      //sched_yield
 
-struct Timer timer;
+alignas(ATOMIC_ISOLATION) struct Timer timer;
 
 static void* timer_thread (void*) __attribute__((noreturn));
 
@@ -21,6 +21,7 @@ static void time_to_submit_task(union sigval sig_data) {
     if (err_is_fail(err)) {
         (dt->fail)((void*) dt);
     }
+    LOG_ERR("Asserit it's free'd");
     free(dt);
 }
 
@@ -39,7 +40,7 @@ void submit_delayed_task(delayed_us delay, Task task) {
 static void* timer_thread (void* arg) {
     assert(arg == NULL);
     TIMER_INFO("Timer thread started !");
-    BDQUEUE_INIT_BARRIER;
+    CORES_SYNC_BARRIER;
 
     while (true) {
         sem_wait(&timer.sem);

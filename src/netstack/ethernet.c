@@ -28,7 +28,8 @@ errval_t ethernet_init(
     ip_addr_t my_ip = 0x0A00020F;
 
     // 3. Set up the ARP: it contains the lock free hash table, which must be 128-bytes aligned
-    ether->arp = aligned_alloc(HASH_ALIGN, sizeof(ARP));
+    ether->arp = aligned_alloc(ATOMIC_ISOLATION, sizeof(ARP));
+    memset(ether->arp, 0, sizeof(ARP));
     if (ether->arp == NULL) {
         USER_PANIC("Failed to allocate the ARP");
     }

@@ -33,6 +33,12 @@ static errval_t signal_init(void) {
         perror("Unable to set signal handler for SIGINT");
         return SYS_ERR_FAIL;
     }
+    
+    // Setup SIGTERM handler
+    if (signal(SIGTERM, driver_exit) == SIG_ERR) {
+        perror("Unable to set signal handler for SIGTERM");
+        return SYS_ERR_FAIL;
+    }
 
     LOG_INFO("Signals set");
     return SYS_ERR_OK;
@@ -108,7 +114,8 @@ int main(int argc, char *argv[]) {
         USER_PANIC_ERR(err, "Can't Initialize Network Module");
     }
 
-    MemPool* mempool = aligned_alloc(BDQUEUE_ALIGN, sizeof(MemPool));
+    MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
+    memset(mempool, 0x00, sizeof(MemPool));
     err = mempool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the memory mempool");
@@ -156,4 +163,5 @@ static void driver_exit(int signum) {
     thread_pool_destroy();
     timer_thread_destroy();
     LOG_ERR("Bye Bye !");
+    exit(EXIT_SUCCESS);
 }

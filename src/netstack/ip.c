@@ -34,10 +34,11 @@ errval_t ip_init(
     err = icmp_init(ip->icmp, ip);
     RETURN_ERR_PRINT(err, "Can't initialize global ICMP state");
 
-    // ip->udp = calloc(1, sizeof(UDP));
-    // assert(ip->udp);
-    // err = udp_init(ip->udp, ip);
-    // RETURN_ERR_PRINT(err, "Can't initialize global UDP state");
+    ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP));
+    memset(ip->udp, 0x00, sizeof(UDP));
+    assert(ip->udp);
+    err = udp_init(ip->udp, ip);
+    RETURN_ERR_PRINT(err, "Can't initialize global UDP state");
 
     // ip->tcp = calloc(1, sizeof(TCP));
     // assert(ip->tcp);
@@ -80,8 +81,8 @@ errval_t ip_unmarshal(
     if (header_size != sizeof(struct ip_hdr)) {
         IP_NOTE("The IP Header has %d Bytes, We don't have special treatment for it", header_size);
     }
-    if (!(header_size > IPH_LEN_MIN && header_size < IPH_LEN_MAX)) {
-        IP_ERR("IPv4 Header to Big or Small: %d", size);
+    if (!(header_size >= IPH_LEN_MIN && header_size <= IPH_LEN_MAX)) {
+        IP_ERR("IPv4 Header to Big or Small: %d", header_size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
 
@@ -90,7 +91,7 @@ errval_t ip_unmarshal(
         LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
-    if (!(size > IP_LEN_MIN && size < IP_LEN_MAX)) {
+    if (!(size >= IP_LEN_MIN && size <= IP_LEN_MAX)) {
         LOG_ERR("IPv4 Packet to Big or Small: %d", size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }

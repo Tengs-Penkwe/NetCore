@@ -2,31 +2,26 @@
 #define __LOCK_FREE_LIST_H__
 
 #include <common.h>      // BEGIN, END DECLS
+#include "defs.h"
 #include "liblfds711.h"  // Lock-free structures
 
-#define LIST_INIT_BARRIER   LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
-#define LIST_ALIGN          LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES
-
-enum list_policy {
+enum ordlist_policy {
     LS_OVERWRITE_ON_EXIST,
     LS_FAIL_ON_EXIST,
 };
 
 typedef struct {
-    alignas(LIST_ALIGN) 
+    alignas(ATOMIC_ISOLATION) 
         struct lfds711_list_aso_state list;
-    enum list_policy                  policy;
-} OrdList __attribute__((aligned(LIST_ALIGN)));
-
-typedef int (*list_key_compare)(void const *new_key, void const *existing_key);
-
+    enum ordlist_policy                  policy;
+} OrdList __attribute__((aligned(ATOMIC_ISOLATION)));
 
 __BEGIN_DECLS
 
-errval_t list_init(OrdList* list, list_key_compare cmp_func, enum list_policy policy);
-void list_destroy(OrdList* list);
-errval_t list_insert(OrdList* list, void* data);
-errval_t list_get_by_key(OrdList* list, void* key, void** ret_data);
+errval_t ordlist_init(OrdList* list, list_key_compare cmp_func, enum ordlist_policy policy);
+void ordlist_destroy(OrdList* list);
+errval_t ordlist_insert(OrdList* list, void* data);
+errval_t ordlist_get_by_key(OrdList* list, void* key, void** ret_data);
 
 __END_DECLS
 

@@ -1,10 +1,10 @@
 #include <common.h>
 #include <event/threadpool.h>
 #include <event/timer.h>
-#include <stdio.h>     //perror
+#include <stdio.h>     // perror
 
 // Global variable defined in threadpool.h
-ThreadPool g_threadpool;
+alignas(ATOMIC_ISOLATION) ThreadPool g_threadpool;
 
 errval_t thread_pool_init(size_t workers) 
 {
@@ -56,7 +56,7 @@ void *thread_function(void* arg) {
     LOG_INFO("ThreadPool Worker started !");
 
     // Initialization barrier for lock-free queue
-    BDQUEUE_INIT_BARRIER;    
+    CORES_SYNC_BARRIER;    
 
     Task *task = NULL;
     while(true) {
@@ -64,7 +64,7 @@ void *thread_function(void* arg) {
             sem_wait(&g_threadpool.sem);
         } else {
             assert(task);
-            process_task(*task);
+            (*task->process)(task->task);
             free(task);
             task = NULL;
         }

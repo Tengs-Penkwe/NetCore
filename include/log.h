@@ -34,6 +34,7 @@ enum log_level {
 
 #define LOG_MODULE_LEVELS \
     X(LOG,                      CURRENT_LOG_LEVEL) \
+    X(MODULE_IPC,               CURRENT_LOG_LEVEL) \
     X(MODULE_EVENT,             CURRENT_LOG_LEVEL) \
     X(MODULE_TIMER,             CURRENT_LOG_LEVEL) \
     X(MODULE_DEVICE,            CURRENT_LOG_LEVEL) \
@@ -41,7 +42,7 @@ enum log_level {
     X(MODULE_ARP,               CURRENT_LOG_LEVEL) \
     X(MODULE_IP,                CURRENT_LOG_LEVEL) \
     X(MODULE_ICMP,              CURRENT_LOG_LEVEL) \
-    X(MODULE_UDP,               CURRENT_LOG_LEVEL) \
+    X(MODULE_UDP,               LOG_LEVEL_VERBOSE) \
     X(MODULE_TCP,               CURRENT_LOG_LEVEL)
 
 enum log_module {
@@ -70,6 +71,14 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define LOG_NOTE(fmt, ...)            LOG(LOG, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)            LOG(LOG, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define LOG_ERR(fmt, ...)             LOG(LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+
+// Define logging macros for IPC module
+#define IPC_VERBOSE(fmt, ...)         LOG(MODULE_IPC, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define IPC_INFO(fmt, ...)            LOG(MODULE_IPC, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define IPC_DEBUG(fmt, ...)           LOG(MODULE_IPC, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define IPC_NOTE(fmt, ...)            LOG(MODULE_IPC, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define IPC_WARN(fmt, ...)            LOG(MODULE_IPC, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define IPC_ERR(fmt, ...)             LOG(MODULE_IPC, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 
 // Define logging macros for EVENT module
 #define EVENT_VERBOSE(fmt, ...)       LOG(MODULE_EVENT, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)

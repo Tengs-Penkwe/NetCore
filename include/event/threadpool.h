@@ -1,7 +1,6 @@
 #ifndef __EVENT_THREADPOOL_H__
 #define __EVENT_THREADPOOL_H__
 
-#define THREAD_POOL_SIZE    12
 #define TASK_QUEUE_SIZE     256
 
 #include <common.h>
@@ -10,8 +9,8 @@
 #include <lock_free/bdqueue.h>
 
 typedef struct {
-    void (*function)(void*);
-    void* argument;
+    void (*process)(void*);
+    void *task;
 } Task;
 
 #define MK_TASK(h,a)    (Task){ /*handler*/ (h), /*arg*/ (a) }
@@ -23,7 +22,7 @@ typedef struct {
     sem_t       sem;
     pthread_t  *threads;
     size_t      workers;
-} ThreadPool __attribute__((aligned(BDQUEUE_ALIGN))) ;
+} ThreadPool __attribute__((aligned(ATOMIC_ISOLATION))) ;
 
 extern ThreadPool g_threadpool;
 
@@ -35,11 +34,6 @@ void thread_pool_destroy(void);
 // Function declarations
 void* thread_function(void* arg) __attribute__((noreturn));
 errval_t submit_task(Task task);
-
-static inline void process_task(Task task)
-{
-    (*task.function)(task.argument);
-}
 
 __END_DECLS
 

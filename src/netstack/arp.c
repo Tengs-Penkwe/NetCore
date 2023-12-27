@@ -11,8 +11,8 @@ errval_t arp_init(
     assert(arp && ether);
     arp->ether = ether;
     arp->ip = ip;
-
-    err = hash_init(&arp->hosts, HS_FAIL_ON_EXIST);
+    
+    err = hash_init(&arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");
@@ -29,6 +29,7 @@ void arp_destroy(
     ARP_NOTE("ARP module destroyed!");
 }
 
+// TODO: Make it a task, submittable
 errval_t arp_send(
     ARP* arp, uint16_t opration,
     ip_addr_t dst_ip, mac_addr dst_mac
@@ -36,11 +37,12 @@ errval_t arp_send(
     errval_t err;
     assert(arp);
 
-    size_t send_size = ARP_RESERVE_SIZE + sizeof(struct arp_hdr);
-    uint8_t* data_with_reserve = malloc(send_size);
+    size_t send_size  = sizeof(struct arp_hdr);
+    size_t alloc_size = ARP_RESERVE_SIZE + send_size;
+    uint8_t* data_with_reserve = malloc(alloc_size);
     assert(data_with_reserve);
 
-    struct arp_hdr* packet = (struct arp_hdr*) data_with_reserve + ARP_RESERVE_SIZE;
+    struct arp_hdr* packet = (struct arp_hdr*) (data_with_reserve + ARP_RESERVE_SIZE);
     *packet = (struct arp_hdr) {
         .hwtype   = htons(ARP_HW_TYPE_ETH),
         .proto    = htons(ARP_PROT_IP),
@@ -91,7 +93,7 @@ void arp_register(
     void* macaddr_as_pointer = NULL;
     memcpy(&macaddr_as_pointer, &mac, sizeof(mac_addr));
 
-    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer);
+    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer, false);
     if (err_no(err) == EVENT_HASH_EXIST_ON_INSERT) {
         ARP_INFO("The IP-MAC pair already exists");
     } else if (err_is_fail(err)) {

@@ -2,12 +2,11 @@
 #define __LOCK_FREE_HASH_TABLE_H__
 
 #include <common.h>      // BEGIN, END DECLS
+#include "defs.h"
 #include "liblfds711.h"  // Lock-free structures
 
 #define HASH_BUCKETS      64
-
-#define HASH_INIT_BARRIER   LFDS711_MISC_MAKE_VALID_ON_CURRENT_LOGICAL_CORE_INITS_COMPLETED_BEFORE_NOW_ON_ANY_OTHER_LOGICAL_CORE
-#define HASH_ALIGN          LFDS711_PAL_ATOMIC_ISOLATION_IN_BYTES
+#define INIT_FREE         64    
 
 enum hash_policy {
     HS_OVERWRITE_ON_EXIST,
@@ -15,12 +14,14 @@ enum hash_policy {
 };
 
 typedef struct {
-    alignas(HASH_ALIGN) 
+    alignas(ATOMIC_ISOLATION) 
         struct lfds711_hash_a_state    hash;
-    alignas(HASH_ALIGN) 
-        struct lfds711_btree_au_state  buckets[HASH_BUCKETS];
+    alignas(ATOMIC_ISOLATION)
+        struct lfds711_freelist_state  freelist;
     enum hash_policy                   policy;
-} HashTable __attribute__((aligned(HASH_ALIGN))); 
+} HashTable __attribute__((aligned(ATOMIC_ISOLATION))); 
+
+typedef struct lfds711_btree_au_state HashBucket;
 
 typedef uint64_t Hash_key;
 
@@ -51,9 +52,9 @@ static inline void key_hash_func(void const *key, lfds711_pal_uint_t *hash)
     return;
 }
 
-errval_t hash_init(HashTable* hash, enum hash_policy policy);
+errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum hash_policy policy);
 void hash_destroy(HashTable* hash);
-errval_t hash_insert(HashTable* hash, Hash_key key, void* data);
+errval_t hash_insert(HashTable* hash, Hash_key key, void* data, bool overwrite);
 errval_t hash_get_by_key(HashTable* hash, Hash_key key, void** ret_data);
 
 __END_DECLS

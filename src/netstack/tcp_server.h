@@ -12,7 +12,7 @@ typedef struct tcp_connection {
     struct tcp_server    *server;
     // Who send it
     ip_addr_t             src_ip;
-    trans_port_t          src_port;
+    tcp_port_t            src_port;
     // Expect message
     uint32_t              sendno;
     union {
@@ -33,19 +33,19 @@ typedef struct tcp_server {
 
     // The process who has this server
     int                    fd;
-    struct aos_rpc        *chan;       // Send message back to process
+    struct rpc            *chan;       // Send message back to process
     tcp_server_callback    callback;   // Triggered when a message is received
 
     // Server state
     uint32_t               max_conn;    // How many connections allowed ?
 
     // Information about this server
-    trans_port_t           port;
+    tcp_port_t             port;
     // collections_hash_table *connections;  // All the messages it holds
 } TCP_server;
 
 errval_t server_init(
-    TCP* tcp, TCP_server* server, int fd, struct aos_rpc* rpc, trans_port_t my_port, tcp_server_callback callback
+    TCP* tcp, TCP_server* server, int fd, struct rpc* rpc, tcp_port_t my_port, tcp_server_callback callback
 );
 
 void server_shutdown(
@@ -57,7 +57,7 @@ errval_t server_listen(
 );
 
 errval_t server_marshal(
-    TCP_server* server, ip_addr_t dst_ip, trans_port_t dst_port, void* data, size_t size
+    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, void* data, size_t size
 );
 
 errval_t server_send(
