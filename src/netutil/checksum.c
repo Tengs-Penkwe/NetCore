@@ -46,10 +46,7 @@ uint16_t inet_checksum(void *dataptr, uint16_t len)
     return ~lwip_standard_chksum(dataptr, len);
 }
 
-#include <stdint.h>
-#include <string.h>
-
-static uint16_t part_checksum(const void *buf, uint16_t len) {
+static uint32_t part_checksum(const void *buf, uint16_t len) {
     uint32_t sum = 0;
     const uint16_t* buffer = buf;
 
@@ -59,23 +56,28 @@ static uint16_t part_checksum(const void *buf, uint16_t len) {
         len -= sizeof(uint16_t);
     }
     if (len == 1) {
-        sum += *(uint8_t*) buffer;
-    } 
-
+        sum += (*(uint8_t*) buffer) << 8;
+    }  
+    
     return sum;
 }
 
 // return the result in 
 uint16_t tcp_udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader) {
 
-    uint32_t whole_len_no_iph = ntohs(pheader.len_no_iph);
+    uint16_t whole_len_no_iph = ntohs(pheader.len_no_iph);
+    assert(pheader.reserved == 0);
+    assert(sizeof(pheader) % 2 == 0);
     
     uint32_t sum = 0;
     sum += part_checksum(&pheader, sizeof(pheader));
     sum += part_checksum(data_no_iph, whole_len_no_iph);
 
-    sum = (sum >> 16) + (sum & 0xFFFF);
+    sum  = (sum >> 16) + (sum & 0xFFFF);
     sum += (sum >> 16);
 
-    return htons((uint16_t)(~sum));
+    if (sum == 0xFFFF) sum += 1;
+    
+    ///TODO: why we don't need htons here ?
+    return /*htons*/(uint16_t)(~sum);
 }

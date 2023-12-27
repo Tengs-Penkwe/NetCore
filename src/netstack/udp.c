@@ -30,7 +30,7 @@ void udp_destroy(
 
 errval_t udp_marshal(
     UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
-    uint8_t* addr, size_t size
+    uint8_t* addr, uint16_t size
 ) {
     errval_t err;
     assert(udp && addr);
@@ -52,7 +52,7 @@ errval_t udp_marshal(
         .dst_addr   = htonl(dst_ip),
         .reserved   = 0,
         .protocol   = IP_PROTO_UDP,
-        .len_no_iph = htons((uint16_t)size),
+        .len_no_iph = htons(size),
     };
     packet->chksum = tcp_udp_checksum_in_net_order(addr, ip_header);
 
@@ -63,7 +63,7 @@ errval_t udp_marshal(
 }
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, size_t size
+    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, uint16_t size
 ) {
     errval_t err;
     assert(udp && addr);
@@ -84,7 +84,7 @@ errval_t udp_unmarshal(
     udp_port_t dst_port = ntohs(packet->dest);
 
     // 2. Checksum is optional
-    uint16_t pkt_chksum = packet->chksum; //TODO: ntohs ?
+    uint16_t pkt_chksum = ntohs(packet->chksum); //TODO: ntohs ?
     if (pkt_chksum != 0) {
         packet->chksum = 0;
         struct pseudo_ip_header_in_net_order ip_header = {
@@ -92,11 +92,11 @@ errval_t udp_unmarshal(
             .dst_addr   = htonl(udp->ip->ip),
             .reserved   = 0,
             .protocol   = IP_PROTO_UDP,
-            .len_no_iph = htons((uint16_t)size),
+            .len_no_iph = htons(size),
         };
         uint16_t checksum = ntohs(tcp_udp_checksum_in_net_order(addr, ip_header));
         if (pkt_chksum != checksum) {
-            UDP_ERR("This UDP Pacekt Has Wrong Checksum %p, Should be %p", checksum, pkt_chksum);
+            UDP_ERR("This UDP Pacekt Has Wrong Checksum 0x%0.4x, Should be 0x%0.4x", pkt_chksum, checksum);
             return NET_ERR_UDP_WRONG_FIELD;
         }
     }
@@ -121,6 +121,7 @@ errval_t udp_unmarshal(
     case EVENT_HASH_NOT_EXIST:
         UDP_ERR("We don't have UDP server on this port: %d", dst_port);
         return NET_ERR_UDP_PORT_NOT_REGISTERED;
+        // return SYS_ERR_OK;
     default:
         DEBUG_ERR(err, "Unknown Error Code");
         return err;
