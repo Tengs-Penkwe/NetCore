@@ -1,7 +1,6 @@
 #ifndef __EVENT_THREADPOOL_H__
 #define __EVENT_THREADPOOL_H__
 
-#define THREAD_POOL_SIZE    12
 #define TASK_QUEUE_SIZE     256
 
 #include <common.h>
