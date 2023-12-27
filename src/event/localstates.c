@@ -21,6 +21,7 @@ void set_local_state(LocalState* new_state) {
     } else {
         printf("There is already a local state !");
         free(new_state);
+        USER_PANIC("How to deal with it");
     }
 }
 

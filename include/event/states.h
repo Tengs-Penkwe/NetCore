@@ -33,6 +33,9 @@ typedef struct global_states {
     size_t          sent;    // Maybe inaccurate because multi-threading
     size_t          fail_sent;
     struct timespec start_time;
+    
+    /// 
+    int             log_fd;
 
 } GlobalStates;
 
