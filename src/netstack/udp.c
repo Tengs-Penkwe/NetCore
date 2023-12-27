@@ -47,15 +47,14 @@ errval_t udp_marshal(
         .chksum = 0,
     };
 
-    // struct pseudo_ip_header ip_header = {
-    //     .src_addr = udp->ip->ip,
-    //     .dst_addr = dst_ip,
-    //     .reserved = 0,
-    //     .protocol = IP_PROTO_UDP,
-    //     .whole_length = ((uint16_t)size),
-    // };
-    // packet->chksum = htons(tcp_udp_checksum(addr, size, ip_header));
-    //TODO: Calculate the chksum, although it's optional
+    struct pseudo_ip_header_in_net_order ip_header = {
+        .src_addr   = htonl(udp->ip->ip),
+        .dst_addr   = htonl(dst_ip),
+        .reserved   = 0,
+        .protocol   = IP_PROTO_UDP,
+        .len_no_iph = htons((uint16_t)size),
+    };
+    packet->chksum = tcp_udp_checksum_in_net_order(addr, ip_header);
 
     err = ip_marshal(udp->ip, dst_ip, IP_PROTO_UDP, addr, size);
     RETURN_ERR_PRINT(err, "Can't marshal the message and sent by IP");
@@ -87,13 +86,19 @@ errval_t udp_unmarshal(
     // 2. Checksum is optional
     uint16_t pkt_chksum = packet->chksum; //TODO: ntohs ?
     if (pkt_chksum != 0) {
-        // packet->chksum = 0;
-        // // uint16_t checksum = net_checksum_tcpudp(size, IP_PROTO_UDP, addr);
-        // uint16_t checksum = 0;//udp_checksum(addr, size, src_port, dst_port);
-        // if (pkt_chksum != ntohs(checksum)) {
-        //     UDP_ERR("This UDP Pacekt Has Wrong Checksum %p, Should be %p", checksum, pkt_chksum);
-        //     // return NET_ERR_UDP_WRONG_FIELD;
-        // }
+        packet->chksum = 0;
+        struct pseudo_ip_header_in_net_order ip_header = {
+            .src_addr   = htonl(src_ip),
+            .dst_addr   = htonl(udp->ip->ip),
+            .reserved   = 0,
+            .protocol   = IP_PROTO_UDP,
+            .len_no_iph = htons((uint16_t)size),
+        };
+        uint16_t checksum = ntohs(tcp_udp_checksum_in_net_order(addr, ip_header));
+        if (pkt_chksum != checksum) {
+            UDP_ERR("This UDP Pacekt Has Wrong Checksum %p, Should be %p", checksum, pkt_chksum);
+            return NET_ERR_UDP_WRONG_FIELD;
+        }
     }
 
     addr += sizeof(struct udp_hdr);
@@ -115,7 +120,7 @@ errval_t udp_unmarshal(
         assert(0);
     case EVENT_HASH_NOT_EXIST:
         UDP_ERR("We don't have UDP server on this port: %d", dst_port);
-        return NET_ERR_UDP_PORT_NOT_REGISTERED;
+        return SYS_ERR_OK;
     default:
         DEBUG_ERR(err, "Unknown Error Code");
         return err;

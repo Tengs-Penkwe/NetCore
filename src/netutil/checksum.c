@@ -49,9 +49,9 @@ uint16_t inet_checksum(void *dataptr, uint16_t len)
 #include <stdint.h>
 #include <string.h>
 
-static uint16_t calculate_checksum(void *buf, int len) {
+static uint16_t part_checksum(const void *buf, uint16_t len) {
     uint32_t sum = 0;
-    uint16_t* buffer = buf;
+    const uint16_t* buffer = buf;
 
     while (len > 1)
     {
@@ -62,27 +62,20 @@ static uint16_t calculate_checksum(void *buf, int len) {
         sum += *(uint8_t*) buffer;
     } 
 
-    sum = (sum >> 16) + (sum & 0xFFFF);
-    sum += (sum >> 16);
-
-    return (uint16_t)(~sum);
+    return sum;
 }
 
 // return the result in 
-uint16_t tcp_udp_checksum(const void *data_no_iph, struct pseudo_ip_header pheader) {
+uint16_t tcp_udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader) {
 
-    // Convert pseudo_header to network byte order
-    struct pseudo_ip_header phdr;
-    phdr.src_addr     = htonl(pheader.src_addr);
-    phdr.dst_addr     = htonl(pheader.dst_addr);
-    phdr.reserved     = 0;
-    phdr.protocol     = pheader.protocol;
-    phdr.len_no_iph   = htons(pheader.len_no_iph);
+    uint32_t whole_len_no_iph = ntohs(pheader.len_no_iph);
+    
+    uint32_t sum = 0;
+    sum += part_checksum(&pheader, sizeof(pheader));
+    sum += part_checksum(data_no_iph, whole_len_no_iph);
 
-    // Calculate the sum
-    uint8_t buf[65536];     //TODO: don't use such a big stack !!
-    memcpy(buf, &phdr, sizeof(phdr));
-    memcpy(buf + sizeof(phdr), data_no_iph, pheader.len_no_iph );
+    sum = (sum >> 16) + (sum & 0xFFFF);
+    sum += (sum >> 16);
 
-    return calculate_checksum(buf, sizeof(phdr) + pheader.len_no_iph);
+    return htons((uint16_t)(~sum));
 }
