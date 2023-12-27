@@ -10,8 +10,8 @@
 
 __BEGIN_DECLS
 
-errval_t log_init(int log_level);
-void log_close(void);
+errval_t log_init(const char* log_file, int log_level, FILE** ret_file);
+void log_close(FILE* log);
 
 // The file descriptor 1 refers to standard output (STDOUT)
 

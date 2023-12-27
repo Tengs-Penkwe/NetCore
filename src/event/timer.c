@@ -99,7 +99,7 @@ errval_t timer_thread_init(void) {
     *local = (LocalState) {
         .my_name = "Timer",
         .my_pid  = syscall(SYS_gettid),
-        .output_fd = (g_states.log_fd == 0) ? STDOUT_FILENO : g_states.log_fd,
+        .log_file = (g_states.log_file == 0) ? stdout : g_states.log_file,
     };
 
     if (pthread_create(&timer.thread, NULL, timer_thread, (void*)local) != 0) {

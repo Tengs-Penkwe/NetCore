@@ -11,9 +11,6 @@
 #include <stdio.h>         //perror
 #include <sys/syscall.h>   //syscall
                            
-#include <fcntl.h>   // for open
-#include <unistd.h>  // for close
-
 static void driver_exit(int signum);
 
 static errval_t signal_init(void) {
@@ -97,29 +94,27 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+    
+    FILE *log_file = NULL;
 
-    int log_fd = open(log_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);  // Open file for writing
-    if (log_fd == -1) {
-        printf("\x1B[1;91mCan't open the log file: %s\x1B[0m\n", log_file);
+    err = log_init(log_file, log_level, &log_file);
+    if (err_is_fail(err)) {
+        printf("\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
         return -1;
     }
-    g_states.log_fd = log_fd;
+    assert(log_file);
+    g_states.log_file = log_file;
 
     //TODO: free it ?
     create_thread_state_key();
+
     LocalState *master = calloc(1, sizeof(LocalState));
     *master = (LocalState) {
         .my_name   = "Master",
         .my_pid    = syscall(SYS_gettid),
-        .output_fd = log_fd,
+        .log_file  = log_file,
     };
     set_local_state(master);
-
-    err = log_init(log_level);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "Can't Initialize the log system");
-        return -1;
-    }
 
     NetDevice* device = calloc(1, sizeof(NetDevice));
     assert(device);
@@ -163,7 +158,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     
-    // Create and initialize a temporary structure
     Driver driver = (Driver) {
         .ether      = ether,
         .device     = device,
@@ -179,7 +173,7 @@ int main(int argc, char *argv[]) {
     }
     
     driver_exit(0);
-    return 0;
+    return -1;
 }
 
 static void driver_exit(int signum) {
@@ -200,7 +194,7 @@ static void driver_exit(int signum) {
 
     LOG_ERR("Bye Bye !");
     
-    log_close();
+    log_close(g_states.log_file);
 
     exit(EXIT_SUCCESS);
 }

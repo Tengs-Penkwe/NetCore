@@ -35,12 +35,12 @@ errval_t thread_pool_init(size_t workers)
         char* name = calloc(16, sizeof(char));
         sprintf(name, "Worker %d", i);
         
-        int output_fd = (g_states.log_fd == 0) ? STDOUT_FILENO : g_states.log_fd;
+        int log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file;
 
         local[i] = (LocalState) {
-            .my_name   = name,
-            .my_pid    = syscall(SYS_gettid),
-            .output_fd = output_fd,
+            .my_name  = name,
+            .my_pid   = syscall(SYS_gettid),
+            .log_file = log_file,
         };
 
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
@@ -79,7 +79,7 @@ void *thread_function(void* localstate) {
     LocalState* local = localstate;
     set_local_state(local);
     
-    EVENT_INFO("ThreadPool %s started with pid %d, output at %d", local->my_name, local->my_pid, local->output_fd);
+    EVENT_INFO("ThreadPool %s started with pid %d, output at %d", local->my_name, local->my_pid, local->log_file);
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
@@ -95,6 +95,7 @@ void *thread_function(void* localstate) {
             task = NULL;
         }
     }
+    //TODO: let the threads receive a signal and gracefully exit
 }
 
 errval_t submit_task(Task task) {
