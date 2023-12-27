@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>     //strrchr
+#include <stdio.h>      // FILE 
 
 #include <common.h>
 #include <sys/unistd.h>

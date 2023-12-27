@@ -1,6 +1,7 @@
 #include <errors/log.h>
 #include <stdio.h>
 #include <event/states.h>
+#include <time.h>
 
 errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
 
@@ -9,6 +10,7 @@ errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
         char error[128];
         sprintf(error, "Error opening file: %s, going to use the standard output", log_file);
         perror(error);
+        //TODO: return error code and handle it in upper module
     } 
     log = stdout;
 
@@ -16,11 +18,14 @@ errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
     setvbuf(log, NULL, _IOFBF, 65536);
     // TODO: read it from global state ?
     (void) log_level;
+    
+    *ret_file = log;
 
     return SYS_ERR_OK;
 }
 
 void log_close(FILE* log) {
+    LOG_ERR("Should flush every log file !");
     fflush(log);
     // Let the OS close the file to avoid race condition
     // fclose(log);
@@ -48,7 +53,7 @@ static const char* level_to_string(enum log_level level) {
 const char *level_colors[] = {
     [LOG_LEVEL_VERBOSE] = "", 
     [LOG_LEVEL_INFO]    = "\x1B[1m", 
-    [LOG_LEVEL_DEBUG]   = "\x1B[0;34m", 
+    [LOG_LEVEL_DEBUG]   = "\x1B[0;36m", 
     [LOG_LEVEL_NOTE]    = "\x1B[1;34m", // Blue
     [LOG_LEVEL_WARN]    = "\x1B[0;33m", // Yellow
     [LOG_LEVEL_ERROR]   = "\x1B[0;91m"  // Red
@@ -57,46 +62,77 @@ const char *level_colors[] = {
 // Utility function to convert log module enum to string
 static const char* module_to_string(enum log_module module) {
     switch (module) {
-        case LOG:              return "LOG";
-        case MODULE_IPC:       return "IPC";
-        case MODULE_EVENT:     return "EVENT";
-        case MODULE_TIMER:     return "TIMER";
-        case MODULE_DEVICE:    return "DEVICE";
-        case MODULE_ETHER:     return "ETHER";
-        case MODULE_ARP:       return "ARP";
-        case MODULE_IP:        return "IP";
+        case LOG:              return "LOG ";
+        case MODULE_IPC:       return "IPC ";
+        case MODULE_EVENT:     return "EVNT";
+        case MODULE_TIMER:     return "TIMR";
+        case MODULE_DEVICE:    return "DVIC";
+        case MODULE_ETHER:     return "ETHR";
+        case MODULE_ARP:       return "ARP ";
+        case MODULE_IP:        return "IP  ";
         case MODULE_ICMP:      return "ICMP";
-        case MODULE_UDP:       return "UDP";
-        case MODULE_TCP:       return "TCP";
+        case MODULE_UDP:       return "UDP ";
+        case MODULE_TCP:       return "TCP ";
         default:        return "UNKNOWN_MODULE";
     }
 }
 
+static int error_assemble(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
+    
+    const char *name  = local->my_name;
+    
+    time_t now;
+    struct tm local_tm;
+    time(&now);
+    localtime_r(&now, &local_tm);
+
+    char time_str[64];
+    size_t time_len = strftime(time_str, sizeof(time_str), "%b-%d %H:%M:%S", &local_tm);
+    (void)time_len;
+    
+    int len = 0;
+    
+    if (msg != NULL) {
+        len = snprintf(buf_after_leader, max_len, "<%s>{%s}", name, time_str);
+        len += vsnprintf(buf_after_leader + len, max_len - len, msg, args);
+    }
+    return len;
+}
+
+
 void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
 {
     char buffer[256]; 
-    const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
 
     LocalState *local = get_local_state();
-    const char *name  = local->my_name;
     FILE       *log   = local->log_file;
 
-    // Format the log prefix with level, module, file, line, and function
-    int len = snprintf(buffer, sizeof(buffer), "%s[%s-%s]<%s> %s:%d->%s(): ", leader, level_to_string(level), module_to_string(module), name, file, line, func);
+    const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
+    
+    int len_leader = snprintf(buffer, sizeof(buffer), "%s[%s-%s]", leader, level_to_string(level), module_to_string(module));
+    int len_middle = 0;
+    int len_suffix = 0;
+    int len_tail   = 0;
 
-    // Append the formatted message
-    if (msg != NULL && len < (int)sizeof(buffer)) {
+    // Middle using error_assemble
+    if (msg != NULL && len_leader < (int)sizeof(buffer)) {
         va_list ap;
         va_start(ap, msg);
-        len += vsnprintf(buffer + len, sizeof(buffer) - len, msg, ap);
+        len_middle = error_assemble(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);    
         va_end(ap);
     }
 
+    // Format the log suffix with file, line, and function
+    len_suffix = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle,
+                   " %s:%d->%s(): ", file, line, func);
+
     // Reset color at the end of the message
     const char *tail = level < LOG_LEVEL_INFO ? "\n" : "\x1B[0m\n";
-    len += snprintf(buffer + len, sizeof(buffer) - len, tail);
+    len_tail = snprintf(buffer + len_leader + len_middle + len_suffix, 
+                        sizeof(buffer) - len_leader - len_middle - len_suffix,
+                        tail);
 
-    fwrite(buffer, sizeof(char), len, log);
+    fwrite(buffer, sizeof(char), len_leader + len_middle + len_suffix + len_tail, log);
 }
 
 /*
@@ -110,11 +146,6 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
  * ETH Zurich D-INFK, Universitaetstr. 6, CH-8092 Zurich. Attn: Systems Group.
  */
 #include <errors/debug.h>
-
-#include <stdarg.h>         //va_list, va_start, va_end
-#include <stdio.h>          //snprintf
-#include <event/states.h>   //LocalState
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -132,27 +163,28 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
  *
  * @note: do not use this function directly. Rather use the DEBUG_ERR macro
  */
-void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...)
-{
-    char    str[256];
-    size_t  len;
-
-    char *leader = err_is_ok(err) ? "\x1B[1;32mSUCCESS" : "\x1B[1;91mERROR";
-
+void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...) {
+    char buffer[256];
     LocalState *local = get_local_state();
-    const char *name  = local->my_name;
-    FILE       *log   = local->log_file;
+    FILE *log = local->log_file;
+    
+    int len_leader = 0;
+    int len_middle = 0;
+    int len_tail   = 0;
 
-    len = snprintf(str, sizeof(str), "%s<%s>:%s() %s:%d\n%s: ", leader, name, func, file, line, leader);
-    if (msg != NULL) {
+    const char *leader = err_is_ok(err) ? "\x1B[1;32mSUCCESS" : "\x1B[1;91mERROR";
+    len_leader = snprintf(buffer, sizeof(buffer), "%s", leader);
+
+    if (msg != NULL && len_leader < (int)sizeof(buffer)) {
         va_list ap;
         va_start(ap, msg);
-        len += vsnprintf(str + len, sizeof(str) - len, msg, ap);
+        len_middle = error_assemble(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);
         va_end(ap);
     }
 
-    len += snprintf(str + len, sizeof(str) - len, "\x1B[0m\n");
-    fwrite(str, sizeof(char), len, log);
+    len_tail = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle, " %s:%d->%s() \x1B[0m\n", file, line, func);
+
+    fwrite(buffer, sizeof(char), len_leader + len_middle + len_tail, log);
 
     if (err_is_fail(err)) {
         leader = "Error calltrace:\n";
@@ -178,22 +210,24 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
  *
  * Use the PANIC macros instead of calling this function directly.
  */
-void user_panic_fn(const char *file, const char *func, int line, const char *msg, ...)
-{
+void user_panic_fn(const char *file, const char *func, int line, const char *msg, ...) {
+    char buffer[128];
+    LocalState *local = get_local_state();
+    FILE *log = local->log_file;
+    
+    const char *leader = "\x1B[1;35mPANIC ";
+    int len_leader = snprintf(buffer, sizeof(buffer), "%s", leader);
+
     va_list ap;
-    char msg_str[128];
     va_start(ap, msg);
-    vsnprintf(msg_str, sizeof(msg_str), msg, ap);
+    int len_middle = error_assemble(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);
     va_end(ap);
 
-    LocalState *local = get_local_state();
-    const char *name  = local->my_name;
-    FILE       *log   = local->log_file;
+    int len_suffix = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle,
+                              " %s:%d->%s(): \x1B[0m\n", file, line, func);
 
-    char str[256];
-    snprintf(str, sizeof(str), "\x1B[1;91m<%s>%s() %s:%d\n%s\x1B[0m\n", name, func, file, line, msg_str);
-    fwrite(str, sizeof(char), sizeof(str), log);
-    write(STDERR_FILENO, str, sizeof(str));
+    fwrite(buffer, sizeof(char), len_leader + len_middle + len_suffix, log);
+    write(STDERR_FILENO, buffer, len_leader + len_middle + len_suffix);
 
     abort();
 }
