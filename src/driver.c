@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     int c;
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
-    char *log_file = "log/output.ansi";
+    char *log_file = "/var/log/TCP-IP/output.ansi";
     int log_level = LOG_LEVEL_INFO; // default log level
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
@@ -98,9 +98,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    int log_fd = open(log_file, O_WRONLY | O_CREAT, 0644);  // Open file for writing
+    int log_fd = open(log_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);  // Open file for writing
     if (log_fd == -1) {
-        LOG_ERR("Can't open the log file");
+        printf("\x1B[1;91mCan't open the log file: %s\x1B[0m\n", log_file);
         return -1;
     }
     g_states.log_fd = log_fd;
