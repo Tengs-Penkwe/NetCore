@@ -10,7 +10,7 @@
 // Each pieces have reserved space in the head to avoid copying
 #define  MEMPOOL_BYTES       ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE
 // Give 2048 peices in Memory pool
-#define  MEMPOOL_AMOUNT      2048
+#define  MEMPOOL_AMOUNT      8192
 
 typedef struct driver {
     Ethernet    *ether;
