@@ -54,7 +54,7 @@ void check_recvd_message(void* message);
 errval_t ip_assemble(
     IP* ip, ip_addr_t src_ip, 
     uint8_t proto, uint16_t id, 
-    uint8_t* addr, size_t size, uint32_t offset,
+    uint8_t* addr, uint16_t size, uint16_t offset,
     bool more_frag, bool no_frag
 );
 errval_t ip_handle(IP_recv* msg);

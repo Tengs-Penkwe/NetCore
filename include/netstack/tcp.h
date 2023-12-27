@@ -31,11 +31,11 @@ errval_t tcp_init(
 errval_t tcp_marshal(
     TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
-    void* addr, size_t size
+    void* addr, uint16_t size
 );
 
 errval_t tcp_unmarshal(
-    TCP* tcp, const ip_addr_t src_ip, void* addr, size_t size
+    TCP* tcp, const ip_addr_t src_ip, void* addr, uint16_t size
 );
 
 errval_t tcp_server_register(

@@ -115,7 +115,7 @@ void dump_tcp_msg(const TCP_msg *msg);
 
 typedef struct tcp_connection TCP_conn;
 errval_t conn_send_msg(
-    TCP_conn* conn, void* addr, size_t size
+    TCP_conn* conn, void* addr, uint16_t size
 );
 
 errval_t conn_handle_msg(

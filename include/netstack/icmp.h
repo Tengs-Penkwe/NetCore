@@ -18,7 +18,7 @@ typedef struct icmp_data {
         struct icmp_echo echo;
     };
     uint8_t* data;
-    uint32_t size;
+    uint16_t size;
 } __attribute__((__packed__)) ICMP_data;
 
 // STATIC_ASSERT_SIZEOF(union (icmp_data) echo, 4);
@@ -32,7 +32,7 @@ errval_t icmp_send(
 );
 
 errval_t icmp_unmarshal(
-    ICMP* icmp, ip_addr_t src_ip, uint8_t* addr, size_t size
+    ICMP* icmp, ip_addr_t src_ip, uint8_t* addr, uint16_t size
 );
 
 

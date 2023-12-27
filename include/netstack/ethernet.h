@@ -28,11 +28,11 @@ void ethernet_destroy(
 );
 
 errval_t ethernet_marshal(
-    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, size_t size
+    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, uint16_t size
 );
 
 errval_t ethernet_unmarshal(
-    Ethernet* ether, uint8_t* data, size_t size
+    Ethernet* ether, uint8_t* data, uint16_t size
 );
 
 __END_DECLS

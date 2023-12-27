@@ -61,7 +61,7 @@ void ip_destroy(
 }
 
 errval_t ip_unmarshal(
-    IP* ip, uint8_t* data, size_t size
+    IP* ip, uint8_t* data, uint16_t size
 ) {
     assert(ip && data);
     errval_t err;
@@ -91,8 +91,8 @@ errval_t ip_unmarshal(
         LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
-    if (!(size >= IP_LEN_MIN && size <= IP_LEN_MAX)) {
-        LOG_ERR("IPv4 Packet to Big or Small: %d", size);
+    if (!(size >= IP_LEN_MIN)) {
+        LOG_ERR("IPv4 Packet too Small: %d", size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
 
@@ -152,7 +152,7 @@ errval_t ip_unmarshal(
 }
 
 errval_t ip_marshal(    
-    IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const size_t size
+    IP* ip, ip_addr_t dst_ip, uint8_t proto, const uint8_t* data, const uint16_t size
 ) {
     errval_t err;
     IP_DEBUG("Sending a message, dst_ip: %p, data: %p, size: %d", dst_ip, data, size);

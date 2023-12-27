@@ -49,11 +49,11 @@ void udp_destroy(
 
 errval_t udp_marshal(
     UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
-    uint8_t* addr, size_t size
+    uint8_t* addr, uint16_t size
 );
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, size_t size
+    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, uint16_t size
 );
 
 errval_t udp_server_register(
