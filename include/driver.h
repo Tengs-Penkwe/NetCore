@@ -12,16 +12,6 @@
 // Give 2048 peices in Memory pool
 #define  MEMPOOL_AMOUNT      8192
 
-typedef struct driver {
-    Ethernet    *ether;
-    NetDevice   *device;  
-    MemPool     *mempool;
-    ThreadPool  *threadpool;
-
-} Driver ;
-
-extern Driver g_driver;
-
 __BEGIN_DECLS
 
 int main(int argc, char* argv[]);

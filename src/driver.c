@@ -6,11 +6,9 @@
 #include <event/event.h>
 #include <event/timer.h>
 #include <lock_free/memorypool.h>
+#include <event/states.h>
 
 #include <stdio.h>  //perror
-
-// Global Structure
-Driver g_driver;
 
 static void driver_exit(int signum);
 
@@ -135,20 +133,20 @@ int main(int argc, char *argv[]) {
     if (err_is_fail(err)) {
         USER_PANIC_ERR(err, "Can't Initialize the Timer");
     }
-
-    g_driver = (Driver) {
+    
+    // Create and initialize a temporary structure
+    Driver driver = (Driver) {
         .ether      = ether,
         .device     = device,
         .mempool    = mempool,
         .threadpool = &g_threadpool,
     };
+    g_states.driver = driver;
 
     err = device_loop(device, ether, mempool);
     if (err_is_fail(err)) {
-        USER_PANIC_ERR(err, "Can't Enter device loop !");
+        DEBUG_ERR(err, "Bad thing happened in the device, loop going to shutdown!");
     }
-
-    USER_PANIC("Ending TODO: free resources!");
     
     driver_exit(0);
     return 0;
@@ -156,12 +154,20 @@ int main(int argc, char *argv[]) {
 
 static void driver_exit(int signum) {
     (void) signum;
-    assert(g_driver.ether);
-    ethernet_destroy(g_driver.ether);
-    device_close(g_driver.device);
-    mempool_destroy(g_driver.mempool);
+    LOG_ERR("Ending TODO: free resources!");
+
+    Driver driver = g_states.driver;
+
+    ethernet_destroy(driver.ether);
+
+    device_close(driver.device);
+
+    mempool_destroy(driver.mempool);
+
     thread_pool_destroy();
+
     timer_thread_destroy();
+
     LOG_ERR("Bye Bye !");
     exit(EXIT_SUCCESS);
 }

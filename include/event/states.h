@@ -8,16 +8,19 @@
 #include <lock_free/memorypool.h>
 #include <event/threadpool.h>
 
+typedef struct driver {
+    Ethernet    *ether;
+    NetDevice   *device;  
+    MemPool     *mempool;
+    ThreadPool  *threadpool;
+
+} Driver ;
+
 typedef struct global_states {
     /// @brief For TCP 
     size_t          max_worker_for_single_tcp_server;
 
-    struct {
-        Ethernet    *ether;
-        NetDevice   *device;  
-        MemPool     *mempool;
-        ThreadPool  *threadpool;
-    } driver;
+    Driver          driver;
     /// @brief For Device
     size_t          recvd;   ///< How many packets have we received
     size_t          fail_process;
