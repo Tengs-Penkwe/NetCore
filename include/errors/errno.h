@@ -82,11 +82,12 @@ extern const char* err_code_strings[];
 __BEGIN_DECLS
 char* err_getstring(errval_t errval);
 const char* err_code_to_string(enum err_code code);
+void err_print_calltrace(errval_t errval, int fd);
+
 static inline bool err_is_fail(errval_t errval);
 static inline bool err_is_ok(errval_t errval);
 static inline enum err_code err_no(errval_t errval);
 static inline errval_t err_pop(errval_t errval);
-void err_print_calltrace(errval_t errval);
 static inline errval_t err_push(errval_t errval,enum err_code errcode);
  
 /* function definitions: */

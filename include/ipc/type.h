@@ -4,7 +4,7 @@
 #include <common.h>
 #include <netutil/ip.h>     //ip_addr_t
 #include <netutil/udp.h>    //udp_port_t
-#include <log.h>
+#include <errors/log.h>
 #include <stdatomic.h>
 
 /*
