@@ -30,7 +30,7 @@ enum log_level {
 };
 
 // Current Log Level Setting
-#define CURRENT_LOG_LEVEL LOG_LEVEL_VERBOSE
+#define CURRENT_LOG_LEVEL LOG_LEVEL_NOTE
 
 #define LOG_MODULE_LEVELS \
     X(LOG,                      CURRENT_LOG_LEVEL) \
@@ -42,7 +42,7 @@ enum log_level {
     X(MODULE_ARP,               CURRENT_LOG_LEVEL) \
     X(MODULE_IP,                CURRENT_LOG_LEVEL) \
     X(MODULE_ICMP,              CURRENT_LOG_LEVEL) \
-    X(MODULE_UDP,               LOG_LEVEL_VERBOSE) \
+    X(MODULE_UDP,               CURRENT_LOG_LEVEL) \
     X(MODULE_TCP,               CURRENT_LOG_LEVEL)
 
 enum log_module {
