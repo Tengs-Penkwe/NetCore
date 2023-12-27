@@ -1,7 +1,7 @@
 #ifndef __EVENT_THREADPOOL_H__
 #define __EVENT_THREADPOOL_H__
 
-#define TASK_QUEUE_SIZE     256
+#define TASK_QUEUE_SIZE     512
 
 #include <common.h>
 #include <pthread.h>
