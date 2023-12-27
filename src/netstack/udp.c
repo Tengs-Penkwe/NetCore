@@ -5,6 +5,8 @@
 #include <netstack/udp.h>
 #include <netstack/ip.h>
 
+#include "udp_server.h"
+
 errval_t udp_init(
     UDP* udp, IP* ip
 ) {
@@ -109,18 +111,18 @@ errval_t udp_unmarshal(
     switch (err_no(err))
     {
     case SYS_ERR_OK:
-        spin_lock(&server->lock);
-        if (server->is_live == false) {
-            spin_unlock(&server->lock);
+        sem_wait(&server->sema);
+        if (server->is_live == false) 
+        {
+            sem_post(&server->sema);
             UDP_ERR("We received packet for a dead UDP server on this port: %d", dst_port);
             return NET_ERR_UDP_PORT_NOT_REGISTERED;
-        } else {
-            //TODO: the spinlock is to prevent this situation:
-            // A sever was live when getting the key, but now it's overwitten and be put into freelist, then 
-            // other threads get and overwrite the memory of server structure, then we'll have invalid pointer
-            // This situation is extremly rare, I choose not to use spinlock
+        } 
+        else
+        {
+            // TODO: the semaphore is to prevent this situation:
             server->callback(server, addr, size, src_ip, src_port);
-            spin_unlock(&server->lock);
+            sem_post(&server->sema);
             UDP_DEBUG("We handled an UDP packet at port: %d", dst_port);
             return SYS_ERR_OK;
         }
@@ -129,98 +131,6 @@ errval_t udp_unmarshal(
         UDP_ERR("We don't have UDP server on this port: %d", dst_port);
         return NET_ERR_UDP_PORT_NOT_REGISTERED;
         // return SYS_ERR_OK;
-    default:
-        DEBUG_ERR(err, "Unknown Error Code");
-        return err;
-    }
-}
-
-errval_t udp_server_register(
-    UDP* udp, rpc_t* rpc, const udp_port_t port, const udp_server_callback callback
-) {
-    assert(udp);
-    errval_t err_get, err_insert;
-
-    UDP_server* server = NULL; 
-
-    //TODO: reconsider the multithread contention here
-    err_get = hash_get_by_key(&udp->servers, UDP_HASH_KEY(port), (void**)&server);
-    switch (err_no(err_get))
-    {
-    case SYS_ERR_OK:    // We may meet a dead server, since the hash table is add-only, we can't remove it
-        assert(server);
-        spin_lock(&server->lock);
-        if (server->is_live == false) {
-            goto the_port_is_actually_free;
-        } else {
-            spin_unlock(&server->lock);
-            return NET_ERR_UDP_PORT_REGISTERED;
-        }
-        assert(0);
-    case EVENT_HASH_NOT_EXIST:
-        server = calloc(1, sizeof(UDP_server));
-        goto the_port_is_actually_free;
-    default:
-        DEBUG_ERR(err_get, "Unknown Error Code");
-        return err_get;
-    }
-
-the_port_is_actually_free:
-    assert(server);
-    *server = (UDP_server) {
-        .udp      = udp,
-        .rpc      = rpc,
-        .port     = port,
-        .callback = callback,
-        .is_live  = true,
-        .lock     = ATOMIC_FLAG_INIT,
-    };
-    spin_unlock(&server->lock);
-
-    assert(err_no(err_get) == EVENT_HASH_NOT_EXIST);
-
-    err_insert = hash_insert(&udp->servers, UDP_HASH_KEY(port), server, false);
-    switch (err_no(err_insert)) 
-    {
-    case SYS_ERR_OK:
-        return SYS_ERR_OK;
-    case EVENT_HASH_OVERWRITE_ON_INSERT:
-        //TODO: consider if multiple threads try to register the port
-        free(server);
-        UDP_ERR("Another process also wants to register the UDP port and he/she gets it")
-        return NET_ERR_UDP_PORT_REGISTERED;
-    default:
-        DEBUG_ERR(err_insert, "Unknown Error Code");
-        return err_insert;
-    }
-}
-
-errval_t udp_server_deregister(
-    UDP* udp, const udp_port_t port
-) {
-    assert(udp);
-    errval_t err;
-    
-    UDP_server* server = NULL;
-    err = hash_get_by_key(&udp->servers, UDP_HASH_KEY(port), (void**)&server);
-    switch (err_no(err))
-    {
-    case SYS_ERR_OK:
-        spin_lock(&server->lock);
-        if (server->is_live == false) {
-            spin_unlock(&server->lock);
-            UDP_ERR("A process try to de-register a dead UDP server on this port: %d", port);
-            return NET_ERR_UDP_PORT_NOT_REGISTERED;
-        } else {
-            server->is_live = false;
-            spin_unlock(&server->lock);
-            UDP_INFO("We deleted a UDP server at port: %d", port);
-            return SYS_ERR_OK;
-        }
-        assert(0);
-    case EVENT_HASH_NOT_EXIST:
-        UDP_ERR("A process try to de-register a not existing UDP server on this port: %d", port);
-        return NET_ERR_UDP_PORT_NOT_REGISTERED;
     default:
         DEBUG_ERR(err, "Unknown Error Code");
         return err;
