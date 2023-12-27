@@ -2,9 +2,16 @@
 #include <event/threadpool.h>
 #include <event/timer.h>
 #include <stdio.h>     // perror
+#include <event/states.h>
+
+#include <sys/syscall.h>   //syscall
+#include <sys/types.h>     //pid_t
 
 // Global variable defined in threadpool.h
 alignas(ATOMIC_ISOLATION) ThreadPool g_threadpool;
+
+// Different for each worker;
+LocalState local;
 
 errval_t thread_pool_init(size_t workers) 
 {
@@ -24,8 +31,22 @@ errval_t thread_pool_init(size_t workers)
 
     // 3. Create all the workers
     g_threadpool.threads  = calloc(workers, sizeof(pthread_t));
-    for (size_t i = 0; i < workers; i++) {
-        if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, NULL) != 0) {
+    LocalState* local = calloc(workers, sizeof(LocalState));
+    
+    for (size_t i = 0; i < workers; i++)
+    {
+        char* name = calloc(16, sizeof(char));
+        sprintf(name, "Worker %d", i);
+        
+        int output_fd = (g_states.log_fd == 0) ? STDOUT_FILENO : g_states.log_fd;
+
+        local[i] = (LocalState) {
+            .my_name   = name,
+            .my_pid    = syscall(SYS_gettid),
+            .output_fd = output_fd,
+        };
+
+        if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
             LOG_ERR("Can't create worker thread");
             return SYS_ERR_FAIL;
         }
@@ -47,13 +68,20 @@ void thread_pool_destroy(void) {
     free(g_threadpool.threads);
     g_threadpool.threads = NULL;
 
+    EVENT_ERR(
+        "Need to free local states !"
+        "Need to Close all opened files !");
+
     memset(&g_threadpool, 0, sizeof(g_threadpool));
     EVENT_ERR("Threadpool destroyed !");
 }
 
-void *thread_function(void* arg) {
-    assert(arg == NULL);
-    LOG_INFO("ThreadPool Worker started !");
+void *thread_function(void* localstate) {
+    assert(localstate);
+    LocalState* local = localstate;
+    set_local_state(local);
+    
+    EVENT_INFO("ThreadPool %s started with pid %d, output at %d", local->my_name, local->my_pid, local->output_fd);
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
