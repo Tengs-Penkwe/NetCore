@@ -68,15 +68,18 @@ errval_t udp_unmarshal(
 ) {
     errval_t err;
     assert(udp && addr);
-    LOG_DEBUG("Received an UDP packet, source IP: %p, addr:%p, size: %d", src_ip, addr, size);
+    UDP_DEBUG("Received an UDP packet, source IP: %p, addr:%p, size: %d", src_ip, addr, size);
 
     struct udp_hdr* packet = (struct udp_hdr*) addr;
 
     if (ntohs(packet->len) != size) {
-        LOG_ERR("UDP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), size);
+        UDP_ERR("UDP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), size);
         return NET_ERR_UDP_WRONG_FIELD;
     }
     assert(size >= UDP_LEN_MIN && size <= UDP_LEN_MAX);
+    if (size >= ETHER_MTU - 20) {
+        UDP_NOTE("This UDP paceket is very big: %d", size);
+    }
 
     udp_port_t src_port = ntohs(packet->src);
     udp_port_t dst_port = ntohs(packet->dest);
@@ -88,7 +91,7 @@ errval_t udp_unmarshal(
         // // uint16_t checksum = net_checksum_tcpudp(size, IP_PROTO_UDP, addr);
         // uint16_t checksum = 0;//udp_checksum(addr, size, src_port, dst_port);
         // if (pkt_chksum != ntohs(checksum)) {
-        //     LOG_ERR("This UDP Pacekt Has Wrong Checksum %p, Should be %p", checksum, pkt_chksum);
+        //     UDP_ERR("This UDP Pacekt Has Wrong Checksum %p, Should be %p", checksum, pkt_chksum);
         //     // return NET_ERR_UDP_WRONG_FIELD;
         // }
     }
