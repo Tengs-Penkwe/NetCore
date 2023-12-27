@@ -2,7 +2,10 @@
 #define __NETSTACK_DEF_H__
 
 #include <stdint.h>
-#include <types.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+typedef	int64_t	        ssize_t;
 
 /* <sys/socket.h>
  *
