@@ -2,13 +2,14 @@
 #define __VNET_TCP_H__
 
 #include <netutil/tcp.h>
+#include <lock_free/hash_table.h>
 
 #define TCP_DEFAULT_SERVER    128
-#define TCP_DEFAULT_CONN      64
 
 __BEGIN_DECLS
 
 typedef struct tcp_server TCP_server;
+typedef struct rpc rpc_t;
 
 typedef void (*tcp_server_callback) (
     struct tcp_server* server,
@@ -17,12 +18,15 @@ typedef void (*tcp_server_callback) (
 );
 
 typedef struct tcp_state {
-    struct ip_state* ip;
-    // collections_hash_table *servers;
-} TCP;
+    alignas(ATOMIC_ISOLATION) 
+        HashTable    servers;
+    alignas(ATOMIC_ISOLATION) 
+        HashBucket   buckets[TCP_DEFAULT_SERVER];
+    struct ip_state *ip;
+} TCP __attribute__((aligned(ATOMIC_ISOLATION)));
 
 /// The key of a server inside the hash table 
-#define TCP_KEY(port)   (uint64_t)(port)
+#define TCP_HASH_KEY(port)   (Hash_key)(port)
 
 errval_t tcp_init(
     TCP* tcp, struct ip_state* ip
@@ -39,7 +43,7 @@ errval_t tcp_unmarshal(
 );
 
 errval_t tcp_server_register(
-    TCP* tcp, int fd, const tcp_port_t port, const tcp_server_callback callback
+    TCP* tcp, struct rpc* rpc, const tcp_port_t port, const tcp_server_callback callback
 );
 
 errval_t tcp_server_deregister(

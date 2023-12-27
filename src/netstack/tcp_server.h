@@ -3,10 +3,26 @@
 
 #include <netutil/tcp.h>
 #include <netstack/tcp.h>
+#include <ipc/rpc.h>
 #include "tcp_connect.h"
 
-typedef struct tcp_state TCP;
+typedef struct tcp_state  TCP;
 typedef struct tcp_server TCP_server;
+
+#define TCP_SERVER_DEFAULT_CONN      64
+
+typedef struct tcp_server {
+    bool                is_live;
+    struct tcp_state   *tcp;
+    // The process who has this server
+    struct aos_rpc     *rpc;            // Send message back to process
+    tcp_server_callback callback;       // Triggered when a message is received
+    // Server state
+    uint32_t            max_conn;       // How many connections allowed ?
+    // Information about this server
+    tcp_port_t          port;
+    // collections_hash_table *connections;  // All the messages it holds
+} TCP_server;
 
 typedef struct tcp_connection {
     struct tcp_server    *server;
@@ -21,31 +37,14 @@ typedef struct tcp_connection {
     };
     // State
     TCP_st                state;
-
-    // struct deferred_event defer;
 } TCP_conn;
 
 /// The key of a connection inside the hash table of a server
 #define TCP_CONN_KEY(ip, port) ( ((uint64_t)ip << 16) |  ((uint64_t)port) )
 
-typedef struct tcp_server {
-    struct tcp_state      *tcp;
-
-    // The process who has this server
-    int                    fd;
-    struct rpc            *chan;       // Send message back to process
-    tcp_server_callback    callback;   // Triggered when a message is received
-
-    // Server state
-    uint32_t               max_conn;    // How many connections allowed ?
-
-    // Information about this server
-    tcp_port_t             port;
-    // collections_hash_table *connections;  // All the messages it holds
-} TCP_server;
 
 errval_t server_init(
-    TCP* tcp, TCP_server* server, int fd, struct rpc* rpc, tcp_port_t my_port, tcp_server_callback callback
+    TCP* tcp, TCP_server* server, struct rpc* rpc, tcp_port_t my_port, tcp_server_callback callback
 );
 
 void server_shutdown(
