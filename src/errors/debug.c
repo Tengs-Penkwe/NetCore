@@ -51,7 +51,7 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
     len += snprintf(str + len, sizeof(str) - len, "\x1B[0m\n");
     sys_print(str, len);
 
-    if (err != 0) {
+    if (err_is_fail(err)) {
         leader = "Error calltrace:\n";
         sys_print(leader, strlen(leader));
         err_print_calltrace(err);

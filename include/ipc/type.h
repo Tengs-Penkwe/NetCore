@@ -5,6 +5,7 @@
 #include <netutil/ip.h>     //ip_addr_t
 #include <netutil/udp.h>    //udp_port_t
 #include <log.h>
+#include <stdatomic.h>
 
 /*
  * ------------------------------------------------------------------------------------------------
@@ -52,14 +53,43 @@ typedef struct rpc_message {
 
 #define RPC_PAYLOAD_FULL_SIZE sizeof(((struct ipc_message *)0)->payload)
 
-static_assert(sizeof(rpc_message_t) == 80);
+static_assert(sizeof(rpc_message_t) == 64);
 
 /// type of the receive handler function.
 typedef void (*rpc_recv_handler_fn)(void *ac);
 
 /*
  * ------------------------------------------------------------------------------------------------
- * AOS RPC: Message Type
+ * RPC: Shared Memory
+ * ------------------------------------------------------------------------------------------------
+ */
+#define URPC_SHRM_SIZE      8192
+
+/// urpc frame holds two rings, sending one (tx) and receiving one (rx)
+#define RPC_SHRM_RING_ENTRIES  ((URPC_SHRM_SIZE / 2 - 32) / sizeof(rpc_message_t)) 
+// We need space for lock, head, tail
+
+typedef struct share_mem {
+    size_t    base;
+    size_t    size;
+} ShareMem;
+
+typedef struct shrm_msg_ring {
+    atomic_flag        lock;
+    uint8_t            head;
+    uint8_t            tail;
+    struct rpc_message ring[RPC_SHRM_RING_ENTRIES];
+} shrm_msg_ring_t;
+
+struct rpc_shrm {
+    struct share_mem      shrm; ///< Created when booting core, it only holds 2 rings
+    struct shrm_msg_ring *tx;   ///< Point into urpc_frame, place depends on if the process is initializer
+    struct shrm_msg_ring *rx;   ///< same as tx
+};
+
+/*
+ * ------------------------------------------------------------------------------------------------
+ * RPC: Message Type
  * ------------------------------------------------------------------------------------------------
  */
 
@@ -137,9 +167,8 @@ typedef struct rpc {
 
 static inline void message_info(rpc_message_t* msg) {
     IPC_ERR("RPC Message:\n "
-        "\t Command:0x%x \t Status: 0x%x\t Valid: 0x%x \t Length: %d\n",
-        msg->meta.cmd, msg->meta.status, msg->meta.valid, msg->meta.length);
-    // if (!capcmp(msg->cap, NULL_CAP)) debug_print_capref(msg->cap);
+        "\t Command:0x%x \t Valid: 0x%x \t Length: %d\n",
+        msg->meta.cmd, msg->meta.valid, msg->meta.length);
 }
 
 static inline void rpc_info(rpc_t* rpc) {
@@ -152,7 +181,7 @@ static inline void rpc_info(rpc_t* rpc) {
         type = "UNKNOWN";
     }
     IPC_ERR("AOS_RPC: %s\n "
-        "\t Name:%s\t Core: %d\t Domain: %d\n", type, rpc->id.name, rpc->id.core, rpc->id.domain);
+        "\t Name:%s\n", type, rpc->id.name);
 }
 
 #endif  // __IPC_TYPE_H__

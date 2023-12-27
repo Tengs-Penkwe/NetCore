@@ -120,7 +120,7 @@ errval_t udp_unmarshal(
         assert(0);
     case EVENT_HASH_NOT_EXIST:
         UDP_ERR("We don't have UDP server on this port: %d", dst_port);
-        return SYS_ERR_OK;
+        return NET_ERR_UDP_PORT_NOT_REGISTERED;
     default:
         DEBUG_ERR(err, "Unknown Error Code");
         return err;
