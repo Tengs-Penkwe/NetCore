@@ -79,7 +79,11 @@ errval_t submit_task(Task task) {
     *task_copy = task;
 
     err = enbdqueue(&g_threadpool.queue, NULL, task_copy);
-    RETURN_ERR_PRINT(err, "The Task Queue is full !");
+    if (err_no(err) == EVENT_ENQUEUE_FULL) {
+        EVENT_WARN("The Task Queue is full !");
+        return err;
+    } 
+    RETURN_ERR_PRINT(err, "Error met when trying to enqueue!");
 
     sem_post(&g_threadpool.sem);
     return SYS_ERR_OK;
