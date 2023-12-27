@@ -9,7 +9,7 @@
 #include <errors/errno.h>
 
 /* Debug System */
-#include <debug.h>
+#include <errors/debug.h>
 
 /* C++ */
 #if defined(__cplusplus)
