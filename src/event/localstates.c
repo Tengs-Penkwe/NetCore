@@ -9,8 +9,8 @@ static void free_state(void* local) {
     LocalState *state = local;
 
     char last_msg[64];
-    int len =sprintf(last_msg, "Thread %d with pid %d is going to end", state->my_name, state->my_pid);
-    fwrite(last_msg, sizeof(char), 64, state->log_file);
+    int len =sprintf(last_msg, "Thread %s with pid %d is going to end\n", state->my_name, state->my_pid);
+    fwrite(last_msg, sizeof(char), len, state->log_file);
     fflush(state->log_file);
 
     // Don't close file because there will be race condition, let the OS close it
