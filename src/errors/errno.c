@@ -26,9 +26,9 @@ char* err_getstring(errval_t errval) {
 void err_print_calltrace(errval_t err, int fd){
     if (err_is_fail(err)){
         enum err_code x;
-        while( (x = err_no(err)) != 0 ){
-            char err_string[64];
-            int len = sprintf(err_string, "Failure: ( %48s )\n", err_getstring(x));
+        while( (x = err_no(err)) != SYS_ERR_OK ){
+            char err_string[128];
+            int len = sprintf(err_string, "Failure: ( %32s )\n", err_getstring(x));
             write(fd, err_string, len);
             err = err >> ERR_SHIFT;
         }       
