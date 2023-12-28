@@ -79,6 +79,7 @@ errval_t hash_insert(HashTable* hash, Hash_key key, void* data, bool overwrite) 
     }
     case LFDS711_HASH_A_PUT_RESULT_SUCCESS_OVERWRITE:
     {
+        USER_PANIC("Disabled for now");
         assert(hash->policy == HS_OVERWRITE_ON_EXIST);
         assert(dup_he);
 
