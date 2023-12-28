@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
     int c;
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
-    char *log_file = "/var/log/TCP-IP/output.ansi";
+    char *log_file_name = "/var/log/TCP-IP/output.json";
     int log_level = LOG_LEVEL_INFO; // default log level
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
             } else if (opt.longidx == 5) { // log-level
                 log_level = atoi(opt.arg);
             } else if (opt.longidx == 6) { // log-file
-                log_file = opt.arg;
+                log_file_name = opt.arg;
             }
             break;
         case '?': // Unknown option
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     
     FILE *log_file = NULL;
 
-    err = log_init(log_file, log_level, &log_file);
+    err = log_init(log_file_name, log_level, &log_file);
     if (err_is_fail(err)) {
         printf("\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
         return -1;

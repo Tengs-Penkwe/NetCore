@@ -60,7 +60,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     struct tm *tm_info = localtime(&device->start_time.tv_sec);
     strftime(start_time_str, 64, "%Y-%m-%d %H:%M:%S", tm_info);
 
-    DEVICE_NOTE("Device initialization started at %s\n", start_time_str);
+    DEVICE_NOTE("Device initialization started at %s", start_time_str);
 
     return SYS_ERR_OK;
 }
@@ -71,7 +71,7 @@ void device_close(NetDevice* device) {
     // Close the TAP device
     assert(device->tap_fd >= 0);
     close(device->tap_fd);
-    DEVICE_ERR("Closed TAP device %s (fd: %d)\n", device->ifr.ifr_name, device->tap_fd);
+    DEVICE_ERR("Closed TAP device %s (fd: %d)", device->ifr.ifr_name, device->tap_fd);
     
     // Record the end time
     struct timespec end_time;
@@ -87,8 +87,8 @@ void device_close(NetDevice* device) {
     strftime(end_time_str, sizeof(end_time_str), "%Y-%m-%d %H:%M:%S", localtime(&end_time.tv_sec));
 
     DEVICE_ERR(
-        "\n  Device started at %s\n"
-        "  Device closed at %s\n"
+        "  Device started at %s\\n"
+        "  Device closed at %s\\n"
         "  Device was open for %.3f seconds.",
         start_time_str, end_time_str, elapsed_time
     );
@@ -96,10 +96,10 @@ void device_close(NetDevice* device) {
     
     // Print device statistics
     DEVICE_ERR(
-        "Device Statistics for %s:\n"
-        "  Packets Received: %zu\n"
-        "  Packets Failed to Process: %zu\n"
-        "  Packets Sent (In-accurate): %zu\n"
+        "Device Statistics for %s:\\n"
+        "  Packets Received: %zu\\n"
+        "  Packets Failed to Process: %zu\\n"
+        "  Packets Sent (In-accurate): %zu\\n"
         "  Packets Failed to Send: %zu",
         device->ifr.ifr_name,
         device->recvd,

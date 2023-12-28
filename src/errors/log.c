@@ -11,8 +11,9 @@ errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
         sprintf(error, "Error opening file: %s, going to use the standard output", log_file);
         perror(error);
         //TODO: return error code and handle it in upper module
+        log = stdout;
     } 
-    log = stdout;
+    printf("Opened log file at %s\n", log_file);
 
     // Set full buffer mode, size as 65536
     setvbuf(log, NULL, _IOFBF, 65536);
@@ -46,6 +47,8 @@ static const char* level_to_string(enum log_level level) {
         case LOG_LEVEL_NOTE:    return "NOTE ";
         case LOG_LEVEL_WARN:    return "WARN ";
         case LOG_LEVEL_ERROR:   return "ERROR";
+        case LOG_LEVEL_FATAL:   return "FATAL";
+        case LOG_LEVEL_PANIC:   return "PANIC";
         default:                return "UNKNOWN";
     }
 }
@@ -56,7 +59,8 @@ const char *level_colors[] = {
     [LOG_LEVEL_DEBUG]   = "\x1B[0;36m", 
     [LOG_LEVEL_NOTE]    = "\x1B[1;34m", // Blue
     [LOG_LEVEL_WARN]    = "\x1B[0;33m", // Yellow
-    [LOG_LEVEL_ERROR]   = "\x1B[0;91m"  // Red
+    [LOG_LEVEL_ERROR]   = "\x1B[0;91m", // Red
+    [LOG_LEVEL_FATAL]   = "\x1B[0;95m", // Magenta
 };
 
 // Utility function to convert log module enum to string
@@ -77,21 +81,16 @@ static const char* module_to_string(enum log_module module) {
     }
 }
 
-static int error_assemble(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
-    
+static int error_ansi(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
     const char *name  = local->my_name;
-    
-    time_t now;
-    struct tm local_tm;
-    time(&now);
-    localtime_r(&now, &local_tm);
+
+    time_t now; struct tm local_tm;
+    time(&now); localtime_r(&now, &local_tm);
 
     char time_str[64];
-    size_t time_len = strftime(time_str, sizeof(time_str), "%b-%d %H:%M:%S", &local_tm);
-    (void)time_len;
+    strftime(time_str, sizeof(time_str), "%b-%d %H:%M:%S", &local_tm);
     
     int len = 0;
-    
     if (msg != NULL) {
         len = snprintf(buf_after_leader, max_len, "<%s>{%s}", name, time_str);
         len += vsnprintf(buf_after_leader + len, max_len - len, msg, args);
@@ -99,15 +98,35 @@ static int error_assemble(char* buf_after_leader, const size_t max_len, LocalSta
     return len;
 }
 
+static int error_json(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
+    
+    const char *name  = local->my_name;
+    
+    time_t now; struct tm local_tm;
+    time(&now); localtime_r(&now, &local_tm);
 
-void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "%b-%d %H:%M:%S", &local_tm);
+    
+    int len = 0;
+    if (msg != NULL) {
+        len = snprintf(buf_after_leader, max_len, "\"thread\": \"%s\", \"time\": \"%s\", \"message\": \"", name, time_str);
+        len += vsnprintf(buf_after_leader + len, max_len - len, msg, args);
+        len += snprintf(buf_after_leader + len, max_len - len, "\"");
+    }
+
+    return len;
+}
+
+__attribute_maybe_unused__
+static void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
 {
     char buffer[256]; 
 
     LocalState *local = get_local_state();
     FILE       *log   = local->log_file;
 
-    const char *leader = level < LOG_LEVEL_NONE ? level_colors[level] : "Unknown";
+    const char *leader = level < LOG_LEVEL_PANIC ? level_colors[level] : "Unknown";
     
     int len_leader = snprintf(buffer, sizeof(buffer), "%s[%s-%s]", leader, level_to_string(level), module_to_string(module));
     int len_middle = 0;
@@ -118,7 +137,7 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
     if (msg != NULL && len_leader < (int)sizeof(buffer)) {
         va_list ap;
         va_start(ap, msg);
-        len_middle = error_assemble(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);    
+        len_middle = error_ansi(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);    
         va_end(ap);
     }
 
@@ -133,6 +152,38 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
                         tail);
 
     fwrite(buffer, sizeof(char), len_leader + len_middle + len_suffix + len_tail, log);
+}
+
+void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
+{
+    char buffer[512]; 
+
+    LocalState *local = get_local_state();
+    FILE       *log   = local->log_file;
+
+    int len_prefix = snprintf(buffer, sizeof(buffer),
+                              "{ \"level\": \"%s\", \"module\": \"%s\", \"file\": \"%s\", "
+                              "\"line\": %d, \"function\": \"%s()\", ",
+                              level_to_string(level), module_to_string(module), file, line, func);
+
+    int len_message = 0;
+    int len_tail   = 0;
+
+    // Middle using error_assemble
+    if (msg != NULL && len_prefix < (int)sizeof(buffer)) {
+        va_list ap;
+        va_start(ap, msg);
+        len_message = error_json(buffer + len_prefix, sizeof(buffer) - len_message, local, msg, ap);    
+        va_end(ap);
+    }
+
+    // Reset color at the end of the message
+    const char *tail = "}\n";
+    len_tail = snprintf(buffer + len_prefix + len_message,
+                        sizeof(buffer) - len_prefix - len_message,
+                        tail);
+
+    fwrite(buffer, sizeof(char), len_prefix + len_message + len_tail, log);
 }
 
 /*
@@ -164,9 +215,8 @@ void log_printf(enum log_module module, enum log_level level, int line, const ch
  * @note: do not use this function directly. Rather use the DEBUG_ERR macro
  */
 void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...) {
-    char buffer[256];
+    char buffer[512];
     LocalState *local = get_local_state();
-    FILE *log = local->log_file;
     
     int len_leader = 0;
     int len_middle = 0;
@@ -178,18 +228,19 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
     if (msg != NULL && len_leader < (int)sizeof(buffer)) {
         va_list ap;
         va_start(ap, msg);
-        len_middle = error_assemble(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);
+        len_middle = error_ansi(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);
         va_end(ap);
     }
 
     len_tail = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle, " %s:%d->%s() \x1B[0m\n", file, line, func);
 
-    fwrite(buffer, sizeof(char), len_leader + len_middle + len_tail, log);
+    fwrite(buffer, sizeof(char), len_leader + len_middle + len_tail, stdout);
 
     if (err_is_fail(err)) {
         leader = "Error calltrace:\n";
-        fwrite(leader, sizeof(char), strlen(leader), log);
-        err_print_calltrace(err, log);
+        fwrite(leader, sizeof(char), strlen(leader), stdout);
+        err_print_calltrace(err, stdout);
+        fflush(stdout);
     }
 }
 
@@ -213,20 +264,18 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
 void user_panic_fn(const char *file, const char *func, int line, const char *msg, ...) {
     char buffer[128];
     LocalState *local = get_local_state();
-    FILE *log = local->log_file;
     
     const char *leader = "\x1B[1;35mPANIC ";
     int len_leader = snprintf(buffer, sizeof(buffer), "%s", leader);
 
     va_list ap;
     va_start(ap, msg);
-    int len_middle = error_assemble(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);
+    int len_middle = error_ansi(buffer + len_leader, sizeof(buffer) - len_leader, local, msg, ap);
     va_end(ap);
 
     int len_suffix = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle,
                               " %s:%d->%s(): \x1B[0m\n", file, line, func);
 
-    fwrite(buffer, sizeof(char), len_leader + len_middle + len_suffix, log);
     write(STDERR_FILENO, buffer, len_leader + len_middle + len_suffix);
 
     abort();

@@ -60,14 +60,14 @@ enum log_module {
 
 #define __BASEFILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
+void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
 
 // Defined in log.c to prevent duplicate definition
 extern enum log_level log_matrix[LOG_MODULE_COUNT];
 
 #define LOG(module, level, fmt, ...) \
     if(level >= log_matrix[module]) { \
-        log_printf(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
+        log_json(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
     }
 
 // Define logging macros for general module
@@ -95,7 +95,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define EVENT_NOTE(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define EVENT_WARN(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define EVENT_ERR(fmt, ...)           LOG(MODULE_EVENT, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
-#define EVENT_FATAL(fmt, ...)         LOG(MODULE_EVENT, LOG_LEVEL_FATALOR, fmt, ##__VA_ARGS__)
+#define EVENT_FATAL(fmt, ...)         LOG(MODULE_EVENT, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for DRIVER module
 #define TIMER_VERBOSE(fmt, ...)       LOG(MODULE_TIMER, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)

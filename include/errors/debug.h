@@ -33,7 +33,7 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
  */
 #define USER_PANIC_ERR(err, msg, ...)                                           \
     do {                                                                        \
-        log_printf(LOG, LOG_LEVEL_PANIC, __LINE__, __func__, __BASE_FILE__, msg, ##__VA_ARGS__); \
+        log_json(LOG, LOG_LEVEL_PANIC, __LINE__, __func__, __BASE_FILE__, msg, ##__VA_ARGS__); \
         debug_err(__BASEFILE__, __func__, __LINE__, err, msg, ##__VA_ARGS__);   \
         abort();                                                                \
     } while (0)
@@ -43,7 +43,7 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
  */
 #define USER_PANIC(msg, ...)                                                                     \
     do {                                                                                         \
-        log_printf(LOG, LOG_LEVEL_PANIC, __LINE__, __func__, __BASE_FILE__, msg, ##__VA_ARGS__); \
+        log_json(LOG, LOG_LEVEL_PANIC, __LINE__, __func__, __BASE_FILE__, msg, ##__VA_ARGS__); \
         user_panic_fn(__BASEFILE__, __func__, __LINE__, msg, ##__VA_ARGS__);                     \
     } while (0)
 __END_DECLS
