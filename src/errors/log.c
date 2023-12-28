@@ -3,7 +3,15 @@
 #include <event/states.h>
 #include <time.h>
 
-errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
+enum log_level log_matrix[LOG_MODULE_COUNT] = {
+#define X(module, level) level,
+    LOG_MODULE_LEVELS
+#undef X
+};
+
+bool ansi_output;
+
+errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FILE** ret_file) {
 
     FILE *log = fopen(log_file, "w");
     if (log == NULL) {
@@ -17,7 +25,14 @@ errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
     // Set full buffer mode, size as 65536
     setvbuf(log, NULL, _IOFBF, 65536);
     // TODO: read it from global state ?
-    (void) log_level;
+    for (int i = 0; i < LOG_MODULE_COUNT; i++) {
+        if (log_matrix[i] < log_level) {
+            log_matrix[i] = log_level;
+        }
+    }
+    
+    // Use ANSI color or not
+    ansi_output = ansi;
     
     *ret_file = log;
 
@@ -30,12 +45,6 @@ void log_close(FILE* log) {
     // Let the OS close the file to avoid race condition
     // fclose(log);
 }
-
-enum log_level log_matrix[LOG_MODULE_COUNT] = {
-#define X(module, level) level,
-    LOG_MODULE_LEVELS
-#undef X
-};
 
 // Utility function to convert log level enum to string
 static const char* level_to_string(enum log_level level) {
@@ -117,8 +126,7 @@ static int error_json(char* buf_after_leader, const size_t max_len, LocalState *
     return len;
 }
 
-__attribute_maybe_unused__
-static void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
+void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
 {
     char buffer[256]; 
 

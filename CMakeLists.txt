@@ -83,7 +83,7 @@ add_executable(USER ${USER_C_SRCS} ${USER_CPP_SRCS})
 # Custom command to run the TCP-IP executable
 add_custom_command(
     OUTPUT TCP-IP_RUN
-    COMMAND TCP-IP --log-file="../log/output.json" &
+    COMMAND TCP-IP --log-file="../log/output.json" --log-ansi &
     DEPENDS TCP-IP
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
     COMMENT "Running TCP-IP executable"

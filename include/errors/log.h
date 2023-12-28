@@ -11,11 +11,6 @@
 
 __BEGIN_DECLS
 
-errval_t log_init(const char* log_file, int log_level, FILE** ret_file);
-void log_close(FILE* log);
-
-// The file descriptor 1 refers to standard output (STDOUT)
-
 // X-macro lists for log levels and modules
 #define LOG_LEVELS \
     X(VERBOSE, LOG_LEVEL_VERBOSE) \
@@ -34,6 +29,9 @@ enum log_level {
     LOG_LEVELS
 #undef  X
 };
+
+errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FILE** ret_file);
+void log_close(FILE* log);
 
 // Current Log Level Setting
 #define COMMON_LOG_LEVEL LOG_LEVEL_NOTE
@@ -60,14 +58,20 @@ enum log_module {
 
 #define __BASEFILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
+void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
 void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
 
-// Defined in log.c to prevent duplicate definition
+// Defined in log.c, Control the log level of different module
 extern enum log_level log_matrix[LOG_MODULE_COUNT];
+// Control the log format
+extern bool ansi_output;
 
-#define LOG(module, level, fmt, ...) \
-    if(level >= log_matrix[module]) { \
-        log_json(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
+#define LOG(module, level, fmt, ...)                                                       \
+    if(level >= log_matrix[module]) {                                                      \
+        if (ansi_output)                                                                   \
+            log_ansi(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
+        else                                                                               \
+            log_json(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
     }
 
 // Define logging macros for general module

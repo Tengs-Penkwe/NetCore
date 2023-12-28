@@ -53,6 +53,7 @@ ko_longopt_t longopts[] = {
     { "workers",   ko_optional_argument,  0  },
     { "log-level", ko_optional_argument,  0  },
     { "log-file",  ko_optional_argument,  0  },
+    { "log-ansi",  ko_optional_argument,  0  },
     { NULL,        0,                     0  }
 };
 
@@ -64,7 +65,8 @@ int main(int argc, char *argv[]) {
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
     char *log_file_name = "/var/log/TCP-IP/output.json";
-    int log_level = LOG_LEVEL_INFO; // default log level
+    int log_level = COMMON_LOG_LEVEL; // default log level
+    bool ansi_log = false;
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
         switch (c) {
@@ -85,6 +87,8 @@ int main(int argc, char *argv[]) {
                 log_level = atoi(opt.arg);
             } else if (opt.longidx == 6) { // log-file
                 log_file_name = opt.arg;
+            } else if (opt.longidx == 7) { // log-ansi
+                ansi_log = true;
             }
             break;
         case '?': // Unknown option
@@ -97,7 +101,7 @@ int main(int argc, char *argv[]) {
     
     FILE *log_file = NULL;
 
-    err = log_init(log_file_name, log_level, &log_file);
+    err = log_init(log_file_name, (enum log_level)log_level, ansi_log, &log_file);
     if (err_no(err) == EVENT_LOGFILE_CREATE)
     {
         printf("\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
