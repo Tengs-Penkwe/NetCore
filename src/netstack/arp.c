@@ -62,26 +62,6 @@ errval_t arp_send(
     return SYS_ERR_OK;
 }
 
-errval_t mac_lookup_and_send(
-    ARP* arp, ip_addr_t dst_ip, mac_addr* dst_mac
-) {
-    errval_t err;
-    assert(arp);
-
-    err = arp_lookup_mac(arp, dst_ip, dst_mac);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "Can't get the corresponding MAC address of IP address");
-        errval_t error = arp_send(arp, ARP_OP_REQ, dst_ip, MAC_BROADCAST);
-        if (err_is_fail(error)) 
-            DEBUG_ERR(error, "I Can't even send an ARP request after I can't find the MAC for given IP");
-        return err;
-    }
-
-    assert(!(maccmp(*dst_mac, MAC_NULL) || maccmp(*dst_mac, MAC_BROADCAST)));
-
-    return SYS_ERR_OK;
-}
-
 void arp_register(
     ARP* arp, ip_addr_t ip, mac_addr mac 
 ) {
@@ -121,6 +101,8 @@ errval_t arp_lookup_mac(
 
     assert(macaddr_as_pointer);
     *ret_mac = voidptr2mac(macaddr_as_pointer);
+
+    assert(!(maccmp(*ret_mac, MAC_NULL) || maccmp(*ret_mac, MAC_BROADCAST)));
 
     return SYS_ERR_OK;
 }

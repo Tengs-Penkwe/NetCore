@@ -43,10 +43,6 @@ void arp_register(
     ARP* arp, ip_addr_t ip, mac_addr mac 
 );
 
-errval_t mac_lookup_and_send(
-    ARP* arp, ip_addr_t dst_ip, mac_addr* dst_mac
-);
-
 errval_t arp_lookup_ip (
     ARP* arp, mac_addr mac, ip_addr_t* ip
 );

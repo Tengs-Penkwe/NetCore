@@ -37,3 +37,15 @@ void frame_unmarshal(void* frame) {
             DEBUG_ERR(err, "An error happened during ethernet_unmarshal(), but let's continue");
     }
 }
+
+void send_arp_request(void* arp_request) {
+    errval_t err;
+    assert(arp_request);
+    ARP_Request* req = arp_request;
+
+    err = arp_send(req->arp, ARP_OP_REQ, req->dst_ip, MAC_BROADCAST);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't send an ARP request in event");
+    }
+    free(arp_request);
+}

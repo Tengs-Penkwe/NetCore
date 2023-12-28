@@ -19,6 +19,13 @@ typedef struct {
     bool      buf_is_from_pool;
 } Frame ;
 
+#include <netstack/arp.h>
+
+typedef struct {
+    ARP      *arp;
+    ip_addr_t dst_ip;
+} ARP_Request;
+
 __BEGIN_DECLS
 
 static inline void frame_free(Frame* frame) 
@@ -34,6 +41,7 @@ static inline void frame_free(Frame* frame)
 }
 
 void frame_unmarshal(void* frame);
+void send_arp_request(void* arp_request);
 
 __END_DECLS
 
