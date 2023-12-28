@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <bitmacros.h>
+#include <stdio.h>      // FILE
 
 typedef uintptr_t errval_t;
 // How many bits does a push or pop shifts
@@ -21,6 +22,7 @@ typedef uintptr_t errval_t;
 
 #define EVENT_ERR_CODES \
     X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
+    X(EVENT_LOGFILE_CREATE,           "Can't create the log file") \
     X(EVENT_ENQUEUE_FULL,             "The task queue is full")  \
     X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \
     X(EVENT_MEMPOOL_EMPTY,            "The memory pool is empty")  \
@@ -82,7 +84,7 @@ extern const char* err_code_strings[];
 __BEGIN_DECLS
 char* err_getstring(errval_t errval);
 const char* err_code_to_string(enum err_code code);
-void err_print_calltrace(errval_t errval, int fd);
+void err_print_calltrace(errval_t err, FILE* log);
 
 static inline bool err_is_fail(errval_t errval);
 static inline bool err_is_ok(errval_t errval);

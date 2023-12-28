@@ -23,7 +23,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     // Open TAP device
     int tap_fd = open(tap_path, O_RDWR);
     if (tap_fd < 0) {
-        LOG_ERR("opening %s", tap_path);
+        LOG_FATAL("Failed to open %s", tap_path);
         perror("reason");
         return NET_ERR_DEVICE_INIT;
     }
@@ -41,7 +41,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
         return NET_ERR_DEVICE_INIT;
     }
 
-    DEVICE_INFO("TAP device %s opened, tapfd = %d", ifr.ifr_name, tap_fd);
+    DEVICE_NOTE("TAP device %s opened, tapfd = %d", ifr.ifr_name, tap_fd);
 
     *device = (NetDevice) {
         .tap_fd       = tap_fd,
@@ -60,7 +60,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     struct tm *tm_info = localtime(&device->start_time.tv_sec);
     strftime(start_time_str, 64, "%Y-%m-%d %H:%M:%S", tm_info);
 
-    DEVICE_NOTE("Device initialization started at %s\n", start_time_str);
+    DEVICE_NOTE("Device initialization started at %s", start_time_str);
 
     return SYS_ERR_OK;
 }
@@ -71,7 +71,7 @@ void device_close(NetDevice* device) {
     // Close the TAP device
     assert(device->tap_fd >= 0);
     close(device->tap_fd);
-    DEVICE_ERR("Closed TAP device %s (fd: %d)\n", device->ifr.ifr_name, device->tap_fd);
+    DEVICE_NOTE("Closed TAP device %s (fd: %d)", device->ifr.ifr_name, device->tap_fd);
     
     // Record the end time
     struct timespec end_time;
@@ -86,20 +86,20 @@ void device_close(NetDevice* device) {
     strftime(start_time_str, sizeof(start_time_str), "%Y-%m-%d %H:%M:%S", localtime(&device->start_time.tv_sec));
     strftime(end_time_str, sizeof(end_time_str), "%Y-%m-%d %H:%M:%S", localtime(&end_time.tv_sec));
 
-    DEVICE_ERR(
-        "\n  Device started at %s\n"
-        "  Device closed at %s\n"
+    DEVICE_NOTE(
+        "  Device started at %s\\n"
+        "  Device closed at %s\\n"
         "  Device was open for %.3f seconds.",
         start_time_str, end_time_str, elapsed_time
     );
 
     
     // Print device statistics
-    DEVICE_ERR(
-        "Device Statistics for %s:\n"
-        "  Packets Received: %zu\n"
-        "  Packets Failed to Process: %zu\n"
-        "  Packets Sent (In-accurate): %zu\n"
+    DEVICE_NOTE(
+        "Device Statistics for %s:\\n"
+        "  Packets Received: %zu\\n"
+        "  Packets Failed to Process: %zu\\n"
+        "  Packets Sent (In-accurate): %zu\\n"
         "  Packets Failed to Send: %zu",
         device->ifr.ifr_name,
         device->recvd,
@@ -208,6 +208,8 @@ errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* mempool) {
     struct pollfd pfd[1];
     pfd[0].fd = device->tap_fd;
     pfd[0].events = POLLIN;
+    
+    EVENT_NOTE("Device loop starting !");
 
     while (true) {
         int ret = poll(pfd, 1, -1); // Wait indefinitely

@@ -7,7 +7,7 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     // 1.1 
     pool->elems = calloc(amount, sizeof(BQelem));
     if (pool->elems == NULL) {
-        EVENT_ERR("Can't allocate memory for the Queue");
+        EVENT_FATAL("Can't allocate memory for the Queue");
         return SYS_ERR_ALLOC_FAIL;
     }
 
@@ -18,7 +18,7 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     // 2.1 
     pool->pool = malloc(bytes * amount);
     if (pool->pool == NULL) {
-        EVENT_ERR("Can't allocate memory for the memory pool");
+        EVENT_FATAL("Can't allocate memory for the memory pool");
         return SYS_ERR_ALLOC_FAIL;
     }
 
@@ -29,7 +29,7 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
 
         err = enbdqueue(&pool->queue, NULL, (void*)piece);
         if (err_is_fail(err)) {
-            EVENT_ERR("Can't enqueue the memory");
+            EVENT_FATAL("Can't enqueue the memory");
             return SYS_ERR_INIT_FAIL;
         }
     }

@@ -4,16 +4,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>     //strrchr
+#include <stdio.h>      // FILE 
 
 #include <common.h>
 #include <sys/unistd.h>
 
 __BEGIN_DECLS
-
-errval_t log_init(int log_level);
-void log_close(void);
-
-// The file descriptor 1 refers to standard output (STDOUT)
 
 // X-macro lists for log levels and modules
 #define LOG_LEVELS \
@@ -23,7 +19,8 @@ void log_close(void);
     X(NOTE,    LOG_LEVEL_NOTE)    \
     X(WARN,    LOG_LEVEL_WARN)    \
     X(ERR,     LOG_LEVEL_ERROR)   \
-    X(NONE,    LOG_LEVEL_NONE) 
+    X(FATAL,   LOG_LEVEL_FATAL)   \
+    X(PANIC,   LOG_LEVEL_PANIC)   \
 
 //Allows developers to specify a log level for each message and configure the system 
 // to only output messages at or above a certain level.
@@ -32,6 +29,9 @@ enum log_level {
     LOG_LEVELS
 #undef  X
 };
+
+errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FILE** ret_file);
+void log_close(FILE* log);
 
 // Current Log Level Setting
 #define COMMON_LOG_LEVEL LOG_LEVEL_NOTE
@@ -58,14 +58,20 @@ enum log_module {
 
 #define __BASEFILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-void log_printf(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
+void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
+void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
 
-// Defined in log.c to prevent duplicate definition
+// Defined in log.c, Control the log level of different module
 extern enum log_level log_matrix[LOG_MODULE_COUNT];
+// Control the log format
+extern bool ansi_output;
 
-#define LOG(module, level, fmt, ...) \
-    if(level >= log_matrix[module]) { \
-        log_printf(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
+#define LOG(module, level, fmt, ...)                                                       \
+    if(level >= log_matrix[module]) {                                                      \
+        if (ansi_output)                                                                   \
+            log_ansi(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
+        else                                                                               \
+            log_json(module, level, __LINE__, __func__, __BASEFILE__, fmt, ##__VA_ARGS__); \
     }
 
 // Define logging macros for general module
@@ -75,6 +81,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define LOG_NOTE(fmt, ...)            LOG(LOG, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define LOG_WARN(fmt, ...)            LOG(LOG, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define LOG_ERR(fmt, ...)             LOG(LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define LOG_FATAL(fmt, ...)           LOG(LOG, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for IPC module
 #define IPC_VERBOSE(fmt, ...)         LOG(MODULE_IPC, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -83,6 +90,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define IPC_NOTE(fmt, ...)            LOG(MODULE_IPC, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define IPC_WARN(fmt, ...)            LOG(MODULE_IPC, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define IPC_ERR(fmt, ...)             LOG(MODULE_IPC, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define IPC_FATAL(fmt, ...)           LOG(MODULE_IPC, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for EVENT module
 #define EVENT_VERBOSE(fmt, ...)       LOG(MODULE_EVENT, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -91,6 +99,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define EVENT_NOTE(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define EVENT_WARN(fmt, ...)          LOG(MODULE_EVENT, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define EVENT_ERR(fmt, ...)           LOG(MODULE_EVENT, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define EVENT_FATAL(fmt, ...)         LOG(MODULE_EVENT, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for DRIVER module
 #define TIMER_VERBOSE(fmt, ...)       LOG(MODULE_TIMER, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -99,6 +108,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define TIMER_NOTE(fmt, ...)          LOG(MODULE_TIMER, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define TIMER_WARN(fmt, ...)          LOG(MODULE_TIMER, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define TIMER_ERR(fmt, ...)           LOG(MODULE_TIMER, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define TIMER_FATAL(fmt, ...)         LOG(MODULE_TIMER, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for DRIVER module
 #define DEVICE_VERBOSE(fmt, ...)      LOG(MODULE_DEVICE, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -107,6 +117,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define DEVICE_NOTE(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define DEVICE_WARN(fmt, ...)         LOG(MODULE_DEVICE, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define DEVICE_ERR(fmt, ...)          LOG(MODULE_DEVICE, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define DEVICE_FATAL(fmt, ...)        LOG(MODULE_DEVICE, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for ETHER module
 #define ETHER_VERBOSE(fmt, ...)       LOG(MODULE_ETHER, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -115,6 +126,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define ETHER_NOTE(fmt, ...)          LOG(MODULE_ETHER, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define ETHER_WARN(fmt, ...)          LOG(MODULE_ETHER, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define ETHER_ERR(fmt, ...)           LOG(MODULE_ETHER, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define ETHER_FATAL(fmt, ...)         LOG(MODULE_ETHER, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for ARP module
 #define ARP_VERBOSE(fmt, ...)         LOG(MODULE_ARP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -123,6 +135,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define ARP_NOTE(fmt, ...)            LOG(MODULE_ARP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define ARP_WARN(fmt, ...)            LOG(MODULE_ARP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define ARP_ERR(fmt, ...)             LOG(MODULE_ARP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define ARP_FATAL(fmt, ...)           LOG(MODULE_ARP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for IP module
 #define IP_VERBOSE(fmt, ...)          LOG(MODULE_IP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -131,6 +144,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define IP_NOTE(fmt, ...)             LOG(MODULE_IP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define IP_WARN(fmt, ...)             LOG(MODULE_IP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define IP_ERR(fmt, ...)              LOG(MODULE_IP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define IP_FATAL(fmt, ...)            LOG(MODULE_IP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for ICMP module
 #define ICMP_VERBOSE(fmt, ...)        LOG(MODULE_ICMP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -139,6 +153,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define ICMP_NOTE(fmt, ...)           LOG(MODULE_ICMP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define ICMP_WARN(fmt, ...)           LOG(MODULE_ICMP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define ICMP_ERR(fmt, ...)            LOG(MODULE_ICMP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define ICMP_FATAL(fmt, ...)          LOG(MODULE_ICMP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for UDP module
 #define UDP_VERBOSE(fmt, ...)         LOG(MODULE_UDP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -147,6 +162,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define UDP_NOTE(fmt, ...)            LOG(MODULE_UDP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define UDP_WARN(fmt, ...)            LOG(MODULE_UDP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define UDP_ERR(fmt, ...)             LOG(MODULE_UDP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define UDP_FATAL(fmt, ...)           LOG(MODULE_UDP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for TCP module
 #define TCP_VERBOSE(fmt, ...)         LOG(MODULE_TCP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
@@ -155,6 +171,7 @@ extern enum log_level log_matrix[LOG_MODULE_COUNT];
 #define TCP_NOTE(fmt, ...)            LOG(MODULE_TCP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
 #define TCP_WARN(fmt, ...)            LOG(MODULE_TCP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
 #define TCP_ERR(fmt, ...)             LOG(MODULE_TCP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define TCP_FATAL(fmt, ...)           LOG(MODULE_TCP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 __END_DECLS
 

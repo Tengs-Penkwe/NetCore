@@ -14,7 +14,7 @@ errval_t udp_server_register(
         .port       = port,
         .callback   = callback,
         .is_live    = true,
-        .sema       = { 0 },
+        .sema       = {{ 0 }},
         .max_worker = 8,        //TODO: let it be an argument, or get it from some place    
     };
     
@@ -34,17 +34,17 @@ errval_t udp_server_register(
 
         if (get_server->is_live == false)   // Dead Server
         {
-            for (int i = 0; i < get_server->max_worker - 1; i++) {
+            for (size_t i = 0; i < get_server->max_worker - 1; i++) {
                 sem_wait(&get_server->sema);
             }   // Wait until all workers' done with this server
-            assert(get_server->udp = udp);
-            assert(get_server->port = port);
-            assert(get_server->max_worker = 8);
+            assert(get_server->udp  == udp);
+            assert(get_server->port == port);
+            assert(get_server->max_worker == 8);
             get_server->rpc      = rpc;
             get_server->callback = callback;
             get_server->is_live  = true;
 
-            for (int i = 0; i < get_server->max_worker; i++) {
+            for (size_t i = 0; i < get_server->max_worker; i++) {
                 sem_post(&get_server->sema);
             }   // Now the new server is ready
             free(new_server);
