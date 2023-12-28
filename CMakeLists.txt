@@ -80,13 +80,20 @@ add_executable(USER ${USER_C_SRCS} ${USER_CPP_SRCS})
 # For tests, you might want to include another subdirectory
 # add_subdirectory(tests)
 
-# Custom command to run the TCP-IP executable
 add_custom_command(
-    OUTPUT TCP-IP_RUN
-    COMMAND TCP-IP --log-file="../log/output.json" --log-ansi &
+    OUTPUT TCP-IP_DEBUG
+    COMMAND TCP-IP --log-file="/dev/stdout" --log-ansi
     DEPENDS TCP-IP
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
-    COMMENT "Running TCP-IP executable"
+    COMMENT "Debug TCP-IP executable"
+)
+
+add_custom_command(
+    OUTPUT TCP-IP_RUN
+    COMMAND TCP-IP --log-file="../log/output.json" &
+    DEPENDS TCP-IP
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+    COMMENT "Debug TCP-IP executable"
 )
 
 # Custom command to run the USER executable
@@ -101,4 +108,9 @@ add_custom_command(
 # Custom target to run both executables
 add_custom_target(run
     DEPENDS USER_RUN TCP-IP_RUN 
+)
+
+# Custom target to run both executables
+add_custom_target(debug
+    DEPENDS USER_RUN TCP-IP_DEBUG 
 )
