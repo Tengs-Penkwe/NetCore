@@ -74,7 +74,7 @@ const char *level_colors[] = {
 // Utility function to convert log module enum to string
 static const char* module_to_string(enum log_module module) {
     switch (module) {
-        case LOG:              return "LOG ";
+        case MODULE_LOG:       return "LOG ";
         case MODULE_IPC:       return "IPC ";
         case MODULE_EVENT:     return "EVNT";
         case MODULE_TIMER:     return "TIMR";

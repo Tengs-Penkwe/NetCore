@@ -37,7 +37,7 @@ void log_close(FILE* log);
 #define COMMON_LOG_LEVEL LOG_LEVEL_NOTE
 
 #define LOG_MODULE_LEVELS \
-    X(LOG,                      COMMON_LOG_LEVEL) \
+    X(MODULE_LOG,               COMMON_LOG_LEVEL) \
     X(MODULE_IPC,               COMMON_LOG_LEVEL) \
     X(MODULE_EVENT,             COMMON_LOG_LEVEL) \
     X(MODULE_TIMER,             COMMON_LOG_LEVEL) \
@@ -75,13 +75,13 @@ extern bool ansi_output;
     }
 
 // Define logging macros for general module
-#define LOG_VERBOSE(fmt, ...)         LOG(LOG, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
-#define LOG_INFO(fmt, ...)            LOG(LOG, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
-#define LOG_DEBUG(fmt, ...)           LOG(LOG, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
-#define LOG_NOTE(fmt, ...)            LOG(LOG, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
-#define LOG_WARN(fmt, ...)            LOG(LOG, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
-#define LOG_ERR(fmt, ...)             LOG(LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
-#define LOG_FATAL(fmt, ...)           LOG(LOG, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
+#define LOG_VERBOSE(fmt, ...)         LOG(MODULE_LOG, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define LOG_INFO(fmt, ...)            LOG(MODULE_LOG, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define LOG_DEBUG(fmt, ...)           LOG(MODULE_LOG, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define LOG_NOTE(fmt, ...)            LOG(MODULE_LOG, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define LOG_WARN(fmt, ...)            LOG(MODULE_LOG, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define LOG_ERR(fmt, ...)             LOG(MODULE_LOG, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define LOG_FATAL(fmt, ...)           LOG(MODULE_LOG, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
 // Define logging macros for IPC module
 #define IPC_VERBOSE(fmt, ...)         LOG(MODULE_IPC, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
