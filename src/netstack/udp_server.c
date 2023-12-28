@@ -1,4 +1,5 @@
 #include "udp_server.h"
+#include <event/states.h>
 
 errval_t udp_server_register(
     UDP* udp, rpc_t* rpc, const udp_port_t port, const udp_server_callback callback
@@ -15,7 +16,7 @@ errval_t udp_server_register(
         .callback   = callback,
         .is_live    = true,
         .sema       = {{ 0 }},
-        .max_worker = 8,        //TODO: let it be an argument, or get it from some place    
+        .max_worker = g_states.max_workers_for_single_udp_server , 
     };
     
     if (sem_init(&new_server->sema, 0, new_server->max_worker) != 0){
