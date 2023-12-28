@@ -32,6 +32,8 @@ void frame_unmarshal(void* frame) {
         free(frame);
         break;
     }
-    default: USER_PANIC_ERR(err, "Unknown Error");
+    default:
+        if (err_is_fail(err))
+            DEBUG_ERR(err, "An error happened during ethernet_unmarshal(), but let's continue");
     }
 }
