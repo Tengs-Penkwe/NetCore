@@ -44,7 +44,7 @@ static void* timer_thread (void* localstates) {
     LocalState* local = localstates;
     set_local_state(local);
 
-    TIMER_INFO("Timer thread started !");
+    TIMER_NOTE("Timer thread started !");
     CORES_SYNC_BARRIER;
 
     while (true) {
@@ -99,16 +99,16 @@ errval_t timer_thread_init(void) {
     *local = (LocalState) {
         .my_name = "Timer",
         .my_pid  = syscall(SYS_gettid),
-        .output_fd = (g_states.log_fd == 0) ? STDOUT_FILENO : g_states.log_fd,
+        .log_file = (g_states.log_file == 0) ? stdout : g_states.log_file,
     };
 
     if (pthread_create(&timer.thread, NULL, timer_thread, (void*)local) != 0) {
-        LOG_ERR("Can't create the timer thread");
+        LOG_FATAL("Can't create the timer thread");
         free(local);
         return SYS_ERR_FAIL;
     }
 
-    TIMER_INFO("Timer Module initialized");
+    TIMER_NOTE("Timer Module initialized");
     return SYS_ERR_OK;
 }
 

@@ -11,9 +11,6 @@
 #include <stdio.h>         //perror
 #include <sys/syscall.h>   //syscall
                            
-#include <fcntl.h>   // for open
-#include <unistd.h>  // for close
-
 static void driver_exit(int signum);
 
 static errval_t signal_init(void) {
@@ -42,7 +39,7 @@ static errval_t signal_init(void) {
         return SYS_ERR_FAIL;
     }
 
-    LOG_INFO("Signals set");
+    EVENT_NOTE("Signals set");
     return SYS_ERR_OK;
 }
 
@@ -56,6 +53,7 @@ ko_longopt_t longopts[] = {
     { "workers",   ko_optional_argument,  0  },
     { "log-level", ko_optional_argument,  0  },
     { "log-file",  ko_optional_argument,  0  },
+    { "log-ansi",  ko_optional_argument,  0  },
     { NULL,        0,                     0  }
 };
 
@@ -66,8 +64,9 @@ int main(int argc, char *argv[]) {
     int c;
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
-    char *log_file = "/var/log/TCP-IP/output.ansi";
-    int log_level = LOG_LEVEL_INFO; // default log level
+    char *log_file_name = "/var/log/TCP-IP/output.json";
+    int log_level = COMMON_LOG_LEVEL; // default log level
+    bool ansi_log = false;
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
         switch (c) {
@@ -87,7 +86,9 @@ int main(int argc, char *argv[]) {
             } else if (opt.longidx == 5) { // log-level
                 log_level = atoi(opt.arg);
             } else if (opt.longidx == 6) { // log-file
-                log_file = opt.arg;
+                log_file_name = opt.arg;
+            } else if (opt.longidx == 7) { // log-ansi
+                ansi_log = true;
             }
             break;
         case '?': // Unknown option
@@ -97,29 +98,34 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+    
+    FILE *log_file = NULL;
 
-    int log_fd = open(log_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);  // Open file for writing
-    if (log_fd == -1) {
-        printf("\x1B[1;91mCan't open the log file: %s\x1B[0m\n", log_file);
+    err = log_init(log_file_name, (enum log_level)log_level, ansi_log, &log_file);
+    if (err_no(err) == EVENT_LOGFILE_CREATE)
+    {
+        printf("\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
+        log_file = stdout;
+    }
+    else if (err_is_fail(err))
+    {
+        printf("\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
         return -1;
     }
-    g_states.log_fd = log_fd;
+    assert(log_file);
+    g_states.log_file = log_file;
+    // After this point, we can use log
 
     //TODO: free it ?
     create_thread_state_key();
+
     LocalState *master = calloc(1, sizeof(LocalState));
     *master = (LocalState) {
         .my_name   = "Master",
         .my_pid    = syscall(SYS_gettid),
-        .output_fd = log_fd,
+        .log_file  = log_file,
     };
     set_local_state(master);
-
-    err = log_init(log_level);
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "Can't Initialize the log system");
-        return -1;
-    }
 
     NetDevice* device = calloc(1, sizeof(NetDevice));
     assert(device);
@@ -163,7 +169,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     
-    // Create and initialize a temporary structure
     Driver driver = (Driver) {
         .ether      = ether,
         .device     = device,
@@ -179,7 +184,7 @@ int main(int argc, char *argv[]) {
     }
     
     driver_exit(0);
-    return 0;
+    return -1;
 }
 
 static void driver_exit(int signum) {
@@ -198,9 +203,9 @@ static void driver_exit(int signum) {
 
     timer_thread_destroy();
 
-    LOG_ERR("Bye Bye !");
+    LOG_NOTE("Bye Bye !");
     
-    log_close();
+    log_close(g_states.log_file);
 
     exit(EXIT_SUCCESS);
 }

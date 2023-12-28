@@ -27,7 +27,7 @@ void udp_destroy(
     hash_destroy(&udp->servers);
     memset(udp, 0x00, sizeof(UDP));
     free(udp);
-    UDP_ERR("UDP Module destroyed !");
+    UDP_NOTE("UDP Module destroyed !");
 }
 
 errval_t udp_marshal(
