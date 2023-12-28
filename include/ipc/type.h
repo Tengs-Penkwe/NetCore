@@ -2,11 +2,7 @@
 #define __IPC_TYPE_H__
 
 #include <common.h>
-#include <netutil/ip.h>     //ip_addr_t
-#include <netutil/udp.h>    //udp_port_t
 #include <errors/log.h>
-#include <stdatomic.h>
-
 /*
  * ------------------------------------------------------------------------------------------------
  * RPC: Definitions of message
@@ -15,27 +11,10 @@
 
 /// defines the transport backend of the RPC channel
 typedef enum {
-    RPC_SHRM = 1,
-    RPC_PIPE = 2,
+    RPC_LOCL = 1,    // Same Process, Different Thread
+    RPC_SHRM = 2,    // Different Process
+    RPC_PIPE = 3,
 } rpc_type_t;
-
-typedef enum rpc_cmd {
-    CMD_CONFIRM_BINDING,
-    CMD_SEND_NUMBER,
-    CMD_SEND_STRING,
-    CMD_SEND_CHAR,
-    CMD_REGISTER_SERVER,
-    RQR_GET_CHAR, 
-    RQR_PROC_TERMINATED,
-    RQR_FS_CREATE_SOCKET,
-    CMD_NET_SEND_PACKET,
-    CMD_NET_BACK_PACKET,
-    CMD_NET_BIND_PORT,
-    CMD_NET_TCP_LISTEN,
-    CMD_NET_ACCEPT_BIND,
-    CMD_NET_ARP_DUMP,
-    BCK_ERROR,
-} rpc_cmd_t;
 
 typedef enum validity {
     VALID   = 0b01,
@@ -60,39 +39,30 @@ typedef void (*rpc_recv_handler_fn)(void *ac);
 
 /*
  * ------------------------------------------------------------------------------------------------
- * RPC: Shared Memory
- * ------------------------------------------------------------------------------------------------
- */
-#define URPC_SHRM_SIZE      8192
-
-/// urpc frame holds two rings, sending one (tx) and receiving one (rx)
-#define RPC_SHRM_RING_ENTRIES  ((URPC_SHRM_SIZE / 2 - 32) / sizeof(rpc_message_t)) 
-// We need space for lock, head, tail
-
-typedef struct share_mem {
-    size_t    base;
-    size_t    size;
-} ShareMem;
-
-typedef struct shrm_msg_ring {
-    atomic_flag        lock;
-    uint8_t            head;
-    uint8_t            tail;
-    struct rpc_message ring[RPC_SHRM_RING_ENTRIES];
-} shrm_msg_ring_t;
-
-struct rpc_shrm {
-    struct share_mem      shrm; ///< Created when booting core, it only holds 2 rings
-    struct shrm_msg_ring *tx;   ///< Point into urpc_frame, place depends on if the process is initializer
-    struct shrm_msg_ring *rx;   ///< same as tx
-};
-
-/*
- * ------------------------------------------------------------------------------------------------
  * RPC: Message Type
  * ------------------------------------------------------------------------------------------------
  */
+typedef enum rpc_cmd {
+    CMD_CONFIRM_BINDING,
+    CMD_SEND_NUMBER,
+    CMD_SEND_STRING,
+    CMD_SEND_CHAR,
+    CMD_REGISTER_SERVER,
+    RQR_GET_CHAR, 
+    RQR_PROC_TERMINATED,
+    RQR_FS_CREATE_SOCKET,
+    CMD_NET_SEND_PACKET,
+    CMD_NET_BACK_PACKET,
+    CMD_NET_BIND_PORT,
+    CMD_NET_TCP_LISTEN,
+    CMD_NET_ACCEPT_BIND,
+    CMD_NET_ARP_DUMP,
+    BCK_ERROR,
+} rpc_cmd_t;
 
+#include <netutil/ip.h>     //ip_addr_t
+#include <netutil/udp.h>    //udp_port_t
+                            
 typedef struct message_server {
     union {
         struct {
@@ -131,10 +101,10 @@ typedef struct message_client {
     union {
         struct {
             int* fd;
-        } __attribute__((packed)) fs_create_socket;
+        }  __attribute__((packed)) fs_create_socket;
         struct {
             struct capref*  remotep;
-        }__attribute__((packed)) lmp_forward_bind;
+        }  __attribute__((packed)) lmp_forward_bind;
         struct {
             size_t len;
             char*  name;
@@ -142,10 +112,58 @@ typedef struct message_client {
     };
 } __attribute__((packed)) msg_client_t;
 
+
+#include <stdatomic.h>
+
+/*
+ * ------------------------------------------------------------------------------------------------
+ * RPC: Shared Memory
+ * ------------------------------------------------------------------------------------------------
+ */
+#define URPC_SHRM_SIZE      8192
+
+/// urpc frame holds two rings, sending one (tx) and receiving one (rx)
+#define RPC_SHRM_RING_ENTRIES  ((URPC_SHRM_SIZE / 2 - 32) / sizeof(rpc_message_t)) 
+// We need space for lock, head, tail
+
+typedef struct share_mem {
+    size_t    base;
+    size_t    size;
+} ShareMem;
+
+typedef struct shrm_msg_ring {
+    atomic_flag        lock;
+    uint8_t            head;
+    uint8_t            tail;
+    struct rpc_message ring[RPC_SHRM_RING_ENTRIES];
+} shrm_msg_ring_t;
+
+struct rpc_shrm {
+    struct share_mem      shrm; ///< Created when booting core, it only holds 2 rings
+    struct shrm_msg_ring *tx;   ///< Point into urpc_frame, place depends on if the process is initializer
+    struct shrm_msg_ring *rx;   ///< same as tx
+};
+
+/*
+ * ------------------------------------------------------------------------------------------------
+ * RPC: Local
+ * ------------------------------------------------------------------------------------------------
+ */
+#include <netstack/network.h>
+
+typedef struct local_com {
+    udp_server_callback udp_callback;
+    int hh;
+} LocalCom;
+
+/*
+ * ------------------------------------------------------------------------------------------------
+ * RPC: Structure
+ * ------------------------------------------------------------------------------------------------
+ */
+
 /**
  * @brief ID of a rpc channel
- *
- * Note: core and domain is the primary key, name is current not well-used
  */
 typedef struct rpc_id {
     const char* name;
@@ -153,15 +171,14 @@ typedef struct rpc_id {
 
 /**
  * @brief represents an RPC binding
- *
- * Note: the RPC binding should work over LMP (M4) or UMP (M6)
  */
 typedef struct rpc {
     /// Global
     rpc_type_t type;
     rpc_id_t   id;
     union {
-        struct rpc_shrm shrm;
+        struct rpc_shrm  shrm;
+        struct local_com locl;
     };
 } rpc_t;
 
