@@ -49,7 +49,7 @@ errval_t arp_send(
         .hwlen    = ETH_ADDR_LEN,
         .protolen = ARP_PLEN_IPV4,
         .opcode   = htons(opration),
-        .eth_src  = hton6(arp->ether->mac),
+        .eth_src  = hton6(arp->ether->my_mac),
         .ip_src   = htonl(arp->ip),
         .eth_dst  = hton6(dst_mac),
         .ip_dst   = htonl(dst_ip),

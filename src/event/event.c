@@ -12,15 +12,28 @@ void frame_unmarshal(void* frame) {
     size_t    size  = fr->size;
 
     err = ethernet_unmarshal(ether, data, size);
-    if (err_no(err) == NET_ERR_IPv4_SEG_LATER_FREE) {
-        // We need to keep the buffer for later assembling
-        // DONT free it here
+    switch (err_no(err))
+    {
+    case NET_OK_IPv4_SEG_LATER_FREE: {
+        // We need to keep the buffer for later assembling DONT free it here
         free(frame);
-    } else if (err_is_fail(err)) {
-        DEBUG_ERR(err, "We meet an error when processing this frame, but the process continue");
+        break;
+    }
+    case NET_ERR_TCP_QUEUE_FULL:
+    {
+        assert(err_pop(err) == EVENT_ENQUEUE_FULL);
+        EVENT_WARN("This should be a TCP message that has its queue full, drop it");
         frame_free(frame);
-    } else {
-        // Handled a frame successfully
-        frame_free(frame);
+        break;
+    }
+    case NET_OK_TCP_ENQUEUE:
+    {
+        EVENT_INFO("A TCP message is successfully enqueued, Can't free the buffer now");
+        free(frame);
+        break;
+    }
+    default:
+        if (err_is_fail(err))
+            DEBUG_ERR(err, "An error happened during ethernet_unmarshal(), but let's continue");
     }
 }

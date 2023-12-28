@@ -1,4 +1,5 @@
 #include "udp_server.h"
+#include <event/states.h>
 
 errval_t udp_server_register(
     UDP* udp, rpc_t* rpc, const udp_port_t port, const udp_server_callback callback
@@ -9,15 +10,15 @@ errval_t udp_server_register(
     UDP_server *get_server = NULL; 
     UDP_server *new_server = calloc(1, sizeof(UDP_server));
     *new_server = (UDP_server) {
+        .max_worker = g_states.max_workers_for_single_udp_server,
+        .is_live    = true,
+        .sema       = { { 0 } },
         .udp        = udp,
         .rpc        = rpc,
         .port       = port,
         .callback   = callback,
-        .is_live    = true,
-        .sema       = {{ 0 }},
-        .max_worker = 8,        //TODO: let it be an argument, or get it from some place    
     };
-    
+
     if (sem_init(&new_server->sema, 0, new_server->max_worker) != 0){
         UDP_ERR("Can't initialize the semaphore of UDP server");
         return SYS_ERR_INIT_FAIL;
@@ -47,12 +48,14 @@ errval_t udp_server_register(
             for (size_t i = 0; i < get_server->max_worker; i++) {
                 sem_post(&get_server->sema);
             }   // Now the new server is ready
+            assert(sem_destroy(&new_server->sema) == 0);
             free(new_server);
             return SYS_ERR_OK;
         }
         else    // Live server
         {
             sem_post(&get_server->sema);
+            assert(sem_destroy(&new_server->sema) == 0);
             free(new_server);
             return NET_ERR_UDP_PORT_REGISTERED;
         }
@@ -60,10 +63,7 @@ errval_t udp_server_register(
     }
     case EVENT_HASH_NOT_EXIST:
         break;
-    default:
-        free(new_server);
-        DEBUG_ERR(err_get, "Unknown Error Code");
-        return err_get;
+    default: USER_PANIC_ERR(err_get, "Unknown Error Code");
     }
 
     assert(err_no(err_get) == EVENT_HASH_NOT_EXIST);
@@ -73,15 +73,13 @@ errval_t udp_server_register(
     {
     case SYS_ERR_OK:
         return SYS_ERR_OK;
-    case EVENT_HASH_OVERWRITE_ON_INSERT:
+    case EVENT_HASH_EXIST_ON_INSERT:
         //TODO: consider if multiple threads try to register the port
+        assert(sem_destroy(&new_server->sema) == 0);
         free(new_server);
         UDP_ERR("Another process also wants to register the UDP port and he/she gets it")
         return NET_ERR_UDP_PORT_REGISTERED;
-    default:
-        free(new_server);
-        DEBUG_ERR(err_insert, "Unknown Error Code");
-        return err_insert;
+    default: USER_PANIC_ERR(err_insert, "Unknown Error Code");
     }
 }
 
@@ -111,8 +109,6 @@ errval_t udp_server_deregister(
     case EVENT_HASH_NOT_EXIST:
         UDP_ERR("A process try to de-register a not existing UDP server on this port: %d", port);
         return NET_ERR_UDP_PORT_NOT_REGISTERED;
-    default:
-        DEBUG_ERR(err, "Unknown Error Code");
-        return err;
+    default: USER_PANIC_ERR(err, "Unknown Error Code");
     }
 }

@@ -49,7 +49,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
-    X(NET_ERR_IPv4_SEG_LATER_FREE,     "We need to assemble this IP message, free the memory later !") \
+    X(NET_OK_IPv4_SEG_LATER_FREE,      "We need to assemble this IP message, free the memory later !") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
@@ -62,7 +62,9 @@ typedef uintptr_t errval_t;
     X(NET_ERR_TCP_BAD_STATE,           "TCP connection received a message with impossible state") \
     X(NET_ERR_TCP_WRONG_SEQUENCE,      "The Sequence number of this TCP message is wrong") \
     X(NET_ERR_TCP_WRONG_ACKNOWLEDGE,   "The Acknowledge number of this TCP message is wrong") \
-    X(NET_ERR_TCP_MAX_CONNECTION,      "The TCP server is there, but it has too many connections")
+    X(NET_ERR_TCP_MAX_CONNECTION,      "The TCP server is there, but it has too many connections") \
+    X(NET_ERR_TCP_QUEUE_FULL,          "The Message queue of TCP is full") \
+    X(NET_OK_TCP_ENQUEUE,              "Successfully Enqueued a TCP message, need to free memory later") \
 
 #define IPC_ERR_CODES \
     X(IPC_ERR_INIT,                    "Can't initialize the IPC Module") \

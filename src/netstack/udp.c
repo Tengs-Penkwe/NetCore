@@ -14,7 +14,8 @@ errval_t udp_init(
     assert(udp && ip);
     udp->ip = ip;
 
-    err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_SERVER, HS_OVERWRITE_ON_EXIST);
+    ///@TODO: Change it to fail on exist, we don't want different control flow
+    err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_SERVER, HS_FAIL_ON_EXIST);
     PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of UDP servers");
 
     return SYS_ERR_OK;
@@ -50,7 +51,7 @@ errval_t udp_marshal(
     };
 
     struct pseudo_ip_header_in_net_order ip_header = {
-        .src_addr   = htonl(udp->ip->ip),
+        .src_addr   = htonl(udp->ip->my_ip),
         .dst_addr   = htonl(dst_ip),
         .reserved   = 0,
         .protocol   = IP_PROTO_UDP,
@@ -85,13 +86,14 @@ errval_t udp_unmarshal(
     udp_port_t src_port = ntohs(packet->src);
     udp_port_t dst_port = ntohs(packet->dest);
 
+    // TODO: check server first, then calculate check sum
     // 2. Checksum is optional
     uint16_t pkt_chksum = ntohs(packet->chksum); //TODO: ntohs ?
     if (pkt_chksum != 0) {
         packet->chksum = 0;
         struct pseudo_ip_header_in_net_order ip_header = {
             .src_addr   = htonl(src_ip),
-            .dst_addr   = htonl(udp->ip->ip),
+            .dst_addr   = htonl(udp->ip->my_ip),
             .reserved   = 0,
             .protocol   = IP_PROTO_UDP,
             .len_no_iph = htons(size),

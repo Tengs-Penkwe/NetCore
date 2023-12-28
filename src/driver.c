@@ -1,5 +1,5 @@
 #include <driver.h>
-#include <netstack/ethernet.h>
+#include <netstack/network.h>
 #include <device/device.h>
 
 #include <event/threadpool.h>
@@ -134,14 +134,19 @@ int main(int argc, char *argv[]) {
         DEBUG_ERR(err, "Can't Initialize the Network Device");
         return -1;
     }
+    g_states.device = device;
 
-    Ethernet* ether = calloc(1, sizeof(Ethernet));
-    assert(ether);
-    err = ethernet_init(device, ether);
+    g_states.max_workers_for_single_tcp_server = workers;
+    g_states.max_workers_for_single_udp_server = workers;
+
+    NetWork* net = calloc(1, sizeof(NetWork));
+    assert(net);
+    err = network_init(net, device);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize Network Module");
         return -1;
     }
+    g_states.network = net;
 
     MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
     memset(mempool, 0x00, sizeof(MemPool));
@@ -150,12 +155,14 @@ int main(int argc, char *argv[]) {
         DEBUG_ERR(err, "Can't Initialize the memory mempool");
         return -1;
     }
+    g_states.mempool = mempool;
 
     err = thread_pool_init(workers);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the thread mempool");
         return -1;
     }
+    g_states.threadpool = &g_threadpool;
 
     err = signal_init();
     if (err_is_fail(err)) {
@@ -168,16 +175,8 @@ int main(int argc, char *argv[]) {
         DEBUG_ERR(err, "Can't Initialize the Timer");
         return -1;
     }
-    
-    Driver driver = (Driver) {
-        .ether      = ether,
-        .device     = device,
-        .mempool    = mempool,
-        .threadpool = &g_threadpool,
-    };
-    g_states.driver = driver;
 
-    err = device_loop(device, ether, mempool);
+    err = device_loop(device, net, mempool);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Bad thing happened in the device, loop going to shutdown!");
         return -1;
@@ -191,13 +190,12 @@ static void driver_exit(int signum) {
     (void) signum;
     LOG_ERR("Ending TODO: free resources!");
 
-    Driver driver = g_states.driver;
 
-    ethernet_destroy(driver.ether);
+    network_destroy(g_states.network);
 
-    device_close(driver.device);
+    device_close(g_states.device);
 
-    mempool_destroy(driver.mempool);
+    mempool_destroy(g_states.mempool);
 
     thread_pool_destroy();
 

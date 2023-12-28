@@ -16,7 +16,7 @@ errval_t ip_init(
     errval_t err;
     assert(ip && ether && arp);
 
-    ip->ip = my_ip;
+    ip->my_ip = my_ip;
     ip->ether = ether;
     ip->arp = arp;
 
@@ -29,17 +29,20 @@ errval_t ip_init(
     
     ip->recv_messages = kh_init(ip_recv);
 
+    // 2. ICMP (Internet Control Message Protocol )
     ip->icmp = calloc(1, sizeof(ICMP));
     assert(ip->icmp);
     err = icmp_init(ip->icmp, ip);
     RETURN_ERR_PRINT(err, "Can't initialize global ICMP state");
 
+    // 3. UDP (User Datagram Protocol)
     ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP));
     memset(ip->udp, 0x00, sizeof(UDP));
     assert(ip->udp);
     err = udp_init(ip->udp, ip);
     RETURN_ERR_PRINT(err, "Can't initialize global UDP state");
 
+    // 4. TCP (Transmission Control Protocol)
     // ip->tcp = calloc(1, sizeof(TCP));
     // assert(ip->tcp);
     // err = tcp_init(ip->tcp, ip);
@@ -107,8 +110,8 @@ errval_t ip_unmarshal(
 
     // 1.4 Destination IP
     ip_addr_t dst_ip = ntohl(packet->dest);
-    if (dst_ip != ip->ip) {
-        LOG_ERR("This IPv4 Pacekt isn't for us %p but for %p", ip->ip, dst_ip);
+    if (dst_ip != ip->my_ip) {
+        LOG_ERR("This IPv4 Pacekt isn't for us %p but for %p", ip->my_ip, dst_ip);
         return NET_ERR_IPv4_WRONG_IP_ADDRESS;
     }
 

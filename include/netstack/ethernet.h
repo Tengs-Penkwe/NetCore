@@ -13,10 +13,11 @@ __BEGIN_DECLS
 typedef struct net_device NetDevice;
 
 typedef struct ethernet_state {
-    mac_addr mac;
-    struct net_device* device;
-    struct arp_state* arp;
-    struct ip_state* ip;
+    struct net_work   *net;
+    mac_addr           my_mac;
+    struct net_device *device;
+    struct arp_state  *arp;
+    struct ip_state   *ip;
 } Ethernet;
 
 errval_t ethernet_init(

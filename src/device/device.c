@@ -1,5 +1,6 @@
-#include <driver.h>
 #include <device/device.h>
+#include <driver.h>
+#include <netstack/network.h>
 #include <netutil/dump.h>
 #include <netutil/htons.h>
 
@@ -145,13 +146,13 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     return SYS_ERR_OK;
 }
 
-static errval_t handle_frame(NetDevice* device, Ethernet* ether, MemPool* mempool) {
+static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) {
     errval_t err;
 
     Frame* frame = calloc(1, sizeof(Frame));
     assert(frame);
     *frame = (Frame) {
-        .ether   = ether,
+        .ether   = net->ether,
         .data    = NULL,
         .data_shift = 0,
         .size    = 0,
@@ -200,8 +201,8 @@ static errval_t handle_frame(NetDevice* device, Ethernet* ether, MemPool* mempoo
     return SYS_ERR_OK;
 }
 
-errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* mempool) {
-    assert(device && ether);
+errval_t device_loop(NetDevice* device, NetWork* net, MemPool* mempool) {
+    assert(device && net);
     errval_t err;
 
     // Set up polling
@@ -220,7 +221,7 @@ errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* mempool) {
         }
 
         if (pfd[0].revents & POLLIN) {
-            err = handle_frame(device, ether, mempool);
+            err = handle_frame(device, net, mempool);
             RETURN_ERR_PRINT(err, "Can't handle this frame");
         }
     }
