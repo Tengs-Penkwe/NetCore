@@ -5,7 +5,7 @@
 #include <lock_free/hash_table.h>
 #include <ipc/rpc.h>
 
-#define UDP_DEFAULT_SERVER     128
+#define UDP_DEFAULT_SERVER     64
 
 // Forward Declaration
 struct udp_state;
