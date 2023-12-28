@@ -21,7 +21,7 @@ errval_t ethernet_init(
     assert(!maccmp(mac, MAC_NULL));
     ether->mac = mac;
 
-    ETHER_INFO("My MAC address is: %lX", frommac(ether->mac));
+    ETHER_NOTE("My MAC address is: %lX", frommac(ether->mac));
 
     // 2. Set the IP address
     /// TODO: dynamic IP using DHCP
@@ -44,7 +44,7 @@ errval_t ethernet_init(
     err = ip_init(ether->ip, ether, ether->arp, my_ip);
     RETURN_ERR_PRINT(err, "Failed to initialize the IP");
 
-    ETHER_INFO("Ethernet Moule initialized");
+    ETHER_NOTE("Ethernet Moule initialized");
     return SYS_ERR_OK;
 }
 
@@ -93,9 +93,7 @@ errval_t ethernet_unmarshal(
     /// 1. Decide if the packet is for us
     mac_addr dst_mac = ntoh6(packet->dst);
     if (!(maccmp(ether->mac, dst_mac) || maccmp(dst_mac, MAC_BROADCAST))){
-        ETHER_NOTE("Not a message for us, destination MAC is");
-        print_mac_address(&dst_mac);
-        print_mac_address(&ether->mac);
+        ETHER_NOTE("Not a message for us, destination MAC is %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->mac));
         return NET_ERR_ETHER_WRONG_MAC;
     }
 

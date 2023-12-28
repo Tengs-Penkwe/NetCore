@@ -7,6 +7,7 @@
 #include <device/device.h>
 #include <lock_free/memorypool.h>
 #include <event/threadpool.h>
+#include <stdlib.h>
 
 /* ***********************************************************
  * 
@@ -35,7 +36,7 @@ typedef struct global_states {
     struct timespec start_time;
     
     /// 
-    int             log_fd;
+    FILE           *log_file;
 
 } GlobalStates;
 
@@ -55,7 +56,7 @@ extern pthread_key_t thread_state_key;
 typedef struct local_states {
     const char  *my_name;
     pid_t        my_pid;
-    int          output_fd;
+    FILE        *log_file;
 } LocalState;
 
 // Function prototypes

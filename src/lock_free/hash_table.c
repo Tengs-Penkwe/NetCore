@@ -25,7 +25,7 @@ errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum h
             LFDS711_HASH_A_EXISTING_KEY_FAIL, NULL);
         break;
     default:
-        LOG_ERR("Unknown policy: %d", policy);
+        LOG_FATAL("Unknown policy: %d", policy);
         return SYS_ERR_FAIL;
     }
 
