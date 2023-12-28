@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <time.h>
-#include <netstack/ethernet.h>
+#include <netstack/network.h>
 #include <device/device.h>
 #include <lock_free/memorypool.h>
 #include <event/threadpool.h>
@@ -15,19 +15,17 @@
  *
  ************************************************************/
 
-typedef struct driver {
-    Ethernet    *ether;
-    NetDevice   *device;  
-    MemPool     *mempool;
-    ThreadPool  *threadpool;
-
-} Driver ;
-
 typedef struct global_states {
-    /// @brief For TCP 
-    size_t          max_worker_for_single_tcp_server;
+    NetWork        *network;
+    NetDevice      *device;
+    MemPool        *mempool;
+    ThreadPool     *threadpool;
 
-    Driver          driver;
+    /// @brief For TCP 
+    size_t          max_workers_for_single_tcp_server;
+    /// @brief For UDP
+    size_t          max_workers_for_single_udp_server;
+
     /// @brief For Device
     size_t          recvd;   ///< How many packets have we received
     size_t          fail_process;
@@ -35,7 +33,7 @@ typedef struct global_states {
     size_t          fail_sent;
     struct timespec start_time;
     
-    /// 
+    /// @brief For Log
     FILE           *log_file;
 
 } GlobalStates;

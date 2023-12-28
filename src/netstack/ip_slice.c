@@ -134,7 +134,7 @@ errval_t ip_send(
         .ttl     = 0xFF,
         .proto   = proto,
         .chksum  = 0,
-        .src     = htonl(ip->ip),
+        .src     = htonl(ip->my_ip),
         .dest    = htonl(dst_ip),
     };
     packet->chksum = inet_checksum(packet, sizeof(struct ip_hdr));

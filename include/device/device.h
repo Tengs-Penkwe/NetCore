@@ -1,12 +1,13 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
-
+ 
 #include <common.h>
 #include <netstack/ethernet.h>
 #include <time.h>       // For clock_gettime and struct timespec
 
 #include <linux/if.h>   //struct ifreq
 typedef struct memory_pool MemPool;
+typedef struct net_work    NetWork;
 
 /// IPv4: Max 60, 
 /// TCP : Max 60, UDP : 8, ICMP : 8
@@ -29,7 +30,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
 void     device_close(NetDevice* device);
 errval_t device_send(NetDevice* device, void* data, size_t size);
 errval_t device_get_mac(NetDevice* device, mac_addr* ret_mac);
-errval_t device_loop(NetDevice* device, Ethernet* ether, MemPool* pool);
+errval_t device_loop(NetDevice* device, NetWork* net, MemPool* mempool);
 
 __END_DECLS
 

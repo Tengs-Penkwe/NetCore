@@ -50,7 +50,7 @@ errval_t udp_marshal(
     };
 
     struct pseudo_ip_header_in_net_order ip_header = {
-        .src_addr   = htonl(udp->ip->ip),
+        .src_addr   = htonl(udp->ip->my_ip),
         .dst_addr   = htonl(dst_ip),
         .reserved   = 0,
         .protocol   = IP_PROTO_UDP,
@@ -91,7 +91,7 @@ errval_t udp_unmarshal(
         packet->chksum = 0;
         struct pseudo_ip_header_in_net_order ip_header = {
             .src_addr   = htonl(src_ip),
-            .dst_addr   = htonl(udp->ip->ip),
+            .dst_addr   = htonl(udp->ip->my_ip),
             .reserved   = 0,
             .protocol   = IP_PROTO_UDP,
             .len_no_iph = htons(size),

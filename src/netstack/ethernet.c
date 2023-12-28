@@ -19,9 +19,9 @@ errval_t ethernet_init(
     err = device_get_mac(device, &mac);
     RETURN_ERR_PRINT(err, "Can't get the MAC address");
     assert(!maccmp(mac, MAC_NULL));
-    ether->mac = mac;
+    ether->my_mac = mac;
 
-    ETHER_NOTE("My MAC address is: %lX", frommac(ether->mac));
+    ETHER_NOTE("My MAC address is: %lX", frommac(ether->my_mac));
 
     // 2. Set the IP address
     /// TODO: dynamic IP using DHCP
@@ -72,7 +72,7 @@ errval_t ethernet_marshal(
 
     struct eth_hdr* packet = (struct eth_hdr*) data;
     *packet = (struct eth_hdr){
-        .src  = hton6(ether->mac),
+        .src  = hton6(ether->my_mac),
         .dst  = hton6(dst_mac),
         .type = htons(type),
     };
@@ -92,8 +92,8 @@ errval_t ethernet_unmarshal(
 
     /// 1. Decide if the packet is for us
     mac_addr dst_mac = ntoh6(packet->dst);
-    if (!(maccmp(ether->mac, dst_mac) || maccmp(dst_mac, MAC_BROADCAST))){
-        ETHER_NOTE("Not a message for us, destination MAC is %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->mac));
+    if (!(maccmp(ether->my_mac, dst_mac) || maccmp(dst_mac, MAC_BROADCAST))){
+        ETHER_NOTE("Not a message for us, destination MAC is %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->my_mac));
         return NET_ERR_ETHER_WRONG_MAC;
     }
 

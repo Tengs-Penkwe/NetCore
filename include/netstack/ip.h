@@ -40,17 +40,16 @@ typedef uint64_t ip_msg_key_t ;
 #define MSG_KEY(src_ip, seqno) (ip_msg_key_t)((uint64_t)src_ip | ((uint64_t)seqno << 32))
 
 typedef struct ip_state {
-    struct ethernet_state *ether; ///< Global Ethernet state
-    struct arp_state *arp;        ///< Global ARP state
-    struct icmp_state *icmp;
-    struct udp_state *udp;
-    struct tcp_state *tcp;
+    struct ethernet_state *ether;  ///< Global Ethernet state
+    struct arp_state      *arp;    ///< Global ARP state
+    struct icmp_state     *icmp;
+    struct udp_state      *udp;
+    struct tcp_state      *tcp;
 
-    ip_addr_t ip;
-    atomic_ushort     seg_count;          ///< Ensure the sent message have unique ID
-
-    pthread_mutex_t   mutex;
-    khash_t(ip_recv) *recv_messages; 
+    ip_addr_t       my_ip;
+    atomic_ushort   seg_count;  ///< Ensure the sent message have unique ID
+    pthread_mutex_t mutex;
+    khash_t(ip_recv) * recv_messages;
 } IP;
 
 __BEGIN_DECLS
