@@ -14,7 +14,7 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
 #ifdef NDEBUG
 #define DEBUG_ERR(err, msg, ...) ((void)(0 && err))
 #else
-#define DEBUG_ERR(err, msg, ...) debug_err(__FILE__, __func__, __LINE__, err, msg)
+#define DEBUG_ERR(err, msg, ...) debug_err(__BASEFILE__, __func__, __LINE__, err, msg)
 #endif
 
 #define PUSH_ERR_PRINT(ERR, ERRNAME, fmt, ...) \
