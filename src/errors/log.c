@@ -10,8 +10,7 @@ errval_t log_init(const char* log_file, int log_level, FILE** ret_file) {
         char error[128];
         sprintf(error, "Error opening file: %s, going to use the standard output", log_file);
         perror(error);
-        //TODO: return error code and handle it in upper module
-        log = stdout;
+        return EVENT_LOGFILE_CREATE;
     } 
     printf("Opened log file at %s\n", log_file);
 

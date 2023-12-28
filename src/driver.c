@@ -39,7 +39,7 @@ static errval_t signal_init(void) {
         return SYS_ERR_FAIL;
     }
 
-    LOG_INFO("Signals set");
+    EVENT_NOTE("Signals set");
     return SYS_ERR_OK;
 }
 
@@ -98,12 +98,19 @@ int main(int argc, char *argv[]) {
     FILE *log_file = NULL;
 
     err = log_init(log_file_name, log_level, &log_file);
-    if (err_is_fail(err)) {
+    if (err_no(err) == EVENT_LOGFILE_CREATE)
+    {
+        printf("\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
+        log_file = stdout;
+    }
+    else if (err_is_fail(err))
+    {
         printf("\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
         return -1;
     }
     assert(log_file);
     g_states.log_file = log_file;
+    // After this point, we can use log
 
     //TODO: free it ?
     create_thread_state_key();
@@ -192,7 +199,7 @@ static void driver_exit(int signum) {
 
     timer_thread_destroy();
 
-    LOG_ERR("Bye Bye !");
+    LOG_NOTE("Bye Bye !");
     
     log_close(g_states.log_file);
 

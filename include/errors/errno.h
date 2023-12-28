@@ -22,6 +22,7 @@ typedef uintptr_t errval_t;
 
 #define EVENT_ERR_CODES \
     X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
+    X(EVENT_LOGFILE_CREATE,           "Can't create the log file") \
     X(EVENT_ENQUEUE_FULL,             "The task queue is full")  \
     X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \
     X(EVENT_MEMPOOL_EMPTY,            "The memory pool is empty")  \

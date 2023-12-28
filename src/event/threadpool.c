@@ -37,18 +37,18 @@ errval_t thread_pool_init(size_t workers)
 
         local[i] = (LocalState) {
             .my_name  = name,
-            .my_pid   = syscall(SYS_gettid),
+            .my_pid   = (pid_t)-1,      // Don't know yet
             .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
         };
 
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
-            LOG_ERR("Can't create worker thread");
+            LOG_FATAL("Can't create worker thread");
             free(g_threadpool.threads); free(local);
             return SYS_ERR_FAIL;
         }
     }
 
-    LOG_INFO("Thread pool: %d initialized", workers);
+    EVENT_NOTE("Thread pool: %d slaves initialized", workers);
     return SYS_ERR_OK;
 }
 
@@ -57,27 +57,27 @@ void thread_pool_destroy(void) {
 
     for (size_t i = 0; i < g_threadpool.workers; i++) 
         assert(pthread_cancel(g_threadpool.threads[i]) == 0);
-    EVENT_ERR("TODO: let the thread itself do some cleaning");
+    EVENT_NOTE("TODO: let the thread itself do some cleaning");
 
     sem_destroy(&g_threadpool.sem);
 
     free(g_threadpool.threads);
     g_threadpool.threads = NULL;
 
-    EVENT_ERR(
+    EVENT_NOTE(
         "Need to free local states !"
         "Need to Close all opened files !");
 
     memset(&g_threadpool, 0, sizeof(g_threadpool));
-    EVENT_ERR("Threadpool destroyed !");
+    EVENT_NOTE("Threadpool destroyed !");
 }
 
 void *thread_function(void* localstate) {
     assert(localstate);
     LocalState* local = localstate;
     set_local_state(local);
-    
-    EVENT_INFO("ThreadPool %s started with pid %d", local->my_name, local->my_pid);
+    local->my_pid = syscall(SYS_gettid);
+    EVENT_NOTE("ThreadPool %s started with pid %d", local->my_name, local->my_pid);
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
