@@ -8,10 +8,11 @@ pthread_key_t thread_state_key;
 static void free_state(void* local) {
     LocalState *state = local;
 
+    fflush(state->log_file);
+
     char last_msg[64];
     int len =sprintf(last_msg, "Thread %s with pid %d is going to end\n", state->my_name, state->my_pid);
-    fwrite(last_msg, sizeof(char), len, state->log_file);
-    fflush(state->log_file);
+    write(STDOUT_FILENO, last_msg, len);
 
     // Don't close file because there will be race condition, let the OS close it
     // fclose(state->log_file);
