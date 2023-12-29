@@ -14,13 +14,10 @@ typedef uintptr_t errval_t;
 // Define domains and error codes
 #define OK_CODES \
     X(SYS_ERR_OK,                      "SYS_ERR_OK") \
-    X(COUNT_OK,                        "Count for OK codes, shouldn't happen") \
-
-#define THROW_CODES \
     X(NET_OK_SUBMIT_EVENT,             "Successfully Submit the event, the buffer is re-used, can't free now") \
     X(NET_OK_TCP_ENQUEUE,              "Successfully Enqueued a TCP message, need to free memory later") \
     X(NET_OK_IPv4_SEG_LATER_FREE,      "We need to assemble this IP message, free the memory later !") \
-    X(COUNT_THROW,                     "Count for Throw codes, shouldn't happen") \
+    X(COUNT_OK,                        "Count for OK codes, shouldn't happen") \
 
 #define SYSTEM_ERR_CODES \
     X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
@@ -80,7 +77,6 @@ typedef uintptr_t errval_t;
 enum err_code {
 #define X(code, str) code,
     OK_CODES
-    THROW_CODES
     SYSTEM_ERR_CODES
     EVENT_ERR_CODES
     NETWORK_ERR_CODES
@@ -97,11 +93,8 @@ char* err_getstring(errval_t errval);
 const char* err_code_to_string(enum err_code code);
 void err_print_calltrace(errval_t err, FILE* log);
 
-static inline bool err_not_ok(errval_t errval);
-static inline bool err_is_ok(errval_t errval);
 static inline bool err_is_fail(errval_t errval);
-static inline bool err_is_throw(errval_t errval);
-static inline bool err_throw_or_ok(errval_t errval);
+static inline bool err_is_ok(errval_t errval);
 
 static inline enum err_code err_no(errval_t errval);
 static inline errval_t err_pop(errval_t errval);
@@ -109,7 +102,7 @@ static inline errval_t err_push(errval_t errval,enum err_code errcode);
  
 /* function definitions: */
  
-static inline bool err_not_ok(errval_t errval) {
+static inline bool err_is_fail(errval_t errval) {
     enum err_code code = err_no(errval);
     return (code > COUNT_OK);
 }
@@ -120,22 +113,6 @@ static inline bool err_is_ok(errval_t errval)
     return (code < COUNT_OK);
 }
 
-static inline bool err_is_fail(errval_t errval)
-{
-    enum err_code code = err_no(errval);
-    return (code > COUNT_THROW);
-}
-
-static inline bool err_is_throw(errval_t errval) {
-    enum err_code code = err_no(errval);
-    return (code > COUNT_OK && code < COUNT_THROW);
-}
-
-static inline bool err_throw_or_ok(errval_t errval) {
-    enum err_code code = err_no(errval);
-    return (code < COUNT_THROW);
-}
- 
 static inline enum err_code err_no(errval_t errval) 
 {
     return (enum err_code)(errval & ERR_MASK);

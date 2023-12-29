@@ -17,27 +17,13 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
 #define DEBUG_ERR(err, msg, ...) debug_err(__BASEFILE__, __func__, __LINE__, err, msg)
 #endif
 
-#define DEBUG_FAIL_NOT_THROW(ERR, fmt, ...) \
-    if(err_is_fail(ERR)) {                  \
-        DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
-        return ERR;                         \
-    } else if (err_is_throw(ERR)) {         \
-        return ERR;                         \
-    }
-
-#define RETURN_ERR_PRINT(ERR, fmt, ...) \
-    if(err_not_ok(ERR)) {  \
-        DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
-        return ERR; \
-    } 
-    
-#define PUSH_ERR_PRINT(ERR, ERRNAME, fmt, ...) \
-    if(err_not_ok(ERR)) {  \
+#define DEBUG_FAIL_PUSH(ERR, ERRNAME, fmt, ...) \
+    if(err_is_fail(ERR)) {  \
         DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
         return err_push(ERR, ERRNAME); \
     } 
-#define RETURN_ERR_PRINT(ERR, fmt, ...) \
-    if(err_not_ok(ERR)) {  \
+#define DEBUG_FAIL_RETURN(ERR, fmt, ...) \
+    if(err_is_fail(ERR)) {  \
         DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
         return ERR; \
     } 

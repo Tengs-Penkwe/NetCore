@@ -5,7 +5,6 @@
 const char* err_code_strings[] = {
 #define X(code, str) str,
     OK_CODES
-    THROW_CODES
     SYSTEM_ERR_CODES
     EVENT_ERR_CODES
     NETWORK_ERR_CODES
