@@ -4,6 +4,8 @@
 
 const char* err_code_strings[] = {
 #define X(code, str) str,
+    OK_CODES
+    THROW_CODES
     SYSTEM_ERR_CODES
     EVENT_ERR_CODES
     NETWORK_ERR_CODES
@@ -24,13 +26,12 @@ char* err_getstring(errval_t errval) {
 }
 
 void err_print_calltrace(errval_t err, FILE* log){
-    if (err_is_fail(err)){
-        enum err_code x;
-        while( (x = err_no(err)) != SYS_ERR_OK ){
-            char err_string[128];
-            int len = sprintf(err_string, "Failure: ( %32s )\n", err_getstring(x));
-            fwrite(err_string, sizeof(char), len, log);
-            err = err >> ERR_SHIFT;
-        }       
-    }
+    enum err_code x = err_no(err);
+    while((x = err_no(err)) != SYS_ERR_OK)
+    { 
+        char err_string[128];
+        int len = sprintf(err_string, "Failure: ( %32s )\n", err_getstring(x));
+        fwrite(err_string, sizeof(char), len, log);
+        err = err_pop(err);
+    }       
 }
