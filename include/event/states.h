@@ -55,6 +55,7 @@ typedef struct local_states {
     const char  *my_name;
     pid_t        my_pid;
     FILE        *log_file;
+    void        *my_state;  // User-defined state
 } LocalState;
 
 // Function prototypes
