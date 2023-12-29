@@ -1,4 +1,5 @@
 #include <lock_free/memorypool.h>
+#include <netstack/type.h>      // Buffer
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     assert(pool && bytes > 0 && amount > 0);
@@ -13,7 +14,7 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
 
     // 1.2 Initialize the backend queue
     err = bdqueue_init(&pool->queue, pool->elems, amount);
-    RETURN_ERR_PRINT(err, "Can't initialize the Bounded Queue");
+    DEBUG_FAIL_RETURN(err, "Can't initialize the Bounded Queue");
 
     // 2.1 
     pool->pool = malloc(bytes * amount);
@@ -59,18 +60,31 @@ void mempool_destroy(MemPool* mempool) {
     EVENT_ERR("Memory pool destroyed");
 }
 
-errval_t pool_alloc(MemPool* pool, void** addr) {
+errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf) {
     errval_t err;
-    assert(pool && addr && *addr == NULL);
+    assert(pool && ret_buf);
+    void *ret_addr = NULL;
 
-    err = debdqueue(&pool->queue, NULL, addr);
+    err = debdqueue(&pool->queue, NULL, &ret_addr);
     if (err_no(err) == EVENT_DEQUEUE_EMPTY) {
         EVENT_ERR("No more memory in the pool !");
+        USER_PANIC("Directly malloc and return Buffer");
         return EVENT_MEMPOOL_EMPTY;
     } else if (err_is_fail(err)) {
         USER_PANIC("Unknown Situation");
     }
-    assert(*addr);
+    assert(ret_addr);
+    
+    //TODO: have multiple sized memory pool !
+    assert(need_size == MEMPOOL_BYTES);
+    *ret_buf = (Buffer) {
+        .data       = ret_addr,
+        .from_hdr   = 0,
+        .from_pool  = true,
+        .mempool    = pool,
+        .valid_size = MEMPOOL_BYTES,
+        .whole_size = MEMPOOL_BYTES,
+    };
 
     return SYS_ERR_OK;
 }
