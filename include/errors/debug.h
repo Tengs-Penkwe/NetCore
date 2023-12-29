@@ -18,14 +18,16 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
 #endif
 
 #define DEBUG_FAIL_PUSH(ERR, ERRNAME, fmt, ...) \
-    if(err_is_fail(ERR)) {  \
-        DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
-        return err_push(ERR, ERRNAME); \
+    if(err_is_fail(ERR)) {                      \
+        if (!err_is_throw(ERR))                 \
+            DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
+        return err_push(ERR, ERRNAME);          \
     } 
-#define DEBUG_FAIL_RETURN(ERR, fmt, ...) \
-    if(err_is_fail(ERR)) {  \
-        DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
-        return ERR; \
+#define DEBUG_FAIL_RETURN(ERR, fmt, ...)        \
+    if(err_is_fail(ERR)) {                      \
+        if (!err_is_throw(ERR))                 \
+            DEBUG_ERR(ERR, fmt, ##__VA_ARGS__); \
+        return ERR;                             \
     } 
 
 /**

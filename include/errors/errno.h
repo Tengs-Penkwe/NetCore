@@ -14,6 +14,7 @@ typedef uintptr_t errval_t;
 // Define domains and error codes
 #define OK_CODES \
     X(SYS_ERR_OK,                      "SYS_ERR_OK") \
+    X(COUNT_THROW,                     "Count for THROW codes, shouldn't happen") \
     X(NET_OK_SUBMIT_EVENT,             "Successfully Submit the event, the buffer is re-used, can't free now") \
     X(NET_OK_TCP_ENQUEUE,              "Successfully Enqueued a TCP message, need to free memory later") \
     X(NET_OK_IPv4_SEG_LATER_FREE,      "We need to assemble this IP message, free the memory later !") \
@@ -95,6 +96,7 @@ void err_print_calltrace(errval_t err, FILE* log);
 
 static inline bool err_is_fail(errval_t errval);
 static inline bool err_is_ok(errval_t errval);
+static inline bool err_is_throw(errval_t errval);
 
 static inline enum err_code err_no(errval_t errval);
 static inline errval_t err_pop(errval_t errval);
@@ -105,6 +107,12 @@ static inline errval_t err_push(errval_t errval,enum err_code errcode);
 static inline bool err_is_fail(errval_t errval) {
     enum err_code code = err_no(errval);
     return (code > COUNT_OK);
+}
+
+static inline bool err_is_throw(errval_t errval)
+{
+    enum err_code code = err_no(errval);
+    return (code > COUNT_THROW && code < COUNT_OK);
 }
 
 static inline bool err_is_ok(errval_t errval)
