@@ -17,7 +17,7 @@ errval_t ethernet_init(
     // 1. Get and set the MAC address
     mac_addr mac = MAC_NULL;
     err = device_get_mac(device, &mac);
-    RETURN_ERR_PRINT(err, "Can't get the MAC address");
+    DEBUG_FAIL_RETURN(err, "Can't get the MAC address");
     assert(!maccmp(mac, MAC_NULL));
     ether->my_mac = mac;
 
@@ -34,15 +34,16 @@ errval_t ethernet_init(
         USER_PANIC("Failed to allocate the ARP");
     }
     err = arp_init(ether->arp, ether, my_ip);
-    RETURN_ERR_PRINT(err, "Failed to initialize the ARP");
+    DEBUG_FAIL_RETURN(err, "Failed to initialize the ARP");
 
     // 4. Set up the IPv4
-    ether->ip = calloc(1, sizeof(IP));
+    ether->ip = aligned_alloc(ATOMIC_ISOLATION, sizeof(IP));
+    memset(ether->ip, 0, sizeof(IP));
     if (ether->ip == NULL) {
         USER_PANIC("Failed to allocate the IP");
     }
     err = ip_init(ether->ip, ether, ether->arp, my_ip);
-    RETURN_ERR_PRINT(err, "Failed to initialize the IP");
+    DEBUG_FAIL_RETURN(err, "Failed to initialize the IP");
 
     ETHER_NOTE("Ethernet Moule initialized");
     return SYS_ERR_OK;
@@ -60,35 +61,32 @@ void ethernet_destroy(
 }
 
 errval_t ethernet_marshal(
-    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, uint16_t size
+    Ethernet* ether, mac_addr dst_mac, uint16_t type, Buffer buf
 ) {
     errval_t err;
-    assert(ether && data && 
-        (type == ETH_TYPE_ARP || type == ETH_TYPE_IPv4)
-    ); 
+    assert(ether && (type == ETH_TYPE_ARP || type == ETH_TYPE_IPv4)); 
     
-    data -= sizeof(struct eth_hdr);
-    size += sizeof(struct eth_hdr);
+    buffer_sub_ptr(&buf, sizeof(struct eth_hdr));
 
-    struct eth_hdr* packet = (struct eth_hdr*) data;
+    struct eth_hdr* packet = (struct eth_hdr*) buf.data;
     *packet = (struct eth_hdr){
         .src  = hton6(ether->my_mac),
         .dst  = hton6(dst_mac),
         .type = htons(type),
     };
 
-    err = device_send(ether->device, data, (size_t)size);
-    RETURN_ERR_PRINT(err, "Device can't send the ethernet frame");
+    err = device_send(ether->device, buf);
+    DEBUG_FAIL_RETURN(err, "Device can't send the ethernet frame");
 
     return SYS_ERR_OK;
 }
 
 errval_t ethernet_unmarshal(
-    Ethernet* ether, uint8_t* data, uint16_t size
+    Ethernet* ether, Buffer buf
 ) {
     errval_t err;
-    struct eth_hdr *packet = (struct eth_hdr *)data;
-    ETHER_VERBOSE("Unmarshalling %d bytes at %p", size, data);
+    struct eth_hdr *packet = (struct eth_hdr *)buf.data;
+    ETHER_VERBOSE("Unmarshalling %d bytes", buf.valid_size);
 
     /// 1. Decide if the packet is for us
     mac_addr dst_mac = ntoh6(packet->dst);
@@ -98,30 +96,26 @@ errval_t ethernet_unmarshal(
     }
 
     /// 2. Remove the Ethernet header and hand it to next layer
-    data += sizeof(struct eth_hdr);
-    size -= sizeof(struct eth_hdr);
+    buffer_add_ptr(&buf, sizeof(struct eth_hdr));
 
     /// 3. Judge the packet type
     uint16_t type = ntohs(packet->type);
     switch (type) {
     case ETH_TYPE_ARP:
         ETHER_VERBOSE("Got an ARP packet");
-        err = arp_unmarshal(ether->arp, data, size);
-        RETURN_ERR_PRINT(err, "Error when unmarshalling ARP packet");
-        break;
+        err = arp_unmarshal(ether->arp, buf);
+        DEBUG_FAIL_RETURN(err, "Error when unmarshalling ARP packet");
+        return err;
     case ETH_TYPE_IPv4:
         ETHER_VERBOSE("Got an IP packet");
-        err = ip_unmarshal(ether->ip, data, size);
-        RETURN_ERR_PRINT(err, "Error when handling IP packet");
-        break;
+        err = ip_unmarshal(ether->ip, buf);
+        DEBUG_FAIL_RETURN(err, "Error when handling IP packet");
+        return err;
     case ETH_TYPE_IPv6:
         ETHER_ERR("I don't support IPv6 yet");
-        break;
+        return SYS_ERR_NOT_IMPLEMENTED;
     default:
         LOG_ERR("Unknown packet type in Enthernet Layer: %x", type);
         return NET_ERR_ETHER_UNKNOWN_TYPE;
     }
-
-    ETHER_VERBOSE("Done Handling %d bytes at %p", size, data);
-    return SYS_ERR_OK;
 }

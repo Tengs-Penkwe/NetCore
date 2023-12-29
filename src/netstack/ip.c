@@ -25,7 +25,7 @@ errval_t ip_init(
     {
         BQelem * queue_elements = calloc(IP_SEG_QUEUE_SIZE, sizeof(BQelem));
         err = bdqueue_init(&ip->msg_queue[i], queue_elements, IP_SEG_QUEUE_SIZE);
-        if (err_not_ok(err)) {
+        if (err_is_fail(err)) {
             free(queue_elements);
             IP_ERR("Can't Initialize the queues for TCP messages");
             return SYS_ERR_INIT_FAIL;
@@ -102,7 +102,7 @@ errval_t ip_assemble(
     ip_msg_key_t key = ip_message_hash(src_ip, id);
     
     err = enbdqueue(&ip->msg_queue[key], NULL, msg);
-    if (err_not_ok(err)) {
+    if (err_is_fail(err)) {
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
         IP_WARN("Too much IP segmentation message for bucket %d, will drop it in upper module", key);
         return err;

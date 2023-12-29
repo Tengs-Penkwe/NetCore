@@ -13,7 +13,7 @@ errval_t arp_init(
     arp->ip = ip;
     
     err = hash_init(&arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST);
-    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");
     return SYS_ERR_OK;
@@ -29,20 +29,20 @@ void arp_destroy(
     ARP_NOTE("ARP module destroyed!");
 }
 
-// TODO: Make it a task, submittable
-errval_t arp_send(
+errval_t arp_marshal(
     ARP* arp, uint16_t opration,
-    ip_addr_t dst_ip, mac_addr dst_mac
+    ip_addr_t dst_ip, mac_addr dst_mac, Buffer buf
 ) {
     errval_t err;
     assert(arp);
 
     uint16_t send_size  = sizeof(struct arp_hdr);
-    uint16_t alloc_size = ARP_RESERVE_SIZE + send_size;
-    uint8_t* data_with_reserve = malloc(alloc_size);
-    assert(data_with_reserve);
+    
+    assert(buf.from_hdr >= ARP_RESERVE_SIZE);
+    assert(buf.valid_size >= send_size);
+    buf.valid_size = send_size;
 
-    struct arp_hdr* packet = (struct arp_hdr*) (data_with_reserve + ARP_RESERVE_SIZE);
+    struct arp_hdr* packet = (struct arp_hdr*) buf.data;
     *packet = (struct arp_hdr) {
         .hwtype   = htons(ARP_HW_TYPE_ETH),
         .proto    = htons(ARP_PROT_IP),
@@ -55,9 +55,8 @@ errval_t arp_send(
         .ip_dst   = htonl(dst_ip),
     };
 
-    err = ethernet_marshal(arp->ether, dst_mac, ETH_TYPE_ARP, (uint8_t*)packet, send_size);
-    RETURN_ERR_PRINT(err, "Can't marshall the ARP message");
-    free(data_with_reserve);
+    err = ethernet_marshal(arp->ether, dst_mac, ETH_TYPE_ARP, buf);
+    DEBUG_FAIL_RETURN(err, "Can't marshall the ARP message");
     
     return SYS_ERR_OK;
 }
@@ -97,7 +96,7 @@ errval_t arp_lookup_mac(
     void* macaddr_as_pointer = NULL;
 
     err = hash_get_by_key(&arp->hosts, ARP_HASH_KEY(ip), &macaddr_as_pointer);
-    RETURN_ERR_PRINT(err, "Can't find the MAC address of given IPv4 address");
+    DEBUG_FAIL_RETURN(err, "Can't find the MAC address of given IPv4 address");
 
     assert(macaddr_as_pointer);
     *ret_mac = voidptr2mac(macaddr_as_pointer);
@@ -108,12 +107,12 @@ errval_t arp_lookup_mac(
 }
 
 errval_t arp_unmarshal(
-    ARP* arp, uint8_t* data, uint16_t size
+    ARP* arp, Buffer buf
 ) {
     errval_t err;
     ARP_VERBOSE("Enter");
-    assert(size == sizeof(struct arp_hdr));
-    struct arp_hdr* packet = (struct arp_hdr*) data;
+    assert(buf.valid_size == sizeof(struct arp_hdr));
+    struct arp_hdr* packet = (struct arp_hdr*) buf.data;
 
     /// 1. Decide if the packet is correct
     if (ntohs(packet->hwtype) != ARP_HW_TYPE_ETH) {
@@ -135,7 +134,7 @@ errval_t arp_unmarshal(
 
     ip_addr_t dst_ip  = ntohl(packet->ip_dst);
     if (dst_ip != arp->ip) {
-        ARP_INFO("This ARP request isn't for us");
+        ARP_INFO("This ARP request is for %0.8p, not us %0.8p", dst_ip, arp->ip);
         return NET_ERR_ARP_WRONG_IP_ADDRESS;
     }
 
@@ -151,8 +150,8 @@ errval_t arp_unmarshal(
         break;
     case ARP_TYPE_REQUEST:
         ARP_VERBOSE("received a ARP request packet");
-        err = arp_send(arp, ARP_OP_REP, src_ip, src_mac);
-        RETURN_ERR_PRINT(err, "Can't send ARP reply");
+        err = arp_marshal(arp, ARP_OP_REP, src_ip, src_mac, buf);
+        DEBUG_FAIL_RETURN(err, "Can't send ARP reply");
         break;
     default:
         LOG_ERR("Unknown packet type for ARP: 0x%x", type);

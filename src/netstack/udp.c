@@ -16,7 +16,7 @@ errval_t udp_init(
 
     ///@TODO: Change it to fail on exist, we don't want different control flow
     err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_SERVER, HS_FAIL_ON_EXIST);
-    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of UDP servers");
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of UDP servers");
 
     return SYS_ERR_OK;
 }
@@ -33,20 +33,19 @@ void udp_destroy(
 
 errval_t udp_marshal(
     UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
-    uint8_t* addr, uint16_t size
+    Buffer buf
 ) {
     errval_t err;
-    assert(udp && addr);
+    assert(udp);
 
     // We left space for the IP header, so we don't need another memcpy in the ip_marshal()
-    size += sizeof(struct udp_hdr);
-    addr -= sizeof(struct udp_hdr);
+    buffer_add_ptr(&buf, sizeof(struct udp_hdr));
 
-    struct udp_hdr* packet = (struct udp_hdr*) addr;
+    struct udp_hdr* packet = (struct udp_hdr*) buf.data;
     *packet = (struct udp_hdr) {
         .src    = htons(src_port),
         .dest   = htons(dst_port),
-        .len    = htons(size),
+        .len    = htons(buf.valid_size),
         .chksum = 0,
     };
 
@@ -55,32 +54,32 @@ errval_t udp_marshal(
         .dst_addr   = htonl(dst_ip),
         .reserved   = 0,
         .protocol   = IP_PROTO_UDP,
-        .len_no_iph = htons(size),
+        .len_no_iph = htons(buf.valid_size),
     };
-    packet->chksum = tcp_udp_checksum_in_net_order(addr, ip_header);
+    packet->chksum = tcp_udp_checksum_in_net_order(buf.data, ip_header);
 
-    err = ip_marshal(udp->ip, dst_ip, IP_PROTO_UDP, addr, size);
-    RETURN_ERR_PRINT(err, "Can't marshal the message and sent by IP");
+    err = ip_marshal(udp->ip, dst_ip, IP_PROTO_UDP, buf);
+    DEBUG_FAIL_RETURN(err, "Can't marshal the message and sent by IP");
 
     return SYS_ERR_OK;
 }
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, uint16_t size
+    UDP* udp, const ip_addr_t src_ip, Buffer buf
 ) {
     errval_t err;
-    assert(udp && addr);
-    UDP_DEBUG("Received an UDP packet, source IP: %p, addr:%p, size: %d", src_ip, addr, size);
+    assert(udp);
+    UDP_DEBUG("Received an UDP packet, source IP: %p, size: %d", src_ip, buf.valid_size);
 
-    struct udp_hdr* packet = (struct udp_hdr*) addr;
+    struct udp_hdr* packet = (struct udp_hdr*) buf.data;
 
-    if (ntohs(packet->len) != size) {
-        UDP_ERR("UDP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), size);
+    if (ntohs(packet->len) != buf.valid_size) {
+        UDP_ERR("UDP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), buf.valid_size);
         return NET_ERR_UDP_WRONG_FIELD;
     }
-    assert(size >= UDP_LEN_MIN && size <= UDP_LEN_MAX);
-    if (size >= ETHER_MTU - 20) {
-        UDP_NOTE("This UDP paceket is very big: %d", size);
+    assert(buf.valid_size >= UDP_LEN_MIN && buf.valid_size <= UDP_LEN_MAX);
+    if (buf.valid_size >= ETHER_MTU - 20) {
+        UDP_NOTE("This UDP paceket is very big: %d", buf.valid_size);
     }
 
     udp_port_t src_port = ntohs(packet->src);
@@ -96,17 +95,16 @@ errval_t udp_unmarshal(
             .dst_addr   = htonl(udp->ip->my_ip),
             .reserved   = 0,
             .protocol   = IP_PROTO_UDP,
-            .len_no_iph = htons(size),
+            .len_no_iph = htons(buf.valid_size),
         };
-        uint16_t checksum = ntohs(tcp_udp_checksum_in_net_order(addr, ip_header));
+        uint16_t checksum = ntohs(tcp_udp_checksum_in_net_order(buf.data, ip_header));
         if (pkt_chksum != checksum) {
             UDP_ERR("This UDP Pacekt Has Wrong Checksum 0x%0.4x, Should be 0x%0.4x", pkt_chksum, checksum);
             return NET_ERR_UDP_WRONG_FIELD;
         }
     }
 
-    addr += sizeof(struct udp_hdr);
-    size -= sizeof(struct udp_hdr);
+    buffer_add_ptr(&buf, sizeof(struct udp_hdr));
 
     UDP_server* server = NULL;
     err = hash_get_by_key(&udp->servers, UDP_HASH_KEY(dst_port), (void**)&server);
@@ -123,7 +121,7 @@ errval_t udp_unmarshal(
         else
         {
             // TODO: the semaphore is to prevent this situation:
-            server->callback(server, addr, size, src_ip, src_port);
+            server->callback(server, buf, src_ip, src_port);
             sem_post(&server->sema);
             UDP_DEBUG("We handled an UDP packet at port: %d", dst_port);
             return SYS_ERR_OK;

@@ -114,17 +114,17 @@ void device_close(NetDevice* device) {
     device = NULL;
 }
 
-errval_t device_send(NetDevice* device, void* data, size_t size) {
-    assert(device && data && size);
+errval_t device_send(NetDevice* device, Buffer buf) {
+    assert(device);
 
     ///TODO: if two threads write at the same time, will there be problem ?
-    ssize_t written = write(device->tap_fd, data, size);
+    ssize_t written = write(device->tap_fd, buf.data, (size_t)buf.valid_size);
     if (written < 0) {
         perror("write to TAP device");
         device->fail_sent += 1;
         return NET_ERR_DEVICE_SEND;
     }
-    assert((size_t)written == size);
+    assert((size_t)written == buf.valid_size);
     device->sent += 1;
 
     // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
@@ -149,38 +149,43 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
 static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) {
     errval_t err;
 
-    Frame* frame = calloc(1, sizeof(Frame));
-    assert(frame);
+    Frame* frame = malloc(sizeof(Frame)); assert(frame);
     *frame = (Frame) {
         .ether   = net->ether,
-        .data    = NULL,
-        .data_shift = 0,
-        .size    = 0,
-        .mempool = mempool,
-        .buf_is_from_pool = true,
+        .buf     = { 0 }, 
     };
 
-    err = pool_alloc(mempool, (void**)&frame->data);
-    if (err_no(err) == EVENT_MEMPOOL_EMPTY) {
-        EVENT_ERR("We don't have more memory in the mempool !");
+    err = pool_alloc(mempool, MEMPOOL_BYTES, &frame->buf);
+    if (err_no(err) == EVENT_MEMPOOL_EMPTY)
+    {
+        EVENT_WARN("We don't have more memory in the mempool !");
 
-        assert(frame->data == NULL);
-        frame->data = malloc(MEMPOOL_BYTES);
-        frame->buf_is_from_pool = false;
-
-    } else if (err_is_fail(err)) {
+        assert(frame->buf.data == NULL);
+        frame->buf = (Buffer) {
+            .data       = malloc(MEMPOOL_BYTES),
+            .from_hdr   = 0,
+            .valid_size = MEMPOOL_BYTES,
+            .whole_size = MEMPOOL_BYTES,
+            .mempool    = NULL,
+            .from_pool  = false,
+        };
+    }
+    else if (err_is_fail(err))
+    {
         USER_PANIC_ERR(err, "Shouldn't happen");
     }
 
-    int nbytes = read(device->tap_fd, frame->data + DEVICE_HEADER_RESERVE, ETHER_MAX_SIZE);
-    if (nbytes <= 0) {
+    buffer_add_ptr(&frame->buf, DEVICE_HEADER_RESERVE);
+    int nbytes = read(device->tap_fd, frame->buf.data, frame->buf.valid_size);
+    if (nbytes <= 0) 
+    {
         perror("read packet from TAP device failed, but the loop continue");
-        frame_free(frame);
-    } else {
-        frame->data_shift = DEVICE_HEADER_RESERVE;
-        frame->data  += frame->data_shift;
-        frame->size  = (size_t)nbytes,
-
+        free_frame(frame);
+    }
+    else
+    {
+        assert(frame->buf.valid_size == MEMPOOL_BYTES - DEVICE_HEADER_RESERVE);
+        frame->buf.valid_size = nbytes;
         device->recvd += 1;
 
         // printf("========================================\n");
@@ -193,7 +198,7 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
             assert(err_no(err) == EVENT_ENQUEUE_FULL);
             EVENT_WARN("The task queue is full, we need to drop this packet!");
 
-            frame_free(frame);
+            free_frame(frame);
             device->fail_process += 1;
         }
     }
@@ -222,7 +227,7 @@ errval_t device_loop(NetDevice* device, NetWork* net, MemPool* mempool) {
 
         if (pfd[0].revents & POLLIN) {
             err = handle_frame(device, net, mempool);
-            RETURN_ERR_PRINT(err, "Can't handle this frame");
+            DEBUG_FAIL_RETURN(err, "Can't handle this frame");
         }
     }
 }

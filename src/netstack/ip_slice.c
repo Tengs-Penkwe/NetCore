@@ -76,7 +76,7 @@ void check_send_message(void* send) {
     }
 
     err = ip_slice(msg);
-    if (err_not_ok(err)) {
+    if (err_is_fail(err)) {
         msg->retry_interval *= 2;
         DEBUG_ERR(err, "We failed sending an IP packet, but we won't give up, we will try another in %d milliseconds !", msg->retry_interval / 1000);
     } 
@@ -175,7 +175,7 @@ errval_t ip_slice(IP_send* msg) {
 
         err = ip_send(ip, msg->dst_ip, msg->dst_mac, msg->id, msg->proto,
                     msg->buf, sent_size, seg_size, last_slice);
-        if (err_not_ok(err)) {
+        if (err_is_fail(err)) {
             IP_INFO("Sending a segment failed, will try latter in %d ms", msg->retry_interval / 1000);
             return err;
         }

@@ -2,22 +2,20 @@
 #include "tcp_server.h"
 #include "tcp_connect.h"
 
-static errval_t server_callback(TCP_conn* conn, void* data, size_t size); 
-
-static errval_t server_callback(TCP_conn* conn, void* data, size_t size)
+static errval_t server_callback(TCP_conn* conn, Buffer buf)
 {
-    assert(conn && data && size);
+    assert(conn);
     TCP_server* server = conn->server;
     assert(server);
     
-    server->callback(server, data, size, conn->src_ip, conn->src_port);
+    server->callback(server, buf, conn->src_ip, conn->src_port);
     // LOG_DEBUG("We handled an UDP packet at port: %d", conn->);
     return SYS_ERR_OK;
 }
 
 static void free_message(void* message) {
     TCP_msg* msg = message;
-    free(msg->data);
+    free_buffer(msg->buf);
     free(msg);
     message = NULL;
 }
@@ -37,7 +35,7 @@ static errval_t server_handshake_open(
         case TCP_FLAG_SYN:
 
             assert(msg->ackno == 0);
-            assert(msg->size == 0);
+            assert(msg->buf.valid_size == 0);
 
             conn->state = SYN_RECVD;
             conn->recvno = msg->seqno;
@@ -51,12 +49,11 @@ static errval_t server_handshake_open(
                 .flags = TCP_FLAG_SYN_ACK,
                 .seqno = conn->sendno,
                 .ackno = conn->recvno + 1,
-                .data  = NULL,
-                .size  = 0,
+                .buf   = NULL_BUFFER,
             };
 
             err = server_send(conn->server, &ret_msg);
-            RETURN_ERR_PRINT(err, "Can't marshal this message by server !");
+            DEBUG_FAIL_RETURN(err, "Can't marshal this message by server !");
             break;
         default: return NET_ERR_TCP_BAD_STATE;
         }
@@ -70,7 +67,7 @@ static errval_t server_handshake_open(
 
             assert(msg->seqno == conn->recvno + 1);
             assert(msg->ackno == conn->sendno + 1);
-            assert(msg->size == 0);
+            assert(msg->buf.valid_size == 0);
 
             conn->state  = ESTABLISHED;
             conn->sendno += 1;
@@ -104,7 +101,7 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
 
         assert(msg->seqno == conn->recvno);
         assert(msg->ackno == conn->sendno);
-        conn->recvno += msg->size;
+        conn->recvno += msg->buf.valid_size;
 
         TCP_msg ret_msg = {
             .send = {
@@ -114,17 +111,16 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
             .flags = TCP_FLAG_ACK,
             .seqno = conn->sendno,
             .ackno = conn->recvno,
-            .data  = NULL,
-            .size  = 0,
+            .buf   = NULL_BUFFER,
         };
 
         err = server_send(conn->server, &ret_msg);
-        RETURN_ERR_PRINT(err, "Can't marshal this message by server !");
+        DEBUG_FAIL_RETURN(err, "Can't marshal this message by server !");
 
         //TODO: what if size == 0 ?
-        if (msg->size != 0) {
-            err = server_callback(conn, msg->data, msg->size);
-            RETURN_ERR_PRINT(err, "Can't send back this message by call back !");
+        if (msg->buf.valid_size != 0) {
+            err = server_callback(conn, msg->buf);
+            DEBUG_FAIL_RETURN(err, "Can't send back this message by call back !");
         }
         break;
     }
@@ -145,12 +141,11 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
             .flags = TCP_FLAG_ACK,
             .seqno = conn->sendno,
             .ackno = conn->recvno,
-            .data  = NULL,
-            .size  = 0,
+            .buf   = NULL_BUFFER,
         };
 
         err = server_send(conn->server, &ret_msg);
-        RETURN_ERR_PRINT(err, "Can't marshal the ACK to FIN by server !");
+        DEBUG_FAIL_RETURN(err, "Can't marshal the ACK to FIN by server !");
 
         conn->state = LAST_ACK;
 
@@ -162,12 +157,11 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
             .flags = TCP_FLAG_FIN,
             .seqno = conn->sendno,
             .ackno = conn->recvno,
-            .data  = NULL,
-            .size  = 0,
+            .buf   = NULL_BUFFER,
         };
 
         err = server_send(conn->server, &fin_msg);
-        RETURN_ERR_PRINT(err, "Can't marshal the ACK to FIN by server !");
+        DEBUG_FAIL_RETURN(err, "Can't marshal the ACK to FIN by server !");
         break;
     }
     default: return NET_ERR_TCP_BAD_STATE;
@@ -232,8 +226,7 @@ static void conn_abrupt_close(TCP_conn* conn)
         .flags = TCP_FLAG_RST,
         .seqno = conn->sendno,
         .ackno = conn->recvno,
-        .data  = NULL,
-        .size  = 0,
+        .buf   = NULL_BUFFER,
     };
     errval_t err = server_send(conn->server, &rst_msg);
     if (err_is_fail(err)) {
@@ -292,7 +285,7 @@ errval_t conn_handle_msg(TCP_conn* conn, TCP_msg* msg)
         conn_abrupt_close(conn);
         conn_delete(conn);
     } else 
-        RETURN_ERR_PRINT(err, "Some error when handling this message");
+        DEBUG_FAIL_RETURN(err, "Some error when handling this message");
     
     free_message(msg);
     return SYS_ERR_OK;
@@ -319,5 +312,5 @@ void dump_tcp_msg(const TCP_msg *msg) {
     printf("   Flags: %s\n", flags_to_string(msg->flags));
     printf("   Sequence Number: %u\n", msg->seqno);
     printf("   Acknowledgment Number: %u\n", msg->ackno);
-    printf("   Data Size: %zu bytes\n", msg->size);
+    printf("   Data Size: %zu bytes\n", msg->buf.valid_size);
 }

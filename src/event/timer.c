@@ -103,7 +103,7 @@ errval_t timer_thread_init(void) {
      
     // 1. Unlimited Queue for submission
     err = queue_init(&timer.queue);
-    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock-free queue for timer");
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock-free queue for timer");
     
     // 2. Count how many submission has been made
     timer.count = 0;
