@@ -12,28 +12,8 @@ errval_t tcp_init(TCP* tcp, IP* ip) {
     // 1. Hash table for servers
     err = hash_init(&tcp->servers, tcp->buckets, TCP_SERVER_BUCKETS, HS_FAIL_ON_EXIST);
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of tcp servers");
-    
-    // 2. Message Queue for single-thread handling of TCP
-    for (size_t i = 0; i < TCP_QUEUE_NUMBER; i++)
-    {
-        BQelem * queue_elements = calloc(TCP_QUEUE_SIZE, sizeof(BQelem));
-        err = bdqueue_init(&tcp->msg_queue[i], queue_elements, TCP_QUEUE_SIZE);
-        if (err_is_fail(err)) {
-            free(queue_elements);
-            hash_destroy(&tcp->servers);
-            TCP_ERR("Can't Initialize the queues for TCP messages");
-            return SYS_ERR_INIT_FAIL;
-        }
-        // 2.1 spinlock for eqch queue
-        atomic_flag_clear(&tcp->que_locks[i]);
-    }
-    tcp->queue_num  = TCP_QUEUE_NUMBER;
-    tcp->queue_size = TCP_QUEUE_SIZE;
 
-    TCP_NOTE("TCP Module Initialized, the hash-table for server has size %d, there are %d message "
-             "queue, each have %d as maximum size",
-             TCP_SERVER_BUCKETS, TCP_QUEUE_NUMBER, TCP_QUEUE_SIZE);
-
+    TCP_NOTE("TCP Module Initialized, the hash-table for server has size %d", TCP_SERVER_BUCKETS);
     return SYS_ERR_OK;
 }
 
@@ -42,7 +22,7 @@ errval_t tcp_marshal(
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
     Buffer buf
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     assert(tcp);
 
     buffer_sub_ptr(&buf, sizeof(struct tcp_hdr));
@@ -74,14 +54,14 @@ errval_t tcp_marshal(
     err = ip_marshal(tcp->ip, dst_ip, IP_PROTO_TCP, buf);
     DEBUG_FAIL_RETURN(err, "Can't marshal the TCP packet and sent by IP");
 
-    return SYS_ERR_OK;
+    return err;
 }
 
 errval_t tcp_unmarshal(
     TCP* tcp, const ip_addr_t src_ip, Buffer buf
 ) {
+    errval_t err = SYS_ERR_OK;
     assert(tcp);
-    errval_t err;
     struct tcp_hdr* packet = (struct tcp_hdr*)buf.data;
 
     // 0. Check Validity
@@ -124,6 +104,7 @@ errval_t tcp_unmarshal(
     uint32_t window = ntohs(packet->window);
     (void) window;
 
+    // 3. Create the Message
     uint8_t flags = packet->flags;
     TCP_msg* msg = calloc(1, sizeof(TCP_msg));
     assert(msg);
@@ -135,18 +116,42 @@ errval_t tcp_unmarshal(
         .recv     = {
             .src_ip   = src_ip,
             .src_port = src_port,
-        }
+        },
     };
     
-    size_t hash = queue_hash(src_ip, src_port, dst_port);
-    assert(hash <= tcp->queue_num);
-    
-    err = enbdqueue(&tcp->msg_queue[hash], NULL, (void *)msg);
-    if (err_is_fail(err)) {
-        assert(err_no(err) == EVENT_ENQUEUE_FULL);
-        TCP_ERR("The given message queue of TCP message is full, will drop this message in upper level");
-        return err_push(err, NET_ERR_TCP_QUEUE_FULL);
-    }
+    // 4. Find the Server
+    TCP_server* server = NULL;
 
-    return SYS_ERR_OK;
+    err = hash_get_by_key(&tcp->servers, TCP_HASH_KEY(dst_port), (void**)&server);
+    switch (err_no(err))
+    {
+    case SYS_ERR_OK:
+        assert(server);
+        USER_PANIC("need to consider the server is deregistered during the process");
+        sem_wait(&server->sema);
+        if (server->is_live == false)
+        {
+            sem_post(&server->sema);
+            free(msg);
+            TCP_ERR("A process try to send message a dead TCP server on this port: %d", dst_port);
+            return NET_ERR_TCP_PORT_NOT_REGISTERED;
+        }
+        else
+        {
+            // 4.1 If the server is live, then we put the message into the queue
+            err = enbdqueue(&server->msg_queue, NULL, (void*)msg);
+            if (err_is_fail(err)) {
+                assert(err_no(err) == EVENT_ENQUEUE_FULL);
+                TCP_ERR("The given message queue of TCP message is full, will drop this message in upper level");
+                return err_push(err, NET_ERR_TCP_QUEUE_FULL);
+            }
+            sem_post(&server->sema);
+            return NET_OK_TCP_ENQUEUE;
+        }
+        assert(0);
+    case EVENT_HASH_NOT_EXIST: 
+        TCP_ERR("A process try to send message to a not existing TCP server on this port: %d", dst_port);
+        return NET_ERR_TCP_PORT_NOT_REGISTERED;
+    default: USER_PANIC_ERR(err, "Unknown Error Code");
+    }
 }

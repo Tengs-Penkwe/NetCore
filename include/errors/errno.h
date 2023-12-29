@@ -70,6 +70,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_TCP_WRONG_ACKNOWLEDGE,   "The Acknowledge number of this TCP message is wrong") \
     X(NET_ERR_TCP_MAX_CONNECTION,      "The TCP server is there, but it has too many connections") \
     X(NET_ERR_TCP_QUEUE_FULL,          "The Message queue of TCP is full") \
+    X(NET_ERR_TCP_CREATE_WORKER,       "Can't Create worker thread for TCP server") \
 
 #define IPC_ERR_CODES \
     X(IPC_ERR_INIT,                    "Can't initialize the IPC Module") \

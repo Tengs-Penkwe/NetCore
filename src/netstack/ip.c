@@ -47,17 +47,16 @@ errval_t ip_init(
     DEBUG_FAIL_RETURN(err, "Can't initialize global ICMP state");
 
     // 3. UDP (User Datagram Protocol)
-    ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP));
-    memset(ip->udp, 0x00, sizeof(UDP));
-    assert(ip->udp);
+    ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP)); 
+    assert(ip->udp); memset(ip->udp, 0x00, sizeof(UDP));
     err = udp_init(ip->udp, ip);
     DEBUG_FAIL_RETURN(err, "Can't initialize global UDP state");
 
     // 4. TCP (Transmission Control Protocol)
-    // ip->tcp = calloc(1, sizeof(TCP));
-    // assert(ip->tcp);
-    // err = tcp_init(ip->tcp, ip);
-    // DEBUG_FAIL_RETURN(err, "Can't initialize global TCP state");
+    ip->tcp = aligned_alloc(ATOMIC_ISOLATION, sizeof(TCP));
+    assert(ip->tcp); memset(ip->tcp, 0x00, sizeof(TCP));
+    err = tcp_init(ip->tcp, ip);
+    DEBUG_FAIL_RETURN(err, "Can't initialize global TCP state");
 
     IP_INFO("IP Module initialized");
     return SYS_ERR_OK;
