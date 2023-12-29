@@ -62,7 +62,8 @@ void submit_periodic_task(DelayedTask dt, delayed_us repeat) {
 
 inline void submit_delayed_task(DelayedTask dt)
 {
-    return submit_periodic_task(dt, 0);    
+    submit_periodic_task(dt, 0);    
+    return;
 }
 
 static void* timer_thread (void* localstates) {
@@ -130,6 +131,5 @@ void timer_thread_destroy(void) {
     assert(pthread_cancel(timer.thread) == 0);
     queue_destroy(&timer.queue);
     //TODO: free all the things
-    sem_destroy(&timer.sem);
     TIMER_ERR("NYI: destroy Timer Moudle");
 }
