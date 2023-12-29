@@ -6,31 +6,33 @@
 #include "threadpool.h"
 #include <lock_free/queue.h>  // Lock-free structures
 
-// #define SIG_TELL_TIMER      SIGUSR1
-#define SIG_TIGGER_SUBMIT   SIGUSR2
+#define SIG_TIGGER_SUBMIT   SIGRTMIN
 
 typedef uint64_t delayed_us;
 
 typedef void (*task_fail) (void* delayed_task);
 
-typedef struct {
+#define MK_DELAY_TASK(delay, fail, task)  (DelayedTask) { (delay), (fail), (task) }
+
+typedef struct delayed_task {
     delayed_us delay;
     task_fail  fail;
     Task       task;
-} Delayed_task;
+} DelayedTask;
 
 struct Timer {
-    Queue      queue;   // Alignment requirement
-    sem_t      sem;
+    alignas(ATOMIC_ISOLATION)
+        Queue  queue;  
     pthread_t  thread;
+    size_t     count;
 } __attribute__((aligned(ATOMIC_ISOLATION)));
-
 __BEGIN_DECLS
 
 errval_t timer_thread_init(void);
 void timer_thread_destroy(void);
 
-void submit_delayed_task(delayed_us delay, Task task);
+void submit_periodic_task(DelayedTask dt, delayed_us repeat);
+void submit_delayed_task(DelayedTask dt);
 
 extern struct Timer timer;
 

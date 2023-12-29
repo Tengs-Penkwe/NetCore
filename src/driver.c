@@ -157,18 +157,18 @@ int main(int argc, char *argv[]) {
     }
     g_states.mempool = mempool;
 
+    err = signal_init();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't Initialize the signals");
+        return -1;
+    }
+
     err = thread_pool_init(workers);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the thread mempool");
         return -1;
     }
     g_states.threadpool = &g_threadpool;
-
-    err = signal_init();
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "Can't Initialize the signals");
-        return -1;
-    }
 
     err = timer_thread_init();
     if (err_is_fail(err)) {

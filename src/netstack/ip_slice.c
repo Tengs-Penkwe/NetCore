@@ -5,18 +5,17 @@
 
 #include <event/timer.h>
 #include <event/threadpool.h>
+#include <event/event.h>
 
-static void close_sending_message(void* send) {
+void close_sending_message(void* send) {
     IP_send* msg = send; assert(msg);
 
-    ip_msg_key_t msg_key = MSG_KEY(msg->dst_ip, msg->id);
-    // collections_hash_delete(ip->send_messages, msg_key);
-    (void) msg_key;
-    free(msg->data);
-    // TODO: ALARM: reserved header !
-
-    IP_NOTE("Close sending a message"); 
-    USER_PANIC("NYI");
+    if (msg->sent_size != msg->buf.valid_size) {
+        IP_NOTE("Failed sending a IP packet of %d bytes, only sent %d bytes", msg->buf.valid_size, msg->sent_size); 
+    }
+    // TODO: where can I free it ?
+    free_buffer(msg->buf);
+    free(msg);
 }
 
 void check_get_mac(void* send) {
@@ -26,34 +25,41 @@ void check_get_mac(void* send) {
     IP* ip = msg->ip;    assert(ip);
 
     assert(maccmp(msg->dst_mac, MAC_NULL));
-    err = mac_lookup_and_send(ip->arp, msg->dst_ip, &msg->dst_mac);
-    if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
-
+    err = arp_lookup_mac(ip->arp, msg->dst_ip, &msg->dst_mac);
+    switch (err_no(err))
+    {
+    case NET_ERR_ARP_NO_MAC_ADDRESS:
         msg->retry_interval *= 2;
         if (msg->retry_interval >= IP_GIVEUP_SEND_US) {
             close_sending_message((void*)msg);
             return;
         }
+
+        ARP_marshal* req = malloc(sizeof(ARP_marshal));
+        *req = (ARP_marshal) {
+            .arp      = ip->arp,
+            .opration = ARP_OP_REQ,
+            .dst_ip   = msg->dst_ip,
+            .dst_mac  = MAC_BROADCAST,
+        };
+        USER_PANIC("deal with buf here");
+
         IP_INFO("Can't find the Corresponding IP address, sent request, retry later in %d ms", msg->retry_interval / 1000);
-
-        submit_delayed_task(msg->retry_interval, MK_TASK(check_get_mac, (void*)msg));
-
-    } else if (err_is_fail(err)) {
-
-        DEBUG_ERR(err, "Can't handle this binding error in a closure, but the process continue");
-        close_sending_message((void*)msg);
-        return;
-
-    } else {
+        submit_task(MK_TASK(event_arp_marshal, (void*)req));
+        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_get_mac, (void*)msg)));
+        break;
+    case SYS_ERR_OK:
         assert(!maccmp(msg->dst_mac, MAC_NULL));
         
         // Begin sending message
         msg->retry_interval = IP_RETRY_SEND_US;
         assert(msg->id == 0);  // It should be the first message in this binding since it requires MAC address
 
-        submit_delayed_task(msg->retry_interval, MK_TASK(check_send_message, (void*)msg));
-
+        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_send_message, (void*)msg)));
+        break;
+    default: USER_PANIC_ERR(err, "Unknown sitation");
     }
+
     IP_VERBOSE("Exit check bind");
     return;
 }
@@ -75,16 +81,15 @@ void check_send_message(void* send) {
         DEBUG_ERR(err, "We failed sending an IP packet, but we won't give up, we will try another in %d milliseconds !", msg->retry_interval / 1000);
     } 
     
-    if (msg->sent_size == msg->whole_size) { // We are done sending !
-        IP_DEBUG("We done sending an IP message ! size: %d, retry interval in ms: %d", msg->whole_size, msg->retry_interval / 1000);
+    if (msg->sent_size == msg->buf.valid_size) { // We are done sending !
+        IP_DEBUG("We done sending an IP message ! size: %d, retry interval in ms: %d", msg->buf.valid_size, msg->retry_interval / 1000);
         close_sending_message((void*)msg);
         return;
     }
 
-    //TODO: make it failable, 
-    submit_delayed_task(msg->retry_interval, MK_TASK(check_send_message, (void*)msg));
+    submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_send_message, (void*)msg)));
 
-    IP_VERBOSE("Done Checking a sending message, ttl: %d us, whole size: %d, snet size: %d", msg->retry_interval / 1000, msg->whole_size, msg->sent_size);
+    IP_VERBOSE("Done Checking a sending message, ttl: %d us, whole size: %d, snet size: %d", msg->retry_interval / 1000, msg->buf.valid_size, msg->sent_size);
     return;
 }
 
@@ -94,10 +99,12 @@ void check_send_message(void* send) {
 /// @return error code, depends on user if he/she want to retry
 errval_t ip_send(
     IP* ip, const ip_addr_t dst_ip, const mac_addr dst_mac,
-    const uint16_t id, const uint8_t proto, const uint8_t *data, 
-    const uint16_t send_from, const uint16_t size_to_send, bool last_slice
+    const uint16_t id, const uint8_t proto,
+    Buffer buf,
+    const uint16_t send_from, const uint16_t size_to_send,
+    bool last_slice
 ) {
-    errval_t err; assert(ip && data);
+    errval_t err; assert(ip);
     
     // 1. Calculate the information of segmentation
     assert(send_from % 8 == 0);
@@ -117,13 +124,11 @@ errval_t ip_send(
     else            OFFSET_MF_SET(flag_offset, 1);
     
     // 2. Prepare the send buffer
-    /// ALARM: should have reserved space before !
-    uint8_t* data_to_send = (uint8_t*)data;
-    data_to_send -= sizeof(struct ip_hdr);
+    buffer_sub_ptr(&buf, sizeof(struct ip_hdr));
     /// ALARM: This will destroy the segement before, but since we have sent them, it's ok
 
     // 3. Fill the header
-    struct ip_hdr *packet = (struct ip_hdr*) data_to_send;
+    struct ip_hdr *packet = (struct ip_hdr*)buf.data;
     *packet = (struct ip_hdr) {
         .ihl     = 0x5,
         .version = 0x4,
@@ -140,8 +145,8 @@ errval_t ip_send(
     packet->chksum = inet_checksum(packet, sizeof(struct ip_hdr));
 
     // 4. Send the packet
-    err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, (uint8_t*)packet, pkt_size);
-    RETURN_ERR_PRINT(err, "Can't send the IPv4 packet");
+    err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, buf);
+    DEBUG_FAIL_RETURN(err, "Can't send the IPv4 packet");
 
     IP_VERBOSE("End sending an IP packet");
     return SYS_ERR_OK;
@@ -151,15 +156,15 @@ errval_t ip_slice(IP_send* msg) {
     errval_t err;       assert(msg);
     IP* ip = msg->ip;   assert(ip);
 
-    IP_VERBOSE("Sending IP Message: Protocal %x, data: %p, whole size: %d, sent size: %d, retry in %d ms",
-                msg->proto, msg->data, msg->whole_size, msg->sent_size, msg->retry_interval / 1000);
+    IP_VERBOSE("Sending IP Message: Protocal %x, whole size: %d, sent size: %d, retry in %d ms",
+                msg->proto, msg->buf.valid_size, msg->sent_size, msg->retry_interval / 1000);
 
     // 1. Get the destination MAC, IP and message ID
-    const uint16_t  whole_size = msg->whole_size;
+    const uint16_t  whole_size = msg->buf.valid_size;
     const uint16_t  sent_size  = msg->sent_size;
-    const uint8_t  *data       = msg->data;
     assert(sent_size < whole_size);
     assert(sent_size % 8 == 0);
+    assert(msg->buf.from_hdr >= IP_RESERVER_SIZE);
 
     // 2. Marshal and send sliceS
     for (int size_left = (int)(whole_size - sent_size); size_left > 0; size_left -= IP_MTU) {
@@ -169,7 +174,7 @@ errval_t ip_slice(IP_send* msg) {
         const uint16_t seg_size = last_slice ? (uint16_t)size_left : IP_MTU;
 
         err = ip_send(ip, msg->dst_ip, msg->dst_mac, msg->id, msg->proto,
-            data, sent_size, seg_size, last_slice);
+                    msg->buf, sent_size, seg_size, last_slice);
         if (err_is_fail(err)) {
             IP_INFO("Sending a segment failed, will try latter in %d ms", msg->retry_interval / 1000);
             return err;

@@ -47,8 +47,7 @@ typedef struct tcp_message {
     Flags        flags;
     uint32_t     seqno;
     uint32_t     ackno;
-    void        *data;
-    size_t       size;
+    Buffer       buf;
 } TCP_msg ;    
 
 static inline Flags get_tcp_flags(uint8_t flags) {

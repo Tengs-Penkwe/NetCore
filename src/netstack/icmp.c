@@ -4,6 +4,8 @@
 #include <netutil/ip.h>
 
 #include <netstack/icmp.h>
+#include <event/threadpool.h>
+#include <event/event.h>
 
 errval_t icmp_init(
     ICMP* icmp, struct ip_state* ip
@@ -14,24 +16,17 @@ errval_t icmp_init(
     return SYS_ERR_OK;
 }
 
-errval_t icmp_send(
-    ICMP* icmp, ip_addr_t dst_ip, uint8_t type, uint8_t code, ICMP_data field
+errval_t icmp_marshal(
+    ICMP* icmp, ip_addr_t dst_ip, uint8_t type, uint8_t code, ICMP_data field, Buffer buf
 ) {
     errval_t err;
     assert(icmp);
 
-    uint8_t *data = NULL;
-    uint16_t size = 0;
     switch (type) {
     case ICMP_ER:
         ICMP_VERBOSE("Sending a reply to a ICMP echo request !");
-        size = field.size;
-        data = field.data;  ///ALARM: Device reserved filed for it
-        assert(data);
-
-        data -= sizeof(struct icmp_echo);
-        memcpy(data, &field.echo, sizeof(struct icmp_echo));
-        size += sizeof(struct icmp_echo);
+        buffer_sub_ptr(&buf, sizeof(struct icmp_echo));
+        memcpy(buf.data, &field.echo, sizeof(struct icmp_echo));
         break;
     case ICMP_ECHO:
     case ICMP_DUR:
@@ -49,58 +44,56 @@ errval_t icmp_send(
         ICMP_ERR("WRONG ICMP type :%d!", type);
         return NET_ERR_ICMP_WRONG_TYPE;
     }
-    data -= sizeof(struct icmp_hdr);
-    size += sizeof(struct icmp_hdr);
+    buffer_sub_ptr(&buf, sizeof(struct icmp_hdr));
 
-    struct icmp_hdr* packet = (struct icmp_hdr*) data;
+    struct icmp_hdr* packet = (struct icmp_hdr*) buf.data;
     *packet = (struct icmp_hdr) {
         .type   = type,
         .code   = code,
         .chksum = 0,    /// For ICMP, the checksum is calculated for the full packet
     };
-    packet->chksum = inet_checksum(packet, size);
+    packet->chksum = inet_checksum(packet, buf.valid_size);
     
-    err = ip_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, (uint8_t*)packet, size);
-    RETURN_ERR_PRINT(err, "Can't send the ICMP through binding");
-
-    return SYS_ERR_OK;
+    err = ip_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, buf);
+    DEBUG_FAIL_RETURN(err, "Can't send the ICMP through binding");
+    return err;
 }
 
 errval_t icmp_unmarshal(
-    ICMP* icmp, ip_addr_t src_ip, uint8_t* addr, uint16_t size
+    ICMP* icmp, ip_addr_t src_ip, Buffer buf
 ) {
     errval_t err;
-    assert(icmp && addr);
-    struct icmp_hdr *packet = (struct icmp_hdr*) addr;
+    assert(icmp);
+    struct icmp_hdr *packet = (struct icmp_hdr*) buf.data;
 
     // 1.1 Checksum
     uint16_t packet_checksum = ntohs(packet->chksum);
     packet->chksum = 0;     // Set the it as 0 to calculate
-    uint16_t checksum = inet_checksum((void*)addr, size);
+    uint16_t checksum = inet_checksum((void*)buf.data, buf.valid_size);
     if (packet_checksum != ntohs(checksum)) {
         ICMP_ERR("This ICMP Pacekt Has Wrong Checksum %p, Should be %p", checksum, packet_checksum);
         return NET_ERR_ICMP_WRONG_CHECKSUM;
     }
 
-    addr += sizeof(struct icmp_hdr);
-    size -= sizeof(struct icmp_hdr);
+    buffer_add_ptr(&buf, sizeof(struct icmp_hdr));
 
+    // TODO: have better default value ?
+    uint8_t ret_type = 0xFF;
+    uint8_t ret_code = 0xFF;
+    ICMP_data field;
     uint8_t type = ICMPH_TYPE(packet);
     switch (type) {
     case ICMP_ECHO:
-        addr += sizeof(struct icmp_echo);
-        size -= sizeof(struct icmp_echo);
-        ICMP_data field = {
+        buffer_add_ptr(&buf, sizeof(struct icmp_echo));
+        field = (ICMP_data) {
             .echo = {
                 .id    = ICMPH_ECHO_ID(packet),
                 .seqno = ICMPH_ECHO_SEQ(packet),
             },
-            .data = addr,
-            .size = size,
         };
+        ret_type = ICMP_ER;
+        ret_code = 0;
         ICMP_VERBOSE("An ICMP echo request id: %d, seqno: %d !", ntohs(field.echo.id), ntohs(field.echo.seqno));
-        err = icmp_send(icmp, src_ip, ICMP_ER, 0, field);
-        RETURN_ERR_PRINT(err, "Can't send reply to echo");
         break;
     case ICMP_ER:
     case ICMP_DUR:
@@ -118,6 +111,30 @@ errval_t icmp_unmarshal(
         ICMP_ERR("WRONG ICMP type :%d!", type);
         return NET_ERR_ICMP_WRONG_TYPE;
     }
+    assert(ret_code != 0xFF);
+    assert(ret_type != 0xFF);
 
-    return SYS_ERR_OK;
+    ICMP_marshal* marshal = malloc(sizeof(ICMP_marshal));
+    *marshal = (ICMP_marshal) {
+        .icmp   = icmp,
+        .dst_ip = src_ip,
+        .type   = ret_type,
+        .code   = ret_code,
+        .field  = field,
+        .buf    = buf,
+    };
+
+    err = submit_task(MK_TASK(event_icmp_marshal, (void*) marshal));
+    if (err_is_fail(err))
+    {
+        free(marshal);
+        assert(0);
+        assert(err_no(err) == EVENT_ENQUEUE_FULL);
+        // If the Queue if full, directly send 
+        errval_t error = icmp_marshal(icmp, src_ip, ret_type, ret_code, field, buf);
+        DEBUG_FAIL_RETURN(error, "After submit task failed, direct sending also failed");
+        // If direct sending succeded
+        return SYS_ERR_OK;
+    }
+    return NET_OK_SUBMIT_EVENT;
 }

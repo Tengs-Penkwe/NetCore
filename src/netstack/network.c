@@ -4,8 +4,8 @@ errval_t network_init(NetWork* net, NetDevice* device) {
     errval_t err;
     
     // 1. Set up the ethernet
-    Ethernet* ether = calloc(1, sizeof(Ethernet));
-    assert(ether);
+    Ethernet* ether = aligned_alloc(ATOMIC_ISOLATION, sizeof(Ethernet));
+    assert(ether); memset(ether, 0x00, sizeof(Ethernet));
     err = ethernet_init(device, ether);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize Network Module");

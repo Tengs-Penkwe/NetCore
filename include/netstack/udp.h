@@ -1,6 +1,7 @@
 #ifndef __VNET_UDP_H__
 #define __VNET_UDP_H__
 
+#include <netstack/type.h>
 #include <netutil/udp.h>
 #include <lock_free/hash_table.h>
 #include <ipc/rpc.h>
@@ -15,7 +16,7 @@ typedef struct udp_server UDP_server;
 
 typedef void (*udp_server_callback) (
     struct udp_server* server,
-    const uint8_t* data, const size_t size,
+    Buffer buf,
     const ip_addr_t src_ip, const udp_port_t src_port
 );
 
@@ -38,12 +39,11 @@ void udp_destroy(
 );
 
 errval_t udp_marshal(
-    UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
-    uint8_t* addr, uint16_t size
+    UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port, Buffer buf
 );
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, uint8_t* addr, uint16_t size
+    UDP* udp, const ip_addr_t src_ip, Buffer buf
 );
 
 __END_DECLS

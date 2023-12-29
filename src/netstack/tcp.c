@@ -11,9 +11,9 @@ errval_t tcp_init(TCP* tcp, IP* ip) {
 
     // 1. Hash table for servers
     err = hash_init(&tcp->servers, tcp->buckets, TCP_SERVER_BUCKETS, HS_FAIL_ON_EXIST);
-    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of tcp servers");
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of tcp servers");
     
-    // 2. Message Queue for single-thread handlin
+    // 2. Message Queue for single-thread handling of TCP
     for (size_t i = 0; i < TCP_QUEUE_NUMBER; i++)
     {
         BQelem * queue_elements = calloc(TCP_QUEUE_SIZE, sizeof(BQelem));
@@ -27,7 +27,8 @@ errval_t tcp_init(TCP* tcp, IP* ip) {
         // 2.1 spinlock for eqch queue
         atomic_flag_clear(&tcp->que_locks[i]);
     }
-    tcp->queue_num = TCP_QUEUE_NUMBER;
+    tcp->queue_num  = TCP_QUEUE_NUMBER;
+    tcp->queue_size = TCP_QUEUE_SIZE;
 
     TCP_NOTE("TCP Module Initialized, the hash-table for server has size %d, there are %d message "
              "queue, each have %d as maximum size",
@@ -39,17 +40,16 @@ errval_t tcp_init(TCP* tcp, IP* ip) {
 errval_t tcp_marshal(
     TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
-    uint8_t* addr, size_t size
+    Buffer buf
 ) {
     errval_t err;
-    assert(tcp && addr);
+    assert(tcp);
 
-    addr -= sizeof(struct tcp_hdr);
-    size += sizeof(struct tcp_hdr);
+    buffer_sub_ptr(&buf, sizeof(struct tcp_hdr));
 
     uint8_t data_offset = TCPH_SET_LEN(sizeof(struct tcp_hdr));
 
-    struct tcp_hdr* packet = (struct tcp_hdr*)addr;
+    struct tcp_hdr* packet = (struct tcp_hdr*)buf.data;
     *packet = (struct tcp_hdr) {
         .src_port    = htons(src_port),
         .dest_port   = htons(dst_port),
@@ -67,27 +67,22 @@ errval_t tcp_marshal(
         .dst_addr       = htonl(dst_ip),
         .reserved       = 0,
         .protocol       = IP_PROTO_TCP,
-        .len_no_iph     = htonl(size),
+        .len_no_iph     = htonl(buf.valid_size),
     };
-    packet->chksum  = tcp_udp_checksum_in_net_order(addr, ip_header);
+    packet->chksum  = tcp_udp_checksum_in_net_order(buf.data, ip_header);
 
-    err = ip_marshal(tcp->ip, dst_ip, IP_PROTO_TCP, addr, size);
-    RETURN_ERR_PRINT(err, "Can't marshal the TCP packet and sent by IP");
+    err = ip_marshal(tcp->ip, dst_ip, IP_PROTO_TCP, buf);
+    DEBUG_FAIL_RETURN(err, "Can't marshal the TCP packet and sent by IP");
 
     return SYS_ERR_OK;
 }
 
-static size_t queue_hash(ip_addr_t src_ip, tcp_port_t src_port, tcp_port_t dst_port) {
-    // TODO: use a better hash function
-    return ((size_t)src_ip + (size_t)src_port + (size_t)dst_port) % TCP_QUEUE_NUMBER;
-}
-
 errval_t tcp_unmarshal(
-    TCP* tcp, const ip_addr_t src_ip, uint8_t* addr, uint16_t size
+    TCP* tcp, const ip_addr_t src_ip, Buffer buf
 ) {
     assert(tcp);
     errval_t err;
-    struct tcp_hdr* packet = (struct tcp_hdr*)addr;
+    struct tcp_hdr* packet = (struct tcp_hdr*)buf.data;
 
     // 0. Check Validity
     uint8_t reserved = TCP_RSVR(packet);
@@ -111,11 +106,11 @@ errval_t tcp_unmarshal(
         .dst_addr       = htons(tcp->ip->my_ip),
         .reserved       = 0,
         .protocol       = IP_PROTO_TCP,
-        .len_no_iph     = htons(size),
+        .len_no_iph     = htons(buf.valid_size),
     };
     uint16_t chksum = ntohs(packet->chksum);
     packet->chksum  = 0;
-    uint16_t tcp_chksum = ntohs(tcp_udp_checksum_in_net_order(addr, ip_header));
+    uint16_t tcp_chksum = ntohs(tcp_udp_checksum_in_net_order(buf.data, ip_header));
     if (chksum != tcp_chksum) {
         TCP_ERR("The TCP checksum %p should be %p", chksum, tcp_chksum);
         return NET_ERR_TCP_WRONG_FIELD;
@@ -135,8 +130,7 @@ errval_t tcp_unmarshal(
     *msg = (TCP_msg) {
         .seqno    = seqno,
         .ackno    = ackno,
-        .data     = addr + offset,
-        .size     = size - offset,
+        .buf      = buffer_add(buf, offset),
         .flags    = get_tcp_flags(flags),
         .recv     = {
             .src_ip   = src_ip,

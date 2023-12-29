@@ -163,7 +163,7 @@ errval_t server_listen(
 }
 
 errval_t server_marshal(
-    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, uint8_t* data, uint16_t size
+    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, Buffer buf
 ) {
     errval_t err;
 
@@ -183,13 +183,12 @@ errval_t server_marshal(
         .flags = TCP_FLAG_ACK,
         .seqno = conn->sendno,
         .ackno = conn->recvno,
-        .data  = data,
-        .size  = size,
+        .buf   = buf,
     };
-    conn->sendno += size;
+    conn->sendno += buf.valid_size;
 
     err = server_send(server, &send_msg);
-    RETURN_ERR_PRINT(err, "Can't send the TCP msg");
+    DEBUG_FAIL_RETURN(err, "Can't send the TCP msg");
 
     //TODO: we don't need to free the data, IP level will do it;
     return SYS_ERR_OK;
@@ -199,12 +198,12 @@ errval_t server_send(
     TCP_server* server, TCP_msg* msg
 ) {
     errval_t err;
-    if (msg->size == 0) {
-        assert(msg->data == NULL);
+    if (msg->buf.valid_size == 0) {
+        assert(msg->buf.data == NULL);
     USER_PANIC("NYI");
         // msg->data = malloc(HEADER_RESERVED_SIZE);
     }
-    assert(server && msg->data);
+    assert(server);
 
     LOG_ERR("Decide window and urg_ptr!");
     uint16_t window = 65535;
@@ -213,10 +212,9 @@ errval_t server_send(
 
     err = tcp_marshal(
         server->tcp, msg->send.dst_ip, server->port, msg->send.dst_port, 
-        msg->seqno, msg->ackno, window, urg_ptr, flags,
-        msg->data, msg->size
+        msg->seqno, msg->ackno, window, urg_ptr, flags, msg->buf
     );
-    RETURN_ERR_PRINT(err, "Can't marshal this tcp message !");
+    DEBUG_FAIL_RETURN(err, "Can't marshal this tcp message !");
 
     return SYS_ERR_OK;
 }
@@ -229,14 +227,14 @@ errval_t server_unmarshal(
 
     TCP_conn* conn = NULL;
     err = server_find_or_create_connection(server, msg, &conn);
-    RETURN_ERR_PRINT(err, "Can't find the Connection for this TCP message !"); 
+    DEBUG_FAIL_RETURN(err, "Can't find the Connection for this TCP message !"); 
 
     /// TODO: We can't assume the message arrives in order, we must do something here
     LOG_ERR("Can't Assume the order of the message !");
 
     /// Dangerous, we should make sure the order is OK !
     err = conn_handle_msg(conn, msg);
-    RETURN_ERR_PRINT(err, "Can't handle this message !");
+    DEBUG_FAIL_RETURN(err, "Can't handle this message !");
 
     return SYS_ERR_OK;
 }

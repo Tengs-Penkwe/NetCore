@@ -4,6 +4,7 @@
 #include <netutil/ip.h>
 #include <pthread.h>
 #include <lock_free/hash_table.h>
+#include <netstack/type.h>
 
 #define  ARP_HASH_BUCKETS     128
 
@@ -34,17 +35,13 @@ void arp_destroy(
 );
 
 #define ARP_RESERVE_SIZE  sizeof(struct eth_hdr)
-errval_t arp_send(
+errval_t arp_marshal(
     ARP* arp, uint16_t opration,
-    ip_addr_t dst_ip, mac_addr dst_mac
+    ip_addr_t dst_ip, mac_addr dst_mac, Buffer buf
 );
 
 void arp_register(
     ARP* arp, ip_addr_t ip, mac_addr mac 
-);
-
-errval_t mac_lookup_and_send(
-    ARP* arp, ip_addr_t dst_ip, mac_addr* dst_mac
 );
 
 errval_t arp_lookup_ip (
@@ -56,7 +53,7 @@ errval_t arp_lookup_mac(
 );
 
 errval_t arp_unmarshal(
-    ARP* arp, uint8_t* data, uint16_t size
+    ARP* arp, Buffer buf
 );
 
 void arp_dump(ARP* arp, char** result);

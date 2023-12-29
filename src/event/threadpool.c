@@ -18,7 +18,7 @@ errval_t thread_pool_init(size_t workers)
 
     // 1. Unbounded, MPMC queue
     err = bdqueue_init(&g_threadpool.queue, g_threadpool.elements, TASK_QUEUE_SIZE);
-    PUSH_ERR_PRINT(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock free queue");
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock free queue");
 
     // 1.2 Semaphore to notify woker 
     if (sem_init(&g_threadpool.sem, 0, 0) != 0) {
@@ -108,7 +108,7 @@ errval_t submit_task(Task task) {
         EVENT_WARN("The Task Queue is full !");
         return err;
     } 
-    RETURN_ERR_PRINT(err, "Error met when trying to enqueue!");
+    DEBUG_FAIL_RETURN(err, "Error met when trying to enqueue!");
 
     sem_post(&g_threadpool.sem);
     return SYS_ERR_OK;

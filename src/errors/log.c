@@ -9,43 +9,6 @@ enum log_level log_matrix[LOG_MODULE_COUNT] = {
 #undef X
 };
 
-bool ansi_output;
-
-errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FILE** ret_file) {
-
-    FILE *log = fopen(log_file, "w");
-    if (log == NULL) {
-        char error[128];
-        sprintf(error, "Error opening file: %s, going to use the standard output", log_file);
-        perror(error);
-        return EVENT_LOGFILE_CREATE;
-    } 
-    printf("Opened log file at %s\n", log_file);
-
-    // Set full buffer mode, size as 65536
-    setvbuf(log, NULL, _IOFBF, 65536);
-    // TODO: read it from global state ?
-    for (int i = 0; i < LOG_MODULE_COUNT; i++) {
-        if (log_matrix[i] < log_level) {
-            log_matrix[i] = log_level;
-        }
-    }
-    
-    // Use ANSI color or not
-    ansi_output = ansi;
-    
-    *ret_file = log;
-
-    return SYS_ERR_OK;
-}
-
-void log_close(FILE* log) {
-    LOG_ERR("Should flush every log file !");
-    fflush(log);
-    // Let the OS close the file to avoid race condition
-    // fclose(log);
-}
-
 // Utility function to convert log level enum to string
 static const char* level_to_string(enum log_level level) {
     switch (level) {
@@ -87,6 +50,43 @@ static const char* module_to_string(enum log_module module) {
         case MODULE_TCP:       return "TCP ";
         default:        return "UNKNOWN_MODULE";
     }
+}
+
+bool ansi_output;
+
+errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FILE** ret_file) {
+    
+    FILE *log = fopen(log_file, "w");
+    if (log == NULL) {
+        char error[128];
+        sprintf(error, "Error opening file: %s, going to use the standard output", log_file);
+        perror(error);
+        return EVENT_LOGFILE_CREATE;
+    } 
+    printf("Opened log file at %s, level set as %s\n", log_file, level_to_string(log_level));
+
+    // Set full buffer mode, size as 65536
+    setvbuf(log, NULL, _IONBF, 0);
+    // TODO: read it from global state ?
+    for (int i = 0; i < LOG_MODULE_COUNT; i++) {
+        if (log_matrix[i] < log_level) {
+            log_matrix[i] = log_level;
+        }
+    }
+    
+    // Use ANSI color or not
+    ansi_output = ansi;
+    
+    *ret_file = log;
+
+    return SYS_ERR_OK;
+}
+
+void log_close(FILE* log) {
+    LOG_ERR("Should flush every log file !");
+    fflush(log);
+    // Let the OS close the file to avoid race condition
+    // fclose(log);
 }
 
 static int error_ansi(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
@@ -249,6 +249,7 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
         err_print_calltrace(err, stdout);
         fflush(stdout);
     }
+    fflush(local->log_file);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -284,6 +285,7 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
                               " %s:%d->%s(): \x1B[0m\n", file, line, func);
 
     write(STDERR_FILENO, buffer, len_leader + len_middle + len_suffix);
+    fflush(local->log_file);
 
     abort();
 }

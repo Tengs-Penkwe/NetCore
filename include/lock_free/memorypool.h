@@ -15,10 +15,25 @@ typedef struct memory_pool {
     size_t      amount;
 } MemPool __attribute__((aligned(ATOMIC_ISOLATION)));
 
+typedef struct buffer Buffer;
+
+__BEGIN_DECLS
+
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount);
 void     mempool_destroy(MemPool* pool);
-errval_t pool_alloc(MemPool* pool, void** addr);
+errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf);
 void pool_free(MemPool* pool, void* addr);
 void pool_destroy(MemPool* pool);
+
+__END_DECLS
+
+#include <netstack/ethernet.h>
+#include <device/device.h>
+
+// Each pieces have reserved space in the head to avoid copying
+#define  MEMPOOL_BYTES       ETHER_MAX_SIZE + DEVICE_HEADER_RESERVE
+// Give 2048 peices in Memory pool
+#define  MEMPOOL_AMOUNT      8192
+
 
 #endif // __MEMORY_POOL_H__

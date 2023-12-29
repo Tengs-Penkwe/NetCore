@@ -12,8 +12,15 @@ typedef uintptr_t errval_t;
 #define ERR_MASK    MASK_T(errval_t, 8)
 
 // Define domains and error codes
+#define OK_CODES \
+    X(SYS_ERR_OK,                      "SYS_ERR_OK") \
+    X(COUNT_THROW,                     "Count for THROW codes, shouldn't happen") \
+    X(NET_OK_SUBMIT_EVENT,             "Successfully Submit the event, the buffer is re-used, can't free now") \
+    X(NET_OK_TCP_ENQUEUE,              "Successfully Enqueued a TCP message, need to free memory later") \
+    X(NET_OK_IPv4_SEG_LATER_FREE,      "We need to assemble this IP message, free the memory later !") \
+    X(COUNT_OK,                        "Count for OK codes, shouldn't happen") \
+
 #define SYSTEM_ERR_CODES \
-    X(SYS_ERR_OK,                     "SYS_ERR_OK") \
     X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
     X(SYS_ERR_ALLOC_FAIL,             "Some kind of allocation (malloc, new) failed") \
     X(SYS_ERR_INIT_FAIL,              "Some kind of initializaton (thread, mutex) failed") \
@@ -49,7 +56,6 @@ typedef uintptr_t errval_t;
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
-    X(NET_OK_IPv4_SEG_LATER_FREE,      "We need to assemble this IP message, free the memory later !") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
@@ -64,7 +70,6 @@ typedef uintptr_t errval_t;
     X(NET_ERR_TCP_WRONG_ACKNOWLEDGE,   "The Acknowledge number of this TCP message is wrong") \
     X(NET_ERR_TCP_MAX_CONNECTION,      "The TCP server is there, but it has too many connections") \
     X(NET_ERR_TCP_QUEUE_FULL,          "The Message queue of TCP is full") \
-    X(NET_OK_TCP_ENQUEUE,              "Successfully Enqueued a TCP message, need to free memory later") \
 
 #define IPC_ERR_CODES \
     X(IPC_ERR_INIT,                    "Can't initialize the IPC Module") \
@@ -72,6 +77,7 @@ typedef uintptr_t errval_t;
 
 enum err_code {
 #define X(code, str) code,
+    OK_CODES
     SYSTEM_ERR_CODES
     EVENT_ERR_CODES
     NETWORK_ERR_CODES
@@ -90,6 +96,8 @@ void err_print_calltrace(errval_t err, FILE* log);
 
 static inline bool err_is_fail(errval_t errval);
 static inline bool err_is_ok(errval_t errval);
+static inline bool err_is_throw(errval_t errval);
+
 static inline enum err_code err_no(errval_t errval);
 static inline errval_t err_pop(errval_t errval);
 static inline errval_t err_push(errval_t errval,enum err_code errcode);
@@ -98,17 +106,24 @@ static inline errval_t err_push(errval_t errval,enum err_code errcode);
  
 static inline bool err_is_fail(errval_t errval) {
     enum err_code code = err_no(errval);
-    return ((code != SYS_ERR_OK));
+    return (code > COUNT_OK);
 }
- 
+
+static inline bool err_is_throw(errval_t errval)
+{
+    enum err_code code = err_no(errval);
+    return (code > COUNT_THROW && code < COUNT_OK);
+}
+
 static inline bool err_is_ok(errval_t errval)
 {
-    return !err_is_fail(errval);
+    enum err_code code = err_no(errval);
+    return (code < COUNT_OK);
 }
- 
+
 static inline enum err_code err_no(errval_t errval) 
 {
-    return (((enum err_code) (errval & ((1 << ERR_SHIFT) - 1))));
+    return (enum err_code)(errval & ERR_MASK);
 }
  
 static inline errval_t err_pop(errval_t errval) 

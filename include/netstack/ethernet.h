@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <netutil/etharp.h>
+#include <netstack/type.h>
 
 __BEGIN_DECLS
 
@@ -29,11 +30,11 @@ void ethernet_destroy(
 );
 
 errval_t ethernet_marshal(
-    Ethernet* ether, mac_addr dst_mac, uint16_t type, uint8_t* data, uint16_t size
+    Ethernet* ether, mac_addr dst_mac, uint16_t type, Buffer buf
 );
 
 errval_t ethernet_unmarshal(
-    Ethernet* ether, uint8_t* data, uint16_t size
+    Ethernet* ether, Buffer buf
 );
 
 __END_DECLS

@@ -5,6 +5,7 @@
 #include <lock_free/hash_table.h>
 #include <lock_free/bdqueue.h>
 #include <stdatomic.h>
+#include <netstack/type.h>
 
 #define TCP_SERVER_BUCKETS    64
 // The handling of TCP connection must be single-thread, so, for a message 
@@ -18,7 +19,7 @@ typedef struct rpc rpc_t;
 
 typedef void (*tcp_server_callback) (
     struct tcp_server* server,
-    const void* data, const size_t size,
+    Buffer buf,
     const ip_addr_t src_ip, const tcp_port_t src_port
 );
 
@@ -32,13 +33,19 @@ typedef struct tcp_state {
     /// @brief The Queue of TCP message, I have spinlock here since it must be single-threaded
     alignas(ATOMIC_ISOLATION)
         BdQueue      msg_queue[TCP_QUEUE_NUMBER];
-    atomic_flag      que_locks[TCP_QUEUE_SIZE];
+    atomic_flag      que_locks[TCP_QUEUE_NUMBER];
     size_t           queue_num;
+    size_t           queue_size;
     struct ip_state *ip;
 } TCP __attribute__((aligned(ATOMIC_ISOLATION)));
 
 /// The key of a server inside the hash table 
 #define TCP_HASH_KEY(port)   (Hash_key)(port)
+
+static inline size_t queue_hash(ip_addr_t src_ip, tcp_port_t src_port, tcp_port_t dst_port) {
+    // TODO: use a better hash function
+    return ((size_t)src_ip + (size_t)src_port + (size_t)dst_port) % TCP_QUEUE_NUMBER;
+}
 
 errval_t tcp_init(
     TCP* tcp, struct ip_state* ip
@@ -47,11 +54,11 @@ errval_t tcp_init(
 errval_t tcp_marshal(
     TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
-    uint8_t* addr, size_t size
+    Buffer buf
 );
 
 errval_t tcp_unmarshal(
-    TCP* tcp, const ip_addr_t src_ip, uint8_t* addr, uint16_t size
+    TCP* tcp, const ip_addr_t src_ip, Buffer buf
 );
 
 __END_DECLS
