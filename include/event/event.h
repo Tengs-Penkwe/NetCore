@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <lock_free/memorypool.h>
+#include <netstack/type.h>
 
 typedef struct ethernet_state Ethernet;
 typedef struct memory_pool MemPool;
@@ -11,37 +12,65 @@ typedef struct memory_pool MemPool;
 typedef struct {
     Ethernet *ether;
 
-    uint8_t  *data;
-    size_t    size;
-    size_t    data_shift;
-
-    MemPool  *mempool;
-    bool      buf_is_from_pool;
+    Buffer    buf;
 } Frame ;
 
 #include <netstack/arp.h>
 
 typedef struct {
     ARP      *arp;
+    uint16_t  opration;
     ip_addr_t dst_ip;
-} ARP_Request;
+    mac_addr  dst_mac;
+    Buffer    buf;
+} ARP_marshal;
+
+#include <netstack/ip.h>
+
+typedef struct {
+    IP *ip;
+
+} IP_marshal;
+
+#include <netstack/icmp.h>
+
+typedef struct {
+    ICMP* icmp;
+    ip_addr_t dst_ip;
+    uint8_t type;
+    uint8_t code;
+    ICMP_data field;
+    Buffer buf;
+
+} ICMP_marshal;
+
 
 __BEGIN_DECLS
 
-static inline void frame_free(Frame* frame) 
+static inline void free_frame(Frame* frame) 
 {
-    assert(frame && frame->data && frame->mempool && frame->size != 0);
-
-    void* buf = frame->data - frame->data_shift;
-    if (frame->buf_is_from_pool) pool_free(frame->mempool, buf);
-    else                         free(buf);
-    frame->data = NULL;
-
+    assert(frame);
+    free_buffer(frame->buf);
     free(frame);
 }
 
+static inline void free_icmp_marshal(ICMP_marshal* marshal)
+{
+    assert(marshal);
+    free_buffer(marshal->buf);
+    free(marshal);
+}
+
+static inline void free_arp_marshal(ARP_marshal* marshal)
+{
+    assert(marshal);
+    free_buffer(marshal->buf);
+    free(marshal);
+}
+
 void frame_unmarshal(void* frame);
-void send_arp_request(void* arp_request);
+void event_arp_marshal(void* marshal);
+void event_icmp_marshal(void* marshal);
 
 __END_DECLS
 
