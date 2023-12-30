@@ -67,6 +67,7 @@ errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FIL
     } 
     sprintf(str, "Opened log file at %s, level set as %s\n", log_file, level_to_string(log_level));
     fwrite(str, sizeof(char), strlen(str), log);
+    write(STDOUT_FILENO, log, strlen(str));
 
     // Set full buffer mode, size as 65536
 #ifdef NDEBUG
