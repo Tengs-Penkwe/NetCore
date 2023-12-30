@@ -22,7 +22,7 @@ typedef struct {
     BdQueue *queue;     // Which queue to submit
     sem_t   *sem;       // Which semaphore to notify
     void   (*process)(void *);
-    void    *task;
+    void    *arg;
 } Task;
 
 #define MK_NORM_TASK(proc, arg)       (Task){ &g_threadpool.queue, &g_threadpool.sem, (proc), (arg)}

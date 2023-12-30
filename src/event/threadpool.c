@@ -41,7 +41,7 @@ errval_t thread_pool_init(size_t workers)
             .my_name  = name,
             .my_pid   = (pid_t)-1,      // Don't know yet
             .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
-            .my_state = NULL,
+            .my_state = &g_threadpool,
         };
 
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
@@ -84,14 +84,16 @@ void *thread_function(void* localstate) {
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
+    
+    ThreadPool* pool = local->my_state; assert(pool);
 
     Task *task = NULL;
     while(true) {
-        if (debdqueue(&g_threadpool.queue, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
-            sem_wait(&g_threadpool.sem);
+        if (debdqueue(&pool->queue, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
+            sem_wait(&pool->sem);
         } else {
             assert(task);
-            (*task->process)(task->task);
+            (*task->process)(task->arg);
             free(task);
             task = NULL;
         }
