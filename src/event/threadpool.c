@@ -9,6 +9,7 @@
 
 // Global variable defined in threadpool.h
 alignas(ATOMIC_ISOLATION) ThreadPool g_threadpool;
+// TODO: move to g_states, we don't want to manage many global variables
 
 errval_t thread_pool_init(size_t workers) 
 {
@@ -78,7 +79,7 @@ void *thread_function(void* localstate) {
     LocalState* local = localstate;
     set_local_state(local);
     local->my_pid = syscall(SYS_gettid);
-    EVENT_NOTE("ThreadPool %s started with pid %d, id", local->my_name, local->my_pid, local->my_id);
+    EVENT_NOTE("ThreadPool %s started with pid %d", local->my_name, local->my_pid);
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    

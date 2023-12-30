@@ -31,7 +31,7 @@ static void time_to_submit_task(int sig, siginfo_t *info, void *ucontext) {
     free(dt);
 }
 
-timer_t submit_periodic_task(DelayedTask dtask, delayed_us repeat) {
+timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat) {
      // 1. Should be free'd by timer
     DelayedTask* dtask = malloc(sizeof(DelayedTask));
     *dtask = dt;
@@ -49,8 +49,8 @@ timer_t submit_periodic_task(DelayedTask dtask, delayed_us repeat) {
     // 2.2 Set delayed time from micro-second
     struct itimerspec its = {
         .it_value = {
-            .tv_sec  = (dtask.delay / 1000000),        // Micro-second to Second
-            .tv_nsec = (dtask.delay % 1000000) * 1000, // Left to Nano-second
+            .tv_sec  = (dtask->delay / 1000000),        // Micro-second to Second
+            .tv_nsec = (dtask->delay % 1000000) * 1000, // Left to Nano-second
         },
         .it_interval = { 
             .tv_sec  = (repeat / 1000000),
@@ -128,7 +128,6 @@ errval_t timer_thread_init(void) {
         .my_pid   = (pid_t)-1,
         .log_file = (g_states.log_file == 0) ? stdout : g_states.log_file,
         .my_state = NULL,
-        .my_id   = 0,
     };
 
     // 4. create the thread
