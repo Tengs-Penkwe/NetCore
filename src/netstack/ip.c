@@ -8,7 +8,7 @@
 #include <event/states.h>
 #include <event/event.h>
 
-#include "ip_gather.h"
+#include "ip_assemble.h"
 #include "ip_slice.h"
 
 errval_t ip_init(
