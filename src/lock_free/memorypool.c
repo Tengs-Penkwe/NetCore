@@ -77,14 +77,14 @@ errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf) {
     
     //TODO: have multiple sized memory pool !
     assert(need_size == MEMPOOL_BYTES);
-    *ret_buf = (Buffer) {
-        .data       = ret_addr,
-        .from_hdr   = 0,
-        .from_pool  = true,
-        .mempool    = pool,
-        .valid_size = MEMPOOL_BYTES,
-        .whole_size = MEMPOOL_BYTES,
-    };
+    *ret_buf = buffer_create(
+        ret_addr,
+        0,
+        MEMPOOL_BYTES,
+        MEMPOOL_BYTES,
+        true,
+        pool
+    );
 
     return SYS_ERR_OK;
 }

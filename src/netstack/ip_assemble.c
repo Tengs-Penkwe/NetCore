@@ -166,14 +166,14 @@ static Buffer segment_assemble_and_delete_from_hash(IP_recv* recv) {
     all_data += DEVICE_HEADER_RESERVE;
     
     // 4. Create the buffer
-    Buffer ret_buf =  {
-        .data       = all_data,
-        .from_hdr   = DEVICE_HEADER_RESERVE, 
-        .valid_size = whole_size,
-        .whole_size = whole_size + DEVICE_HEADER_RESERVE,
-        .from_pool  = false,
-        .mempool    = NULL,
-    };
+    Buffer ret_buf = buffer_create(
+        all_data,
+        DEVICE_HEADER_RESERVE, 
+        whole_size,
+        whole_size + DEVICE_HEADER_RESERVE,
+        false,
+        NULL
+    );
 
     // 5. Traverse the AVL tree, and copy the data to the buffer
     Mseg_itr_t seg_itr = { 0 };
