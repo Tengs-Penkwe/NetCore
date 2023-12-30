@@ -30,7 +30,7 @@ typedef struct {
 /// Assumption: single thread 
 // typedef struct {
 //     IP_gatherer *gatherer;
-//     IP_recv     *recv;
+//     IP_segment     *recv;
 
 // } IP_gather;
 
@@ -56,6 +56,7 @@ typedef struct {
 
 __BEGIN_DECLS
 
+// todo: delete this
 static inline void free_ether_unmarshal(Ether_unmarshal* unmarshal) 
 {
     assert(unmarshal);
@@ -63,6 +64,7 @@ static inline void free_ether_unmarshal(Ether_unmarshal* unmarshal)
     free(unmarshal);
 }
 
+// todo: delete this
 static inline void free_icmp_marshal(ICMP_marshal* marshal)
 {
     assert(marshal);
@@ -70,26 +72,12 @@ static inline void free_icmp_marshal(ICMP_marshal* marshal)
     free(marshal);
 }
 
+// todo: delete this
 static inline void free_arp_marshal(ARP_marshal* marshal)
 {
     assert(marshal);
     free_buffer(marshal->buf);
     free(marshal);
-}
-
-// static inline void free_ip_gather(IP_recv* recv)
-// {
-//     assert(recv);
-//     USER_PANIC("NYI");
-//     free(recv);
-//     // free(gather);
-// }
-
-static inline void free_ip_handle(IP_handle* handle)
-{
-    assert(handle);
-    free_buffer(handle->buf);
-    free(handle);
 }
 
 void event_ether_unmarshal(void* unmarshal);
