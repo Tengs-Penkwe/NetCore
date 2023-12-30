@@ -2,13 +2,10 @@
 #include <netstack/ethernet.h>
 #include <event/event.h>
 
-void frame_unmarshal(void* frame) {
-    errval_t err;
-    assert(frame);
+void event_ether_unmarshal(void* unmarshal) {
 
-    Frame* fr = frame;
-
-    err = ethernet_unmarshal(fr->ether, fr->buf);
+    Ether_unmarshal* frame = unmarshal; assert(frame);
+    errval_t err = ethernet_unmarshal(frame->ether, frame->buf);
     switch (err_no(err))
     {
     case NET_OK_TCP_ENQUEUE:
@@ -33,7 +30,7 @@ void frame_unmarshal(void* frame) {
     {
         assert(err_pop(err) == EVENT_ENQUEUE_FULL);
         EVENT_WARN("This should be a TCP message that has its queue full, drop it");
-        free_frame(frame);
+        free_ether_unmarshal(frame);
         break;
     }
     case NET_ERR_ETHER_WRONG_MAC:
@@ -41,7 +38,7 @@ void frame_unmarshal(void* frame) {
         DEBUG_ERR(err, "A known error happend, the process continue");
         break;
     case SYS_ERR_OK:
-        free_frame(frame);
+        free_ether_unmarshal(frame);
         break;
     default:
         USER_PANIC_ERR(err, "Unknown error");
@@ -54,9 +51,6 @@ void event_arp_marshal(void* send) {
     ARP_marshal* marshal = send;
 
     err = arp_marshal(marshal->arp, marshal->opration, marshal->dst_ip, marshal->dst_mac, marshal->buf);
-    // if (err_not_ok(err)) {
-    //     DEBUG_ERR(err, "Can't send an ARP request in event");
-    // }
     switch (err_no(err))
     {
     case SYS_ERR_OK:
@@ -85,6 +79,30 @@ void event_icmp_marshal(void* send) {
     }
     case SYS_ERR_OK:
         free_icmp_marshal(marshal);
+        break;
+    // case 
+    //     break;
+    default:
+        USER_PANIC_ERR(err, "Unknown error");
+    }
+}
+
+void event_ip_handle(void* recv) {
+    errval_t err; assert(recv);
+
+    IP_handle* handle = recv;
+
+    err = ip_handle(handle->ip, handle->proto, handle->src_ip, handle->buf);
+    switch (err_no(err))
+    {
+    case NET_OK_SUBMIT_EVENT:
+    {
+        EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
+        free(handle);
+        break;
+    }
+    case SYS_ERR_OK:
+        free(handle);
         break;
     // case 
     //     break;

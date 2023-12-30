@@ -149,8 +149,8 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
 static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) {
     errval_t err;
 
-    Frame* frame = malloc(sizeof(Frame)); assert(frame);
-    *frame = (Frame) {
+    Ether_unmarshal* frame = malloc(sizeof(Ether_unmarshal)); assert(frame);
+    *frame = (Ether_unmarshal) {
         .ether   = net->ether,
         .buf     = { 0 }, 
     };
@@ -180,7 +180,7 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
     if (nbytes <= 0) 
     {
         perror("read packet from TAP device failed, but the loop continue");
-        free_frame(frame);
+        free_ether_unmarshal(frame);
     }
     else
     {
@@ -192,13 +192,13 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
         // printf("Read %d bytes from TAP device\n", frame->size);
         // dump_packet_info(frame->data);
 
-        err = submit_task(MK_NORM_TASK(frame_unmarshal, frame));
+        err = submit_task(MK_NORM_TASK(event_ether_unmarshal, frame));
         if (err_is_fail(err)) {
 
             assert(err_no(err) == EVENT_ENQUEUE_FULL);
             EVENT_WARN("The task queue is full, we need to drop this packet!");
 
-            free_frame(frame);
+            free_ether_unmarshal(frame);
             device->fail_process += 1;
         }
     }

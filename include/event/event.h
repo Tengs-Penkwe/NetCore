@@ -11,9 +11,9 @@ typedef struct memory_pool MemPool;
 
 typedef struct {
     Ethernet *ether;
-
     Buffer    buf;
-} Frame ;
+
+} Ether_unmarshal ;
 
 #include <netstack/arp.h>
 
@@ -32,6 +32,13 @@ typedef struct {
 
 } IP_marshal;
 
+typedef struct {
+    IP       *ip;
+    ip_addr_t src_ip;
+    uint8_t   proto;
+    Buffer    buf;
+} IP_handle ;
+
 #include <netstack/icmp.h>
 
 typedef struct {
@@ -47,11 +54,11 @@ typedef struct {
 
 __BEGIN_DECLS
 
-static inline void free_frame(Frame* frame) 
+static inline void free_ether_unmarshal(Ether_unmarshal* unmarshal) 
 {
-    assert(frame);
-    free_buffer(frame->buf);
-    free(frame);
+    assert(unmarshal);
+    free_buffer(unmarshal->buf);
+    free(unmarshal);
 }
 
 static inline void free_icmp_marshal(ICMP_marshal* marshal)
@@ -68,9 +75,17 @@ static inline void free_arp_marshal(ARP_marshal* marshal)
     free(marshal);
 }
 
-void frame_unmarshal(void* frame);
+static inline void free_ip_handle(IP_handle* handle)
+{
+    assert(handle);
+    free_buffer(handle->buf);
+    free(handle);
+}
+
+void event_ether_unmarshal(void* unmarshal);
 void event_arp_marshal(void* marshal);
 void event_icmp_marshal(void* marshal);
+void event_ip_handle(void* handle);
 
 __END_DECLS
 
