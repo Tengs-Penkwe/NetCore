@@ -91,13 +91,13 @@ void event_icmp_marshal(void* send) {
     }
 }
 
-void event_ip_gather(void* recvd_segment) {
+void event_ip_assemble(void* recvd_segment) {
     errval_t err; assert(recv);
 
     IP_segment seg = *(IP_segment*) recvd_segment;
     free(recvd_segment);
 
-    err = ip_gather(&seg);
+    err = ip_assemble(&seg);
     switch (err_no(err))
     {
     case NET_THROW_IPv4_ASSEMBLE: {

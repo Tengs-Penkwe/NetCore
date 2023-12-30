@@ -21,21 +21,21 @@ errval_t ip_init(
     ip->ether = ether;
     ip->arp = arp;
     ip->seg_count = 0;
-    ip->gatherer_num  = IP_GATHERER_NUM;
+    ip->assembler_num  = IP_GATHERER_NUM;
     
     // 1. Message Queue for single-thread handling of IP segmentation
-    for (size_t i = 0; i < ip->gatherer_num; i++)
+    for (size_t i = 0; i < ip->assembler_num; i++)
     {
-        err = gather_init(&ip->gatherers[i], IP_GATHER_QUEUE_SIZE, i);
+        err = assemble_init(&ip->assemblers[i], IP_GATHER_QUEUE_SIZE, i);
         if (err_is_fail(err)) {
-            IP_FATAL("Can't initialize the gatherer %d, TODO: free the memory", i);
+            IP_FATAL("Can't initialize the assembler %d, TODO: free the memory", i);
             return err_push(err, SYS_ERR_INIT_FAIL);
         }
-        ip->gatherers[i].ip = ip;
+        ip->assemblers[i].ip = ip;
     }
 
-    TCP_NOTE("IP Module Initialized, there are %d gatherers, each has %d slots",
-             ip->gatherer_num, IP_GATHER_QUEUE_SIZE);
+    TCP_NOTE("IP Module Initialized, there are %d assemblers, each has %d slots",
+             ip->assembler_num, IP_GATHER_QUEUE_SIZE);
 
     // 2. ICMP (Internet Control Message Protocol )
     ip->icmp = calloc(1, sizeof(ICMP));
@@ -70,7 +70,7 @@ void ip_destroy(
 }
 
 
-errval_t ip_assemble(
+errval_t handle_ip_segment_assembly(
     IP* ip, ip_addr_t src_ip, uint8_t proto, uint16_t id, Buffer buf, uint16_t offset, bool more_frag, bool no_frag
 ) {
     errval_t err = SYS_ERR_OK; assert(ip);
@@ -87,13 +87,13 @@ errval_t ip_assemble(
         return err;
     }
 
-    // 2. if the message is segmented, then we need to put it into the gatherer
+    // 2. if the message is segmented, then we need to put it into the assembler
     ip_msg_key_t key = ip_message_hash(src_ip, id);
 
     // 2.1 Create the message structure
     IP_segment *msg = calloc(1, sizeof(IP_segment)); assert(msg);
     *msg = (IP_segment) {
-        .gatherer  = &ip->gatherers[key],
+        .assembler  = &ip->assemblers[key],
         .src_ip    = src_ip,
         .proto     = proto,
         .id        = id,
@@ -103,10 +103,10 @@ errval_t ip_assemble(
         .buf       = buf,
     };
 
-    // 3. Add the message to the gatherer's queue, we do this to ensure the message is handled in a single thread. To handle the 
+    // 3. Add the message to the assembler's queue, we do this to ensure the message is handled in a single thread. To handle the 
     //   segmentation in multi-thread is too complicated, requires a lot of synchronization, and it's rarely used, doesn't worth it
-    Task task_for_gatherer = MK_TASK(&ip->gatherers[key].event_que, &ip->gatherers[key].event_come, event_ip_gather, (void*)msg);
-    err = submit_task(task_for_gatherer);
+    Task task_for_assembler = MK_TASK(&ip->assemblers[key].event_que, &ip->assemblers[key].event_come, event_ip_assemble, (void*)msg);
+    err = submit_task(task_for_assembler);
     if (err_is_fail(err)) {
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
         // Will be freed in upper module (event caller)
@@ -201,7 +201,7 @@ errval_t ip_unmarshal(
 
     // 3. Assemble the IP message
     uint8_t proto = packet->proto;
-    err = ip_assemble(ip, src_ip, proto, id, buf, offset, flag_more_frag, flag_no_frag);
+    err = handle_ip_segment_assembly(ip, src_ip, proto, id, buf, offset, flag_more_frag, flag_no_frag);
     DEBUG_FAIL_RETURN(err, "Can't assemble the IP message from the packet");
 
     // 3.1 TTL: TODO, should we deal with it ?

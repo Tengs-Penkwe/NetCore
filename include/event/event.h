@@ -29,10 +29,10 @@ typedef struct {
 
 /// Assumption: single thread 
 // typedef struct {
-//     IP_gatherer *gatherer;
+//     IP_assembler *assembler;
 //     IP_segment     *recv;
 
-// } IP_gather;
+// } IP_assemble;
 
 typedef struct {
     IP       *ip;
@@ -83,7 +83,7 @@ static inline void free_arp_marshal(ARP_marshal* marshal)
 void event_ether_unmarshal(void* unmarshal);
 void event_arp_marshal(void* marshal);
 void event_icmp_marshal(void* marshal);
-void event_ip_gather(void* gather);
+void event_ip_assemble(void* assemble);
 void event_ip_handle(void* handle);
 
 __END_DECLS

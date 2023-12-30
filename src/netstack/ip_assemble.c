@@ -6,41 +6,41 @@
 #include <sys/syscall.h>   //syscall    
 #include <event/event.h>   //event_ip_handle
 
-static void* gather_thread(void* state);
+static void* assemble_thread(void* state);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 KAVLL_INIT(Mseg, Mseg, head, seg_cmp)
 #pragma GCC diagnostic pop
 
-/// @brief      Initialize the gatherer thread
-/// @param gather       Pointer to the gatherer thread
+/// @brief      Initialize the assembler thread
+/// @param assemble       Pointer to the assembler thread
 /// @param queue_size   Size of the message queue
-/// @param id           ID of the gatherer thread
+/// @param id           ID of the assembler thread
 /// @return     Error code
-errval_t gather_init(
-    IP_gatherer* gather, size_t queue_size, size_t id
+errval_t assemble_init(
+    IP_assembler* assemble, size_t queue_size, size_t id
 ) {
     errval_t err = SYS_ERR_OK;
     
     // 1. Initialize the message queue
     BQelem * queue_elements = calloc(queue_size, sizeof(BQelem));
-    err = bdqueue_init(&gather->event_que, queue_elements, queue_size);
+    err = bdqueue_init(&assemble->event_que, queue_elements, queue_size);
     if (err_is_fail(err)) {
         IP_FATAL("Can't Initialize the queues for TCP messages, TODO: free the memory");
         return err_push(err, SYS_ERR_INIT_FAIL);
     }
     
     // 1.1 initialize the hash table
-    gather->recv_messages = kh_init(ip_msg);
+    assemble->recv_messages = kh_init(ip_msg);
         
     // 2. Initialize the semaphore for senders
-    if (sem_init(&gather->event_come, 0, 0) != 0) {
+    if (sem_init(&assemble->event_come, 0, 0) != 0) {
         IP_FATAL("Can't Initialize the semaphores for IP segmented messages, TODO: free the memory");
         return SYS_ERR_INIT_FAIL;
     }
 
-    // 3.1 Local state for the gather thread
+    // 3.1 Local state for the assemble thread
     char* name = calloc(32, sizeof(char));
     sprintf(name, "IP Gatherer %d", id);
 
@@ -49,11 +49,11 @@ errval_t gather_init(
         .my_name  = name,
         .my_pid   = (pid_t)-1,      // Don't know yet
         .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
-        .my_state = gather,             // Provide message queue and semaphore
+        .my_state = assemble,             // Provide message queue and semaphore
     };
 
-    // 3.2 Create the gather thread
-    if (pthread_create(&gather->self, NULL, gather_thread, (void*)local) != 0) {
+    // 3.2 Create the assemble thread
+    if (pthread_create(&assemble->self, NULL, assemble_thread, (void*)local) != 0) {
         TCP_FATAL("Can't create worker thread, TODO: free the memory");
         return EVENT_ERR_THREAD_CREATE;
     }
@@ -61,25 +61,25 @@ errval_t gather_init(
     return err;
 }
 
-void gather_destroy(
-    IP_gatherer* gather
+void assemble_destroy(
+    IP_assembler* assemble
 ) {
-    assert(gather);
+    assert(assemble);
 
-    bdqueue_destroy(&gather->event_que);
-    sem_destroy(&gather->event_come);
-    pthread_cancel(gather->self);
+    bdqueue_destroy(&assemble->event_que);
+    sem_destroy(&assemble->event_come);
+    pthread_cancel(assemble->self);
     
     IP_ERR("TODO: free the memory");
-    // kavll_free(Mseg, head, gather->seg, free);
-    free(gather);
+    // kavll_free(Mseg, head, assemble->seg, free);
+    free(assemble);
 }
 
-/// @brief     The gatherer thread
+/// @brief     The assembler thread
 /// We need to make sure that the segmented messages are processed in single-thread manner, 
 /// to handle out-of-order, duplicate, and missing segments in multi-thread is too complicated,
 /// and requires significant resource, which is not worth it.
-static void* gather_thread(void* state) {
+static void* assemble_thread(void* state) {
     LocalState* local = state; assert(local);
     local->my_pid = syscall(SYS_gettid);
     set_local_state(local);
@@ -87,13 +87,13 @@ static void* gather_thread(void* state) {
 
     CORES_SYNC_BARRIER;
 
-    IP_gatherer* gather = local->my_state; assert(gather);
+    IP_assembler* assemble = local->my_state; assert(assemble);
     
     Task* task = NULL;
     while (true)
     {
-        if (debdqueue(&gather->event_que, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
-            sem_wait(&gather->event_come);
+        if (debdqueue(&assemble->event_que, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
+            sem_wait(&assemble->event_come);
         } else {
             assert(task);
             (task->process)(task->arg);
@@ -108,16 +108,16 @@ static void* gather_thread(void* state) {
 /// 2. DO free recv itself
 void drop_recvd_message(void* message) {
     IP_recv* recv = message; assert(recv);
-    IP_gatherer* gather = recv->gatherer; assert(gather);
+    IP_assembler* assemble = recv->assembler; assert(assemble);
 
     ip_msg_key_t msg_key = IP_MSG_KEY(recv->src_ip, recv->id);
-    khint64_t key = kh_get(ip_msg, gather->recv_messages, msg_key);
+    khint64_t key = kh_get(ip_msg, assemble->recv_messages, msg_key);
 
-    if (key == kh_end(gather->recv_messages))
+    if (key == kh_end(assemble->recv_messages))
         USER_PANIC("The message doesn't exist in hash table before we delete it!");
 
     // Delete the message from the hash table
-    kh_del(ip_msg, gather->recv_messages, msg_key);
+    kh_del(ip_msg, assemble->recv_messages, msg_key);
 
     if (recv->whole_size != recv->recvd_size)
         IP_WARN("We drop a message that is not complete, size: %d, received: %d", recv->whole_size, recv->recvd_size);
@@ -196,7 +196,7 @@ void check_recvd_message(void* message) {
     IP_VERBOSE("Checking a message");
     errval_t err = SYS_ERR_OK;
     IP_recv* recv = message; assert(recv);
-    IP_gatherer* gather = recv->gatherer; assert(gather);
+    IP_assembler* assemble = recv->assembler; assert(assemble);
 
     /// Also modified in ip_assemble(), be careful of global states
     recv->times_to_live *= 1.5;
@@ -216,7 +216,7 @@ void check_recvd_message(void* message) {
             Buffer buf = segment_assemble(recv);
             IP_handle* handle = malloc(sizeof(IP_handle)); assert(handle);
             *handle = (IP_handle) {
-                .ip     = gather->ip,
+                .ip     = assemble->ip,
                 .proto  = recv->proto,
                 .src_ip = recv->src_ip,
                 .buf    = buf,
@@ -233,17 +233,17 @@ void check_recvd_message(void* message) {
         {
             IP_VERBOSE("Done Checking a message, ttl: %d ms, whole size: %d, received %d", recv->times_to_live / 1000, recv->whole_size, recv->recvd_size);
             // Here we submit a delayed task to check the message again to ourself, this is to ensure that the message is processed in single thread
-            Task task_for_myself = MK_TASK(&gather->event_que, &gather->event_come, check_recvd_message, (void*)recv);
+            Task task_for_myself = MK_TASK(&assemble->event_que, &assemble->event_come, check_recvd_message, (void*)recv);
             recv->timer = submit_delayed_task(MK_DELAY_TASK(recv->times_to_live, drop_recvd_message, task_for_myself));
         }
     }
 }
 
 /// This is also a event, be careful of error codes
-errval_t ip_gather(IP_segment* segment)
+errval_t ip_assemble(IP_segment* segment)
 {
     assert(segment);
-    IP_gatherer* gather = segment->gatherer; assert(gather);
+    IP_assembler* assemble = segment->assembler; assert(assemble);
     // dump_buffer(segment->buf);
 
     IP_recv *recv = NULL;
@@ -255,13 +255,13 @@ errval_t ip_gather(IP_segment* segment)
     Buffer   buf        = segment->buf;
 
     ip_msg_key_t msg_key = IP_MSG_KEY(segment->src_ip, segment->id);
-    khint64_t key = kh_get(ip_msg, gather->recv_messages, msg_key);
+    khint64_t key = kh_get(ip_msg, assemble->recv_messages, msg_key);
     // Try to find if it already exists
-    if (key == kh_end(gather->recv_messages)) {  // This message doesn't exist in the hash table of the gatherer
+    if (key == kh_end(assemble->recv_messages)) {  // This message doesn't exist in the hash table of the assembler
 
         recv = malloc(sizeof(IP_recv)); assert(recv);
         *recv = (IP_recv) {
-            .gatherer      = segment->gatherer,
+            .assembler      = segment->assembler,
             .src_ip        = segment->src_ip,
             .proto         = segment->proto,
             .id            = segment->id,
@@ -277,7 +277,7 @@ errval_t ip_gather(IP_segment* segment)
         recv->seg->buf    = buf;
 
         int ret;
-        key = kh_put(ip_msg, gather->recv_messages, msg_key, &ret); 
+        key = kh_put(ip_msg, assemble->recv_messages, msg_key, &ret); 
         switch (ret) {
         case -1:    // The operation failed
             USER_PANIC("Can't add a new message with seqno: %d to hash table", recv->id);
@@ -293,11 +293,11 @@ errval_t ip_gather(IP_segment* segment)
             free(recv);
         }
         // Set the value of key
-        kh_value(gather->recv_messages, key) = recv;
+        kh_value(assemble->recv_messages, key) = recv;
         
     } else {
 
-        recv = kh_val(gather->recv_messages, key); assert(recv);
+        recv = kh_val(assemble->recv_messages, key); assert(recv);
         assert(segment->proto == recv->proto);
 
         ///ALARM: global state, also modified in check_recvd_message()
@@ -336,7 +336,7 @@ errval_t ip_gather(IP_segment* segment)
     else
     {
         IP_DEBUG("We have received %d bytes of a message of size %d, now let's wait for %d ms", recv->recvd_size, recv->whole_size, recv->times_to_live / 1000);
-        Task task_for_myself = MK_TASK(&gather->event_que, &gather->event_come, check_recvd_message, (void*)recv);
+        Task task_for_myself = MK_TASK(&assemble->event_que, &assemble->event_come, check_recvd_message, (void*)recv);
         recv->timer = submit_delayed_task(MK_DELAY_TASK(recv->times_to_live, drop_recvd_message, task_for_myself));
         return NET_THROW_SUBMIT_EVENT;
     }

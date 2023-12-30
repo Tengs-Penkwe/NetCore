@@ -37,7 +37,7 @@
 /***************************************************
 *                 IP Message Gatherer
 *  All the segmented IP messages are stored in queue
-*  due to their hash value, a single thread (gatherer)
+*  due to their hash value, a single thread (assembler)
 *  will handle all the messages in the queue.
 ****************************************************/
 // The Queue for segmented IP message
@@ -59,7 +59,7 @@ typedef struct ip_recv IP_recv;
 // The hash table of IP messages
 KHASH_MAP_INIT_INT64(ip_msg, IP_recv*)
 
-typedef struct ip_gatherer {
+typedef struct ip_assembler {
     alignas(ATOMIC_ISOLATION)
         BdQueue       event_que;
     sem_t             event_come;
@@ -69,7 +69,7 @@ typedef struct ip_gatherer {
     struct ip_state  *ip;
     
     khash_t(ip_msg)  *recv_messages;
-} IP_gatherer __attribute__((aligned(ATOMIC_ISOLATION)));
+} IP_assembler __attribute__((aligned(ATOMIC_ISOLATION)));
 
 /***************************************************
 *         IP Message (Contains Segments)
@@ -89,7 +89,7 @@ typedef struct message_segment {
 #define seg_cmp(p, q) (((q)->offset < (p)->offset) - ((p)->offset < (q)->offset))
 
 typedef struct ip_recv {
-    IP_gatherer     *gatherer;
+    IP_assembler     *assembler;
     ip_addr_t        src_ip;
     uint8_t          proto;  ///< Protocal over IP
     uint16_t         id;     ///< Message ID
@@ -103,7 +103,7 @@ typedef struct ip_recv {
 } IP_recv;
 
 typedef struct ip_segment {
-    IP_gatherer     *gatherer;
+    IP_assembler     *assembler;
     ip_addr_t        src_ip;
     uint8_t          proto;  ///< Protocal over IP
     uint16_t         id;     ///< Message ID
@@ -117,8 +117,8 @@ typedef struct ip_segment {
 
 typedef struct ip_state {
     alignas(ATOMIC_ISOLATION)
-        IP_gatherer        gatherers[IP_GATHERER_NUM];
-    size_t                 gatherer_num;
+        IP_assembler        assemblers[IP_GATHERER_NUM];
+    size_t                 assembler_num;
 
     ip_addr_t              my_ip;
     atomic_ushort          seg_count;  ///< Ensure the sent message have unique ID
@@ -141,7 +141,7 @@ void ip_destroy(
     IP* ip
 );
 
-errval_t ip_gather(
+errval_t ip_assemble(
     IP_segment* recv
 );
 
