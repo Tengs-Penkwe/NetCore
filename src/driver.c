@@ -124,6 +124,7 @@ int main(int argc, char *argv[]) {
         .my_name   = "Master",
         .my_pid    = syscall(SYS_gettid),
         .log_file  = log_file,
+        .my_state  = NULL,
     };
     set_local_state(master);
 

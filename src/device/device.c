@@ -192,7 +192,7 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
         // printf("Read %d bytes from TAP device\n", frame->size);
         // dump_packet_info(frame->data);
 
-        err = submit_task(MK_TASK(frame_unmarshal, frame));
+        err = submit_task(MK_NORM_TASK(frame_unmarshal, frame));
         if (err_is_fail(err)) {
 
             assert(err_no(err) == EVENT_ENQUEUE_FULL);

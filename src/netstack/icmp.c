@@ -124,7 +124,7 @@ errval_t icmp_unmarshal(
         .buf    = buf,
     };
 
-    err = submit_task(MK_TASK(event_icmp_marshal, (void*) marshal));
+    err = submit_task(MK_NORM_TASK(event_icmp_marshal, (void*) marshal));
     if (err_is_fail(err))
     {
         free(marshal);

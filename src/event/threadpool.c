@@ -39,6 +39,7 @@ errval_t thread_pool_init(size_t workers)
             .my_name  = name,
             .my_pid   = (pid_t)-1,      // Don't know yet
             .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
+            .my_state = NULL,
         };
 
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
@@ -77,7 +78,7 @@ void *thread_function(void* localstate) {
     LocalState* local = localstate;
     set_local_state(local);
     local->my_pid = syscall(SYS_gettid);
-    EVENT_NOTE("ThreadPool %s started with pid %d", local->my_name, local->my_pid);
+    EVENT_NOTE("ThreadPool %s started with pid %d, id", local->my_name, local->my_pid, local->my_id);
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
@@ -103,13 +104,13 @@ errval_t submit_task(Task task) {
     Task* task_copy = malloc(sizeof(Task));
     *task_copy = task;
 
-    err = enbdqueue(&g_threadpool.queue, NULL, task_copy);
+    err = enbdqueue(task.queue, NULL, task_copy);
     if (err_no(err) == EVENT_ENQUEUE_FULL) {
         EVENT_WARN("The Task Queue is full !");
         return err;
     } 
     DEBUG_FAIL_RETURN(err, "Error met when trying to enqueue!");
 
-    sem_post(&g_threadpool.sem);
+    sem_post(task.sem);
     return SYS_ERR_OK;
 }
