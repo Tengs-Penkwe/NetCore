@@ -1,7 +1,7 @@
 #include <common.h>
 #include <event/threadpool.h>
 #include <event/timer.h>
-#include <stdio.h>     // perror
+#include <errno.h>         //sterror
 #include <event/states.h>
 
 #include <sys/syscall.h>   //syscall
@@ -9,6 +9,7 @@
 
 // Global variable defined in threadpool.h
 alignas(ATOMIC_ISOLATION) ThreadPool g_threadpool;
+// TODO: move to g_states, we don't want to manage many global variables
 
 errval_t thread_pool_init(size_t workers) 
 {
@@ -22,7 +23,8 @@ errval_t thread_pool_init(size_t workers)
 
     // 1.2 Semaphore to notify woker 
     if (sem_init(&g_threadpool.sem, 0, 0) != 0) {
-        perror("Can't initialize the semaphore");
+        const char *error_msg = strerror(errno);
+        EVENT_FATAL("Can't initialize the semaphore: %s", error_msg);
         return SYS_ERR_INIT_FAIL;
     }
 
@@ -39,12 +41,13 @@ errval_t thread_pool_init(size_t workers)
             .my_name  = name,
             .my_pid   = (pid_t)-1,      // Don't know yet
             .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
+            .my_state = &g_threadpool,
         };
 
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
             LOG_FATAL("Can't create worker thread");
             free(g_threadpool.threads); free(local);
-            return SYS_ERR_FAIL;
+            return EVENT_ERR_THREAD_CREATE;
         }
     }
 
@@ -81,14 +84,16 @@ void *thread_function(void* localstate) {
 
     // Initialization barrier for lock-free queue
     CORES_SYNC_BARRIER;    
+    
+    ThreadPool* pool = local->my_state; assert(pool);
 
     Task *task = NULL;
     while(true) {
-        if (debdqueue(&g_threadpool.queue, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
-            sem_wait(&g_threadpool.sem);
+        if (debdqueue(&pool->queue, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
+            sem_wait(&pool->sem);
         } else {
             assert(task);
-            (*task->process)(task->task);
+            (*task->process)(task->arg);
             free(task);
             task = NULL;
         }
@@ -103,13 +108,13 @@ errval_t submit_task(Task task) {
     Task* task_copy = malloc(sizeof(Task));
     *task_copy = task;
 
-    err = enbdqueue(&g_threadpool.queue, NULL, task_copy);
+    err = enbdqueue(task.queue, NULL, task_copy);
     if (err_no(err) == EVENT_ENQUEUE_FULL) {
         EVENT_WARN("The Task Queue is full !");
         return err;
     } 
     DEBUG_FAIL_RETURN(err, "Error met when trying to enqueue!");
 
-    sem_post(&g_threadpool.sem);
+    sem_post(task.sem);
     return SYS_ERR_OK;
 }

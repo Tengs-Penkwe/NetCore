@@ -26,7 +26,7 @@ errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum h
         break;
     default:
         LOG_FATAL("Unknown policy: %d", policy);
-        return SYS_ERR_FAIL;
+        return SYS_ERR_WRONG_CONFIG;
     }
 
     // 2. Initialize the free list

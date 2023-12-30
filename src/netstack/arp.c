@@ -91,10 +91,10 @@ errval_t arp_lookup_ip (
 errval_t arp_lookup_mac(
     ARP* arp, ip_addr_t ip, mac_addr* ret_mac
 ) {
+    errval_t err = SYS_ERR_OK;
     assert(arp && ret_mac);
-    errval_t err;
-    void* macaddr_as_pointer = NULL;
 
+    void* macaddr_as_pointer = NULL;
     err = hash_get_by_key(&arp->hosts, ARP_HASH_KEY(ip), &macaddr_as_pointer);
     DEBUG_FAIL_RETURN(err, "Can't find the MAC address of given IPv4 address");
 
@@ -103,7 +103,7 @@ errval_t arp_lookup_mac(
 
     assert(!(maccmp(*ret_mac, MAC_NULL) || maccmp(*ret_mac, MAC_BROADCAST)));
 
-    return SYS_ERR_OK;
+    return err;
 }
 
 errval_t arp_unmarshal(

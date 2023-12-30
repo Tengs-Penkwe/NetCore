@@ -3,9 +3,10 @@
 #include <event/states.h>
 
 #include <stdint.h>
-#include <stdio.h>      //perror
 #include <signal.h>
 #include <time.h>
+#include <errno.h>      //errno   
+#include <error.h>      //strerror
 
 #include <pthread.h>
 #include <sched.h>       //sched_yield
@@ -30,7 +31,7 @@ static void time_to_submit_task(int sig, siginfo_t *info, void *ucontext) {
     free(dt);
 }
 
-void submit_periodic_task(DelayedTask dt, delayed_us repeat) {
+timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat) {
      // 1. Should be free'd by timer
     DelayedTask* dtask = malloc(sizeof(DelayedTask));
     *dtask = dt;
@@ -58,12 +59,21 @@ void submit_periodic_task(DelayedTask dt, delayed_us repeat) {
     };
 
     timer_settime(timerid, 0, &its, NULL);   
+
+    return timerid;
 }
 
-inline void submit_delayed_task(DelayedTask dt)
+inline timer_t submit_delayed_task(DelayedTask dt)
 {
-    submit_periodic_task(dt, 0);    
-    return;
+    return submit_periodic_task(dt, 0);    
+}
+
+inline void cancel_timer_task(timer_t timerid) {
+    if (timer_delete(timerid) == -1) {
+        const char *error_msg = strerror(errno);
+        USER_PANIC("Can't delete the timer: %s", error_msg);
+        // TIMER_ERR("The timer has already been deleted");
+    }
 }
 
 static void* timer_thread (void* localstates) {
@@ -80,8 +90,8 @@ static void* timer_thread (void* localstates) {
     sigemptyset(&set);
     sigaddset(&set, SIG_TIGGER_SUBMIT);
     if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0) {
-        perror("sigprocmask");
-        USER_PANIC("Can't unblock the signal");
+        const char *error_msg = strerror(errno);
+        USER_PANIC("Can't unblock the signal: %s", error_msg);
     }
 
     // Set up action for trigger submit signal
@@ -114,13 +124,14 @@ errval_t timer_thread_init(void) {
         .my_name  = "Timer",
         .my_pid   = (pid_t)-1,
         .log_file = (g_states.log_file == 0) ? stdout : g_states.log_file,
+        .my_state = NULL,
     };
 
     // 4. create the thread
     if (pthread_create(&timer.thread, NULL, timer_thread, (void*)local) != 0) {
         TIMER_FATAL("Can't create the timer thread");
         free(local);
-        return SYS_ERR_FAIL;
+        return EVENT_ERR_THREAD_CREATE;
     }
 
     TIMER_NOTE("Timer Module initialized");

@@ -9,14 +9,6 @@
 #include <lock_free/bdqueue.h>
 
 typedef struct {
-    void (*process)(void*);
-    void *task;
-} Task;
-
-#define MK_TASK(h,a)    (Task){ /*handler*/ (h), /*arg*/ (a) }
-#define NOP_TASK        MK_TASK(NULL, NULL)
-
-typedef struct {
     BdQueue     queue;  //ALRAM: Alignment required !
     BQelem      elements[TASK_QUEUE_SIZE];
     sem_t       sem;
@@ -25,6 +17,16 @@ typedef struct {
 } ThreadPool __attribute__((aligned(ATOMIC_ISOLATION))) ;
 
 extern ThreadPool g_threadpool;
+
+typedef struct {
+    BdQueue *queue;     // Which queue to submit
+    sem_t   *sem;       // Which semaphore to notify
+    void   (*process)(void *);
+    void    *arg;
+} Task;
+
+#define MK_NORM_TASK(proc, arg)       (Task){ &g_threadpool.queue, &g_threadpool.sem, (proc), (arg)}
+#define MK_TASK(que, sem, proc, arg)  (Task){ (que), (sem),  (proc), (arg) }
 
 __BEGIN_DECLS
 

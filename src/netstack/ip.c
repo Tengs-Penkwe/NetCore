@@ -5,40 +5,37 @@
 #include <netstack/ip.h>
 #include <event/timer.h>
 #include <event/threadpool.h>
+#include <event/states.h>
+#include <event/event.h>
 
-#include "ip_gather.h"
+#include "ip_assemble.h"
 #include "ip_slice.h"
 
 errval_t ip_init(
     IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     assert(ip && ether && arp);
 
     ip->my_ip = my_ip;
     ip->ether = ether;
     ip->arp = arp;
     ip->seg_count = 0;
-
-    // 1.2 Message Queue for single-thread handling of TCP
-    for (size_t i = 0; i < IP_SEG_QUEUE_NUMBER; i++)
+    ip->assembler_num  = IP_ASSEMBLER_NUM;
+    
+    // 1. Message Queue for single-thread handling of IP segmentation
+    for (size_t i = 0; i < ip->assembler_num; i++)
     {
-        BQelem * queue_elements = calloc(IP_SEG_QUEUE_SIZE, sizeof(BQelem));
-        err = bdqueue_init(&ip->msg_queue[i], queue_elements, IP_SEG_QUEUE_SIZE);
+        err = assemble_init(&ip->assemblers[i], IP_ASSEMBLER_QUEUE_SIZE, i);
         if (err_is_fail(err)) {
-            free(queue_elements);
-            IP_ERR("Can't Initialize the queues for TCP messages");
-            return SYS_ERR_INIT_FAIL;
+            IP_FATAL("Can't initialize the assembler %d, TODO: free the memory", i);
+            return err_push(err, SYS_ERR_INIT_FAIL);
         }
-        // 2.1 spinlock for eqch queue
-        atomic_flag_clear(&ip->que_locks[i]);
+        ip->assemblers[i].ip = ip;
     }
-    ip->queue_num  = IP_SEG_QUEUE_NUMBER;
-    ip->queue_size = IP_SEG_QUEUE_SIZE;
 
-    TCP_NOTE("TCP Module Initialized, the hash-table for server has size %d, there are %d message "
-             "queue, each have %d as maximum size",
-             TCP_SERVER_BUCKETS, TCP_QUEUE_NUMBER, TCP_QUEUE_SIZE);
+    TCP_NOTE("IP Module Initialized, there are %d assemblers, each has %d slots",
+             ip->assembler_num, IP_ASSEMBLER_QUEUE_SIZE);
 
     // 2. ICMP (Internet Control Message Protocol )
     ip->icmp = calloc(1, sizeof(ICMP));
@@ -47,20 +44,20 @@ errval_t ip_init(
     DEBUG_FAIL_RETURN(err, "Can't initialize global ICMP state");
 
     // 3. UDP (User Datagram Protocol)
-    ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP));
-    memset(ip->udp, 0x00, sizeof(UDP));
-    assert(ip->udp);
+    ip->udp = aligned_alloc(ATOMIC_ISOLATION, sizeof(UDP)); 
+    assert(ip->udp); memset(ip->udp, 0x00, sizeof(UDP));
     err = udp_init(ip->udp, ip);
     DEBUG_FAIL_RETURN(err, "Can't initialize global UDP state");
 
     // 4. TCP (Transmission Control Protocol)
-    // ip->tcp = calloc(1, sizeof(TCP));
-    // assert(ip->tcp);
-    // err = tcp_init(ip->tcp, ip);
-    // DEBUG_FAIL_RETURN(err, "Can't initialize global TCP state");
+    ip->tcp = aligned_alloc(ATOMIC_ISOLATION, sizeof(TCP));
+    assert(ip->tcp); memset(ip->tcp, 0x00, sizeof(TCP));
+    err = tcp_init(ip->tcp, ip);
+    DEBUG_FAIL_RETURN(err, "Can't initialize global TCP state");
 
-    IP_INFO("IP Module initialized");
-    return SYS_ERR_OK;
+    return err;
+
+    //TODO: have better error handling (resource release)
 }
 
 void ip_destroy(
@@ -72,50 +69,61 @@ void ip_destroy(
     IP_ERR("NYI");
 }
 
-errval_t ip_assemble(
+
+errval_t handle_ip_segment_assembly(
     IP* ip, ip_addr_t src_ip, uint8_t proto, uint16_t id, Buffer buf, uint16_t offset, bool more_frag, bool no_frag
 ) {
-    errval_t err;
-    assert(ip);
-    IP_DEBUG("Assembling a message, ID: %d, size: %d, offset: %d, no_frag: %d, more_frag: %d", id, buf.valid_size, offset, no_frag, more_frag);
+    errval_t err = SYS_ERR_OK; assert(ip);
+    IP_INFO("Assembling a message, ID: %d, size: %d, offset: %d, no_frag: %d, more_frag: %d", id, buf.valid_size, offset, no_frag, more_frag);
 
-    IP_recv *msg = malloc(sizeof(IP_recv)); assert(msg);
-    *msg = (IP_recv) {
-        .ip     = ip,
-        .proto  = proto,
-        .id     = id,
-        .src_ip = src_ip,
-        .buf    = buf,
-    };
-
-    if (no_frag == true
-        || (more_frag == false && offset == 0)) {  // Which means this isn't a segmented packet
+    // 1. if no_frag, then we can directly handle it (how simple it is! compared to the segmented one, which requires significant amount of work)
+    if (no_frag == true ||
+       (more_frag == false && offset == 0)) {  // Which means this isn't a segmented packet
                                                    
         assert(offset == 0 && more_frag == false);
         
-        err = ip_handle(msg);
-        free(msg);
+        err = ip_handle(ip, proto, src_ip, buf);
         DEBUG_FAIL_RETURN(err, "Can't handle this IP message ?");
         return err;
     }
 
+    // 2. if the message is segmented, then we need to put it into the assembler
     ip_msg_key_t key = ip_message_hash(src_ip, id);
-    
-    err = enbdqueue(&ip->msg_queue[key], NULL, msg);
+
+    // 2.1 Create the message structure
+    IP_segment *msg = calloc(1, sizeof(IP_segment)); assert(msg);
+    *msg = (IP_segment) {
+        .assembler  = &ip->assemblers[key],
+        .src_ip    = src_ip,
+        .proto     = proto,
+        .id        = id,
+        .offset    = offset,
+        .more_frag = more_frag,
+        .no_frag   = no_frag,
+        .buf       = buf,
+    };
+
+    // 3. Add the message to the assembler's queue, we do this to ensure the message is handled in a single thread. To handle the 
+    //   segmentation in multi-thread is too complicated, requires a lot of synchronization, and it's rarely used, doesn't worth it
+    Task task_for_assembler = MK_TASK(&ip->assemblers[key].event_que, &ip->assemblers[key].event_come, event_ip_assemble, (void*)msg);
+    err = submit_task(task_for_assembler);
     if (err_is_fail(err)) {
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
+        // Will be freed in upper module (event caller)
+        // free_buffer(buf);
+        free(msg);
         IP_WARN("Too much IP segmentation message for bucket %d, will drop it in upper module", key);
         return err;
     } else {
-        return NET_OK_IPv4_SEG_LATER_FREE;
+        return err_push(err, NET_THROW_SUBMIT_EVENT);
     }
 }
 
 errval_t ip_unmarshal(
     IP* ip, Buffer buf
 ) {
+    errval_t err = SYS_ERR_OK;
     assert(ip);
-    errval_t err;
     struct ip_hdr* packet = (struct ip_hdr*)buf.data;
     
     /// 1. Decide if the packet is correct
@@ -128,6 +136,7 @@ errval_t ip_unmarshal(
         // return NET_ERR_IPv4_WRONG_FIELD;
     }
 
+    // 1.1 Header Size
     const uint16_t header_size = IPH_HL(packet);
     if (header_size != sizeof(struct ip_hdr)) {
         IP_NOTE("The IP Header has %d Bytes, We don't have special treatment for it", header_size);
@@ -159,7 +168,7 @@ errval_t ip_unmarshal(
     // 1.4 Destination IP
     ip_addr_t dst_ip = ntohl(packet->dest);
     if (dst_ip != ip->my_ip) {
-        LOG_ERR("This IPv4 Pacekt isn't for us %p but for %p", ip->my_ip, dst_ip);
+        LOG_ERR("This IPv4 Pacekt isn't for us %0.8X but for %0.8X", ip->my_ip, dst_ip);
         return NET_ERR_IPv4_WRONG_IP_ADDRESS;
     }
 
@@ -167,32 +176,32 @@ errval_t ip_unmarshal(
     // Re-consider it, this may break the layer model ?
 
     // 2. Fragmentation
-    const uint16_t identification = ntohs(packet->id);
-    const uint16_t flag_offset = ntohs(packet->offset);
-    const bool flag_reserved = flag_offset & IP_RF;
-    const bool flag_no_frag  = flag_offset & IP_DF;
-    const bool flag_more_frag= flag_offset & IP_MF;
-    const uint32_t offset    = (flag_offset & IP_OFFMASK) * 8;
-    assert(offset <= 0xFFFF);
+    const uint16_t id             = ntohs(packet->id);
+    const uint16_t flag_offset    = ntohs(packet->offset);
+    const bool     flag_reserved  = flag_offset & IP_RF;
+    const bool     flag_no_frag   = flag_offset & IP_DF;
+    const bool     flag_more_frag = flag_offset & IP_MF;
+    const uint16_t offset         = (flag_offset & IP_OFFMASK) * 8;
     if (flag_reserved || (flag_no_frag && flag_more_frag)) {
         LOG_ERR("Problem with flags, reserved: %d, no_frag: %d, more_frag: %d", flag_reserved, flag_no_frag, flag_more_frag);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
 
-    // 2.1 Find or Create the binding
+    // 2.1 Find the corresponding MAC address
     ip_addr_t src_ip = ntohl(packet->src);
     mac_addr src_mac = MAC_NULL;
     err = arp_lookup_mac(ip->arp, src_ip, &src_mac);
     if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
-        USER_PANIC_ERR(err, "You received a message, but you don't know the IP-MAC pair ?");
+        USER_PANIC_ERR(err, "You received an IP message, but you don't know the IP-MAC pair ?");
     } else
         DEBUG_FAIL_RETURN(err, "Can't find binding for given IP address");
 
+    // 2.2 Remove the IP header
     buffer_add_ptr(&buf, header_size);
 
     // 3. Assemble the IP message
     uint8_t proto = packet->proto;
-    err = ip_assemble(ip, src_ip, proto, identification, buf, offset, flag_more_frag, flag_no_frag);
+    err = handle_ip_segment_assembly(ip, src_ip, proto, id, buf, offset, flag_more_frag, flag_no_frag);
     DEBUG_FAIL_RETURN(err, "Can't assemble the IP message from the packet");
 
     // 3.1 TTL: TODO, should we deal with it ?
@@ -232,15 +241,15 @@ errval_t ip_marshal(
     case NET_ERR_ARP_NO_MAC_ADDRESS:   // Get Address first
     {
         msg->retry_interval = ARP_WAIT_US;
-        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_get_mac, (void*)msg)));
-        return NET_OK_SUBMIT_EVENT;
+        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
+        return NET_THROW_SUBMIT_EVENT;
     }
     case SYS_ERR_OK: { // Continue sending
         assert(!(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST)));
         msg->dst_mac = dst_mac;
         
         check_send_message((void*)msg);
-        return NET_OK_SUBMIT_EVENT;
+        return NET_THROW_SUBMIT_EVENT;
     }
     default: 
         DEBUG_ERR(err, "Can't establish binding for given IP address");

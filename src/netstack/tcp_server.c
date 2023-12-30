@@ -2,17 +2,92 @@
 #include "tcp_server.h"
 #include "tcp_connect.h"
 #include <event/states.h>
+#include <sys/syscall.h>   //syscall
+                           
+static void* server_thread(void* localstate);
+static void server_destroy(TCP_server* server);
+
+static void* server_thread(void* localstate) {
+    assert(localstate);
+    LocalState* local = (LocalState*)localstate;
+    local->my_pid = syscall(SYS_gettid);
+    
+    CORES_SYNC_BARRIER;
+
+    TCP_server* server = local->my_state;
+    
+    TCP_msg* msg = NULL;
+    
+    while (true) {
+        if (debdqueue(&server->msg_queue, NULL, (void**)&msg) == EVENT_DEQUEUE_EMPTY) {
+            sem_wait(&server->sema);
+        } else {
+            assert(msg);
+            server_unmarshal(server, msg);
+            free(msg);
+            msg = NULL;
+        }
+    }
+}
+
+static errval_t server_init(TCP_server* server) {
+    errval_t err = SYS_ERR_OK;
+    
+    // 1. Message Queue for single-thread handling of TCP
+    server->queue_size = TCP_SERVER_QUEUE_SIZE;
+    BQelem * queue_elements = calloc(server->queue_size, sizeof(BQelem));
+    err = bdqueue_init(&server->msg_queue, queue_elements, server->queue_size);
+    if (err_is_fail(err)) {
+        free(queue_elements);
+        TCP_FATAL("Can't Initialize the queues for TCP messages");
+        return err;
+    }
+
+    LocalState* local = calloc(server->worker_num, sizeof(LocalState));
+    // Now we have a new server, we need to start a new thread(s) for it
+    for (size_t i = 0; i < server->worker_num; i++) {
+        char* name = calloc(16, sizeof(char));
+        sprintf(name, "TCP Server %d", i);
+
+        local[i] = (LocalState) {
+            .my_name  = name,
+            .my_pid   = (pid_t)-1,      // Don't know yet
+            .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
+            .my_state = server,     // Provide message queue
+        };
+
+        if (pthread_create(&server->worker[i], NULL, server_thread, (void*)&local[i]) != 0) {
+            TCP_FATAL("Can't create worker thread");
+            bdqueue_destroy(&server->msg_queue);    
+            free(local);
+            free(server);
+            return NET_ERR_TCP_CREATE_WORKER;
+        }
+    }
+    return err;
+}
+
+static void server_destroy(TCP_server* server) {
+    assert(server->is_live == false);
+    bdqueue_destroy(&server->msg_queue);
+
+    for(size_t i = 0; i < server->worker_num; i++) {
+        pthread_cancel(server->worker[i]);
+    }
+    USER_PANIC("NYI, server_destroy");
+}
 
 errval_t tcp_server_register(
     TCP* tcp, rpc_t* rpc, const tcp_port_t port, const tcp_server_callback callback
 ) {
     assert(tcp);
-    errval_t err_get, err_insert;
+    errval_t err_get, err_insert, err_create;
 
     TCP_server *get_server = NULL; 
-    TCP_server *new_server = calloc(1, sizeof(TCP_server));
+    TCP_server *new_server = aligned_alloc(ATOMIC_ISOLATION, sizeof(TCP_server));
+    memset(new_server, 0x00, sizeof(TCP_server));
     *new_server = (TCP_server) {
-        .max_worker = g_states.max_workers_for_single_tcp_server,
+        .worker_num = g_states.max_workers_for_single_tcp_server,
         .is_live    = true,
         .sema       = { { 0 } },
         .tcp        = tcp,
@@ -22,7 +97,7 @@ errval_t tcp_server_register(
         .max_conn   = 0,        // Need user to set
     };
 
-    if (sem_init(&new_server->sema, 0, new_server->max_worker) != 0){
+    if (sem_init(&new_server->sema, 0, new_server->worker_num) != 0){
         TCP_ERR("Can't initialize the semaphore of TCP server");
         return SYS_ERR_INIT_FAIL;
     }
@@ -38,17 +113,17 @@ errval_t tcp_server_register(
 
         if (get_server->is_live == false)   // Dead Server
         {
-            for (size_t i = 0; i < get_server->max_worker - 1; i++) {
+            for (size_t i = 0; i < get_server->worker_num - 1; i++) {
                 sem_wait(&get_server->sema);
             }   // Wait until all workers' done with this server
             assert(get_server->tcp  == tcp);
             assert(get_server->port == port);
-            assert(get_server->max_worker == 8);
+            assert(get_server->worker_num == 8);
             get_server->rpc      = rpc;
             get_server->callback = callback;
             get_server->is_live  = true;
 
-            for (size_t i = 0; i < get_server->max_worker; i++) {
+            for (size_t i = 0; i < get_server->worker_num; i++) {
                 sem_post(&get_server->sema);
             }   // Now the new server is ready
             assert(sem_destroy(&new_server->sema) == 0);
@@ -75,7 +150,8 @@ errval_t tcp_server_register(
     switch (err_no(err_insert)) 
     {
     case SYS_ERR_OK:
-        return SYS_ERR_OK;
+        TCP_NOTE("We registered a TCP server at port: %d", port);
+        break;
     case EVENT_HASH_NOT_EXIST:
         assert(sem_destroy(&new_server->sema) == 0);
         free(new_server);
@@ -83,6 +159,10 @@ errval_t tcp_server_register(
         return NET_ERR_TCP_PORT_REGISTERED;
     default: USER_PANIC_ERR(err_insert, "Unknown Error Code");
     }
+    
+    err_create = server_init(new_server);
+    DEBUG_FAIL_PUSH(err_create, SYS_ERR_INIT_FAIL, "Can't initialize the TCP server");
+    return err_create;
 }
 
 errval_t tcp_server_deregister(
@@ -97,12 +177,16 @@ errval_t tcp_server_deregister(
     {
     case SYS_ERR_OK:
         sem_wait(&server->sema);
-        if (server->is_live == false) {
+        if (server->is_live == false)
+        {
             sem_post(&server->sema);
             TCP_ERR("A process try to de-register a dead TCP server on this port: %d", port);
             return NET_ERR_TCP_PORT_NOT_REGISTERED;
-        } else {
+        }
+        else
+        {
             server->is_live = false;
+            server_destroy(server);
             sem_post(&server->sema);
             TCP_INFO("We inactivated a TCP server at port: %d", port);
             return SYS_ERR_OK;

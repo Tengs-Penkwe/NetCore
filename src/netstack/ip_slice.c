@@ -45,8 +45,8 @@ void check_get_mac(void* send) {
         USER_PANIC("deal with buf here");
 
         IP_INFO("Can't find the Corresponding IP address, sent request, retry later in %d ms", msg->retry_interval / 1000);
-        submit_task(MK_TASK(event_arp_marshal, (void*)req));
-        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_get_mac, (void*)msg)));
+        submit_task(MK_NORM_TASK(event_arp_marshal, (void*)req));
+        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
         break;
     case SYS_ERR_OK:
         assert(!maccmp(msg->dst_mac, MAC_NULL));
@@ -55,7 +55,7 @@ void check_get_mac(void* send) {
         msg->retry_interval = IP_RETRY_SEND_US;
         assert(msg->id == 0);  // It should be the first message in this binding since it requires MAC address
 
-        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_send_message, (void*)msg)));
+        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_send_message, (void*)msg)));
         break;
     default: USER_PANIC_ERR(err, "Unknown sitation");
     }
@@ -87,7 +87,7 @@ void check_send_message(void* send) {
         return;
     }
 
-    submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_send_message, (void*)msg)));
+    submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_send_message, (void*)msg)));
 
     IP_VERBOSE("Done Checking a sending message, ttl: %d us, whole size: %d, snet size: %d", msg->retry_interval / 1000, msg->buf.valid_size, msg->sent_size);
     return;
@@ -148,7 +148,8 @@ errval_t ip_send(
     err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, buf);
     DEBUG_FAIL_RETURN(err, "Can't send the IPv4 packet");
 
-    IP_VERBOSE("End sending an IP packet");
+    IP_VERBOSE("End sending an IP packet with size: %d, offset: %d, no_frag: %d, more_frag: %d, proto: %d, id: %d, src: %0.8X, dst: %0.8X",
+            pkt_size, offset * 8, no_frag, !last_slice, proto, id, ip->my_ip, dst_ip);
     return SYS_ERR_OK;
 }
 
@@ -174,7 +175,7 @@ errval_t ip_slice(IP_send* msg) {
         const uint16_t seg_size = last_slice ? (uint16_t)size_left : IP_MTU;
 
         err = ip_send(ip, msg->dst_ip, msg->dst_mac, msg->id, msg->proto,
-                    msg->buf, sent_size, seg_size, last_slice);
+                    msg->buf, msg->sent_size, seg_size, last_slice);
         if (err_is_fail(err)) {
             IP_INFO("Sending a segment failed, will try latter in %d ms", msg->retry_interval / 1000);
             return err;

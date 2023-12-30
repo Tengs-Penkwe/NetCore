@@ -6,24 +6,38 @@
 #include <ipc/rpc.h>
 #include "tcp_connect.h"
 #include <semaphore.h>
+#include <lock_free/bdqueue.h>
+#include <pthread.h>
 
 typedef struct tcp_state  TCP;
 typedef struct tcp_server TCP_server;
 
 #define TCP_SERVER_DEFAULT_CONN      64
 
+#define TCP_SERVER_QUEUE_SIZE        128
+
 typedef struct tcp_server {
-    size_t              max_worker;
+    alignas(ATOMIC_ISOLATION) 
+        BdQueue         msg_queue; 
+    size_t              queue_size;
+
+    pthread_t          *worker;
+    size_t              worker_num;
+
+    // For the closing of the server
     bool                is_live;
     sem_t               sema;
+
     struct tcp_state   *tcp;
+    tcp_port_t          port;
+
     // The process who has this server
     struct rpc         *rpc;            // Send message back to process
-    tcp_port_t          port;
     tcp_server_callback callback;       // Triggered when a message is received
     uint32_t            max_conn;       // How many connections allowed ?
+    
     // collections_hash_table *connections;  // All the messages it holds
-} TCP_server;
+} TCP_server __attribute__((aligned(ATOMIC_ISOLATION)));
 
 typedef struct tcp_connection {
     struct tcp_server    *server;

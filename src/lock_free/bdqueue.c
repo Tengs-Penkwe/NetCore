@@ -16,7 +16,7 @@ void bdqueue_destroy(BdQueue* queue) {
 }
 
 errval_t enbdqueue(BdQueue* queue, void* key, void* data) {
-    assert(data);
+    assert(queue && data);
     if (lfds711_queue_bmm_enqueue(queue, key, data) == 0) {
         return EVENT_ENQUEUE_FULL;
     } else {
@@ -25,7 +25,7 @@ errval_t enbdqueue(BdQueue* queue, void* key, void* data) {
 }
 
 errval_t debdqueue(BdQueue* queue, void** ret_key, void** ret_data) {
-    assert(*ret_data == NULL);
+    assert(queue && *ret_data == NULL);
     if (lfds711_queue_bmm_dequeue(queue, ret_key, ret_data) == 0) {
         return EVENT_DEQUEUE_EMPTY;
     } else {
