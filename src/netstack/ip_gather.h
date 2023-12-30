@@ -6,7 +6,7 @@
                         
 __BEGIN_DECLS
 
-void drop_message(void* message);
+void drop_recvd_message(void* message);
 void check_recvd_message(void* message);
 
 errval_t gather_init(

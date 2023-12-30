@@ -75,7 +75,7 @@ typedef struct ip_gatherer {
 *         IP Message (Contains Segments)
 * All the segments are stored in a AVL tree, sorted, 
 * after all the segments are received, we can create 
-* a single IP_recv to hold all the data and pass it
+* a single IP_segment to hold all the data and pass it
 ****************************************************/
 #define SIZE_DONT_KNOW  0xFFFFFFFF
 
@@ -93,24 +93,26 @@ typedef struct ip_recv {
     ip_addr_t        src_ip;
     uint8_t          proto;  ///< Protocal over IP
     uint16_t         id;     ///< Message ID
-
-    union {
-        struct {
-            uint32_t size;  ///< Size of the whole message
-            uint32_t recvd;  ///< How many bytes have we received (no duplicate)
-            Mseg    *seg;         ///< AVL tree of segments
-        } whole;
-        struct {
-            uint16_t offset;  ///< Offset of the segment
-            bool     no_frag;
-            bool     more_frag;
-            Buffer   buf;  ///< Stores the data
-        } seg ;
-    };
+                             
+    uint32_t         whole_size;  ///< Size of the whole message
+    uint32_t         recvd_size;  ///< How many bytes have we received (no duplicate)
+    Mseg            *seg;         ///< AVL tree of segments
 
     timer_t          timer;
     int              times_to_live;
 } IP_recv;
+
+typedef struct ip_segment {
+    IP_gatherer     *gatherer;
+    ip_addr_t        src_ip;
+    uint8_t          proto;  ///< Protocal over IP
+    uint16_t         id;     ///< Message ID
+                             
+    uint16_t         offset;  ///< Offset of the segment
+    bool             no_frag;
+    bool             more_frag;
+    Buffer           buf;    ///< Stores the data
+} IP_segment;
 
 
 typedef struct ip_state {
@@ -140,7 +142,7 @@ void ip_destroy(
 );
 
 errval_t ip_gather(
-    IP_recv* recv
+    IP_segment* recv
 );
 
 errval_t ip_marshal(    

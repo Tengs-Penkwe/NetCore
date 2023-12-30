@@ -31,6 +31,7 @@ errval_t ip_init(
             IP_FATAL("Can't initialize the gatherer %d, TODO: free the memory", i);
             return err_push(err, SYS_ERR_INIT_FAIL);
         }
+        ip->gatherers[i].ip = ip;
     }
 
     TCP_NOTE("IP Module Initialized, there are %d gatherers, each has %d slots",
@@ -90,20 +91,16 @@ errval_t ip_assemble(
     ip_msg_key_t key = ip_message_hash(src_ip, id);
 
     // 2.1 Create the message structure
-    IP_recv *msg = calloc(1, sizeof(IP_recv)); assert(msg);
-    *msg = (IP_recv) {
-        .gatherer      = &ip->gatherers[key],
-        .src_ip        = src_ip,
-        .proto         = proto,
-        .id            = id,
-        .seg = {
-            .offset    = offset,
-            .more_frag = more_frag,
-            .no_frag   = no_frag,
-            .buf       = buf,
-        },
-        .timer         = 0,
-        .times_to_live = IP_RETRY_RECV_US,
+    IP_segment *msg = calloc(1, sizeof(IP_segment)); assert(msg);
+    *msg = (IP_segment) {
+        .gatherer  = &ip->gatherers[key],
+        .src_ip    = src_ip,
+        .proto     = proto,
+        .id        = id,
+        .offset    = offset,
+        .more_frag = more_frag,
+        .no_frag   = no_frag,
+        .buf       = buf,
     };
 
     // 3. Add the message to the gatherer's queue, we do this to ensure the message is handled in a single thread. To handle the 
