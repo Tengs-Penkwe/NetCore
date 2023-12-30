@@ -70,12 +70,9 @@ inline timer_t submit_delayed_task(DelayedTask dt)
 
 inline void cancel_timer_task(timer_t timerid) {
     if (timer_delete(timerid) == -1) {
-        // ALRAM: errno is not thread safe
-        if (errno != EINVAL) {
-            const char *error_msg = strerror(errno);
-            USER_PANIC("Can't delete the timer: %s", error_msg);
-        }
-        TIMER_ERR("The timer has already been deleted");
+        const char *error_msg = strerror(errno);
+        USER_PANIC("Can't delete the timer: %s", error_msg);
+        // TIMER_ERR("The timer has already been deleted");
     }
 }
 
