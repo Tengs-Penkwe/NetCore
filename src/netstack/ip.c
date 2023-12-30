@@ -21,12 +21,12 @@ errval_t ip_init(
     ip->ether = ether;
     ip->arp = arp;
     ip->seg_count = 0;
-    ip->assembler_num  = IP_GATHERER_NUM;
+    ip->assembler_num  = IP_ASSEMBLER_NUM;
     
     // 1. Message Queue for single-thread handling of IP segmentation
     for (size_t i = 0; i < ip->assembler_num; i++)
     {
-        err = assemble_init(&ip->assemblers[i], IP_GATHER_QUEUE_SIZE, i);
+        err = assemble_init(&ip->assemblers[i], IP_ASSEMBLER_QUEUE_SIZE, i);
         if (err_is_fail(err)) {
             IP_FATAL("Can't initialize the assembler %d, TODO: free the memory", i);
             return err_push(err, SYS_ERR_INIT_FAIL);
@@ -35,7 +35,7 @@ errval_t ip_init(
     }
 
     TCP_NOTE("IP Module Initialized, there are %d assemblers, each has %d slots",
-             ip->assembler_num, IP_GATHER_QUEUE_SIZE);
+             ip->assembler_num, IP_ASSEMBLER_QUEUE_SIZE);
 
     // 2. ICMP (Internet Control Message Protocol )
     ip->icmp = calloc(1, sizeof(ICMP));

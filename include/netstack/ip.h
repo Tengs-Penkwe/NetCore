@@ -41,8 +41,8 @@
 *  will handle all the messages in the queue.
 ****************************************************/
 // The Queue for segmented IP message
-#define IP_GATHERER_NUM          4
-#define IP_GATHER_QUEUE_SIZE     256
+#define IP_ASSEMBLER_NUM            4
+#define IP_ASSEMBLER_QUEUE_SIZE     256
 
 // Use source IP + Sequence Number as hash table key
 typedef uint64_t ip_msg_key_t ;
@@ -51,7 +51,7 @@ typedef uint64_t ip_msg_key_t ;
 __BEGIN_DECLS
 // @todo: use better hash function
 static inline ip_msg_key_t ip_message_hash(ip_addr_t src_ip, uint16_t seqno) {
-    return (ip_msg_key_t)(((uint64_t)src_ip  + (uint64_t)seqno) % IP_GATHERER_NUM);
+    return (ip_msg_key_t)(((uint64_t)src_ip  + (uint64_t)seqno) % IP_ASSEMBLER_NUM);
 }
 __END_DECLS
 
@@ -117,7 +117,7 @@ typedef struct ip_segment {
 
 typedef struct ip_state {
     alignas(ATOMIC_ISOLATION)
-        IP_assembler        assemblers[IP_GATHERER_NUM];
+        IP_assembler       assemblers[IP_ASSEMBLER_NUM];
     size_t                 assembler_num;
 
     ip_addr_t              my_ip;
