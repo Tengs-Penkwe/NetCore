@@ -11,6 +11,8 @@ static void* server_thread(void* localstate) {
     assert(localstate);
     LocalState* local = (LocalState*)localstate;
     local->my_pid = syscall(SYS_gettid);
+    
+    CORES_SYNC_BARRIER;
 
     TCP_server* server = local->my_state;
     
