@@ -25,21 +25,21 @@ static errval_t signal_init(void) {
     if (sigprocmask(SIG_BLOCK, &set, NULL) != 0) {
         const char *error_msg = strerror(errno);
         LOG_FATAL("sigprocmask: %s", error_msg);
-        return SYS_ERR_FAIL;
+        return EVENT_ERR_SIGNAL_INIT;
     }
 
     // Setup SIGINT handler
     if (signal(SIGINT, driver_exit) == SIG_ERR) {
         const char *error_msg = strerror(errno);
         LOG_FATAL("Unable to set signal handler for SIGINT: %s", error_msg);
-        return SYS_ERR_FAIL;
+        return EVENT_ERR_SIGNAL_INIT;
     }
     
     // Setup SIGTERM handler
     if (signal(SIGTERM, driver_exit) == SIG_ERR) {
         const char *error_msg = strerror(errno);
         LOG_FATAL("Unable to set signal handler for SIGTERM: %s", error_msg);
-        return SYS_ERR_FAIL;
+        return EVENT_ERR_SIGNAL_INIT;
     }
 
     EVENT_NOTE("Signals set");

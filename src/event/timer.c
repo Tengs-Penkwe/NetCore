@@ -134,7 +134,7 @@ errval_t timer_thread_init(void) {
     if (pthread_create(&timer.thread, NULL, timer_thread, (void*)local) != 0) {
         TIMER_FATAL("Can't create the timer thread");
         free(local);
-        return SYS_ERR_FAIL;
+        return EVENT_ERR_THREAD_CREATE;
     }
 
     TIMER_NOTE("Timer Module initialized");

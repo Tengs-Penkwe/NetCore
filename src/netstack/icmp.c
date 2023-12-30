@@ -136,5 +136,5 @@ errval_t icmp_unmarshal(
         // If direct sending succeded
         return SYS_ERR_OK;
     }
-    return NET_OK_SUBMIT_EVENT;
+    return NET_THROW_SUBMIT_EVENT;
 }

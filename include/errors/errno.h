@@ -13,22 +13,23 @@ typedef uintptr_t errval_t;
 
 // Define domains and error codes
 #define OK_CODES \
-    X(SYS_ERR_OK,                      "SYS_ERR_OK") \
+    X(SYS_ERR_OK,                      "General OK") \
     X(COUNT_THROW,                     "Count for THROW codes, shouldn't happen") \
-    X(NET_OK_SUBMIT_EVENT,             "Successfully Submit the event, the buffer is re-used, can't free now") \
-    X(NET_OK_TCP_ENQUEUE,              "Successfully Enqueued a TCP message, need to free memory later") \
-    X(NET_OK_IPv4_SEG_LATER_FREE,      "We need to assemble this IP message, free the memory later !") \
+    X(NET_THROW_SUBMIT_EVENT,          "Successfully Submit the event, the buffer is re-used, free the memory later") \
+    X(NET_THROW_TCP_ENQUEUE,           "Successfully Enqueued a TCP message, need to free memory later") \
+    X(NET_THROW_IPv4_SEG,              "We need to assemble this IP message, free the memory later !") \
     X(COUNT_OK,                        "Count for OK codes, shouldn't happen") \
 
 #define SYSTEM_ERR_CODES \
-    X(SYS_ERR_FAIL,                   "SYS_ERR_FAIL") \
+    X(SYS_ERR_WRONG_CONFIG,           "Unknow Configuration") \
     X(SYS_ERR_ALLOC_FAIL,             "Some kind of allocation (malloc, new) failed") \
     X(SYS_ERR_INIT_FAIL,              "Some kind of initializaton (thread, mutex) failed") \
     X(SYS_ERR_NOT_IMPLEMENTED,        "This function isn't implemented yet") \
     X(SYS_ERR_BAD_ALIGNMENT,          "The alignment requirement is not satisfied") \
 
 #define EVENT_ERR_CODES \
-    X(EVENT_THREAD_CREATE,            "Can't create the thread for event") \
+    X(EVENT_ERR_THREAD_CREATE,        "Can't create the thread for event") \
+    X(EVENT_ERR_SIGNAL_INIT,          "Can't initialize the signal") \
     X(EVENT_LOGFILE_CREATE,           "Can't create the log file") \
     X(EVENT_ENQUEUE_FULL,             "The task queue is full")  \
     X(EVENT_DEQUEUE_EMPTY,            "The task queue is empty")  \

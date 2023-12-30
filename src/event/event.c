@@ -8,19 +8,19 @@ void event_ether_unmarshal(void* unmarshal) {
     errval_t err = ethernet_unmarshal(frame->ether, frame->buf);
     switch (err_no(err))
     {
-    case NET_OK_TCP_ENQUEUE:
+    case NET_THROW_TCP_ENQUEUE:
     {
         EVENT_INFO("A TCP message is successfully enqueued, Can't free the buffer now");
         free(frame);
         break;
     }
-    case NET_OK_SUBMIT_EVENT:
+    case NET_THROW_SUBMIT_EVENT:
     {
         EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
         free(frame);
         break;
     }
-    case NET_OK_IPv4_SEG_LATER_FREE:
+    case NET_THROW_IPv4_SEG:
     {
         EVENT_INFO("A Segmented IP message received, Can't free the buffer now");
         free(frame);
@@ -71,7 +71,7 @@ void event_icmp_marshal(void* send) {
     err = icmp_marshal(marshal->icmp, marshal->dst_ip, marshal->type, marshal->code, marshal->field, marshal->buf);
     switch (err_no(err))
     {
-    case NET_OK_SUBMIT_EVENT:
+    case NET_THROW_SUBMIT_EVENT:
     {
         EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
         free(send);
@@ -95,7 +95,7 @@ void event_ip_handle(void* recv) {
     err = ip_handle(handle->ip, handle->proto, handle->src_ip, handle->buf);
     switch (err_no(err))
     {
-    case NET_OK_SUBMIT_EVENT:
+    case NET_THROW_SUBMIT_EVENT:
     {
         EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
         free(handle);

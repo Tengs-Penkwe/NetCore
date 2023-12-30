@@ -8,23 +8,6 @@
 #include <time.h>       // timer_t
 
 /***************************************************
-*            IP recv (Whole Message)
-*  After all the segments are received, we can create
-*  a single IP_recv to hold all the data and pass it
-****************************************************/
-
-/// @brief Presentation of an IP segment
-typedef struct ip_recv {
-    IP_gatherer *gatherer;
-                         
-    ip_addr_t    src_ip;
-    uint8_t      proto;  ///< Protocal over IP
-    uint16_t     id;     ///< Message ID
-
-} IP_recv;
-
-
-/***************************************************
 *         IP Message (Contains Segments)
 * All the segments are stored in a AVL tree, sorted, 
 * after all the segments are received, we can create 
@@ -41,7 +24,7 @@ typedef struct message_segment {
 
 #define seg_cmp(p, q) (((q)->offset < (p)->offset) - ((p)->offset < (q)->offset))
 
-typedef struct ip_message {
+typedef struct ip_recv {
     IP_gatherer     *gatherer;
 
     ip_addr_t        src_ip;
@@ -64,7 +47,7 @@ typedef struct ip_message {
 
     timer_t          timer;
     int              times_to_live;
-} IP_message;
+} IP_recv;
 
 typedef struct ip_state IP;
 __BEGIN_DECLS

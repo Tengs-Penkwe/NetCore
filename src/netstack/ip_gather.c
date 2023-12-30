@@ -96,7 +96,7 @@ static void* gather_thread(void* state) {
 }
 
 void drop_message(void* message) {
-    IP_message* msg = message; assert(msg);
+    IP_recv* msg = message; assert(msg);
     IP_gatherer* gather = msg->gatherer; assert(gather);
 
     ip_msg_key_t msg_key = IP_MSG_KEY(msg->src_ip, msg->id);
@@ -130,7 +130,7 @@ void drop_message(void* message) {
     free(message);
 }
 
-static Buffer segment_assemble(IP_message* msg) {
+static Buffer segment_assemble(IP_recv* msg) {
     assert(msg && msg->whole.seg);
     
     uint8_t* all_data = malloc(msg->whole.size); assert(all_data);
@@ -172,7 +172,7 @@ static Buffer segment_assemble(IP_message* msg) {
 void check_recvd_message(void* message) {
     IP_VERBOSE("Checking a message");
     errval_t err = SYS_ERR_OK;
-    IP_message* msg = message; assert(msg);
+    IP_recv* msg = message; assert(msg);
     IP_gatherer* gather = msg->gatherer; assert(gather);
 
     /// Also modified in ip_assemble(), be careful of global states
@@ -216,11 +216,11 @@ void check_recvd_message(void* message) {
 
 static void ip_gather(void* recvd_msg)
 {
-    IP_message *recv = recvd_msg;  assert(recv);
+    IP_recv *recv = recvd_msg;  assert(recv);
     IP_gatherer*gather = recv->gatherer; assert(gather);
 
-    IP_message* msg = NULL;
-    ip_msg_key_t msg_key = IP_MSG_KEY(((IP_message*)recvd_msg)->src_ip, ((IP_message*)recvd_msg)->id);
+    IP_recv* msg = NULL;
+    ip_msg_key_t msg_key = IP_MSG_KEY(((IP_recv*)recvd_msg)->src_ip, ((IP_recv*)recvd_msg)->id);
 
     uint16_t recvd_size = msg->seg.buf.valid_size;
     uint16_t offset     = msg->seg.offset;

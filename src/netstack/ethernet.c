@@ -84,7 +84,7 @@ errval_t ethernet_marshal(
 errval_t ethernet_unmarshal(
     Ethernet* ether, Buffer buf
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     struct eth_hdr *packet = (struct eth_hdr *)buf.data;
     ETHER_VERBOSE("Unmarshalling %d bytes", buf.valid_size);
 

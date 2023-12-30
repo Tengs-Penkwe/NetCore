@@ -47,7 +47,7 @@ errval_t thread_pool_init(size_t workers)
         if (pthread_create(&g_threadpool.threads[i], NULL, thread_function, (void*)&local[i]) != 0) {
             LOG_FATAL("Can't create worker thread");
             free(g_threadpool.threads); free(local);
-            return SYS_ERR_FAIL;
+            return EVENT_ERR_THREAD_CREATE;
         }
     }
 

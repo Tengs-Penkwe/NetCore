@@ -71,13 +71,12 @@ void ip_destroy(
 errval_t ip_assemble(
     IP* ip, ip_addr_t src_ip, uint8_t proto, uint16_t id, Buffer buf, uint16_t offset, bool more_frag, bool no_frag
 ) {
-    errval_t err;
-    assert(ip);
-    IP_DEBUG("Assembling a message, ID: %d, size: %d, offset: %d, no_frag: %d, more_frag: %d", id, buf.valid_size, offset, no_frag, more_frag);
+    errval_t err = SYS_ERR_OK; assert(ip);
+    IP_INFO("Assembling a message, ID: %d, size: %d, offset: %d, no_frag: %d, more_frag: %d", id, buf.valid_size, offset, no_frag, more_frag);
 
-    // 1. if no_frag, then we can directly handle it
-    if (no_frag == true
-        || (more_frag == false && offset == 0)) {  // Which means this isn't a segmented packet
+    // 1. if no_frag, then we can directly handle it (how simple it is! compared to the segmented one, which requires significant amount of work)
+    if (no_frag == true ||
+       (more_frag == false && offset == 0)) {  // Which means this isn't a segmented packet
                                                    
         assert(offset == 0 && more_frag == false);
         
@@ -86,12 +85,12 @@ errval_t ip_assemble(
         return err;
     }
 
-    // 2. if there is a fragment, then we need to find the gatherer
+    // 2. if the message is segmented, then we need to put it into the gatherer
     ip_msg_key_t key = ip_message_hash(src_ip, id);
 
     // 2.1 Create the message structure
-    IP_message *msg = calloc(1, sizeof(IP_message)); assert(msg);
-    *msg = (IP_message) {
+    IP_recv *msg = calloc(1, sizeof(IP_recv)); assert(msg);
+    *msg = (IP_recv) {
         .gatherer      = &ip->gatherers[key],
         .src_ip        = src_ip,
         .proto         = proto,
@@ -113,15 +112,15 @@ errval_t ip_assemble(
         IP_WARN("Too much IP segmentation message for bucket %d, will drop it in upper module", key);
         return err;
     } else {
-        return err_push(err, NET_OK_IPv4_SEG_LATER_FREE);
+        return err_push(err, NET_THROW_IPv4_SEG);
     }
 }
 
 errval_t ip_unmarshal(
     IP* ip, Buffer buf
 ) {
+    errval_t err = SYS_ERR_OK;
     assert(ip);
-    errval_t err;
     struct ip_hdr* packet = (struct ip_hdr*)buf.data;
     
     /// 1. Decide if the packet is correct
@@ -134,6 +133,7 @@ errval_t ip_unmarshal(
         // return NET_ERR_IPv4_WRONG_FIELD;
     }
 
+    // 1.1 Header Size
     const uint16_t header_size = IPH_HL(packet);
     if (header_size != sizeof(struct ip_hdr)) {
         IP_NOTE("The IP Header has %d Bytes, We don't have special treatment for it", header_size);
@@ -165,7 +165,7 @@ errval_t ip_unmarshal(
     // 1.4 Destination IP
     ip_addr_t dst_ip = ntohl(packet->dest);
     if (dst_ip != ip->my_ip) {
-        LOG_ERR("This IPv4 Pacekt isn't for us %p but for %p", ip->my_ip, dst_ip);
+        LOG_ERR("This IPv4 Pacekt isn't for us %0.8X but for %0.8X", ip->my_ip, dst_ip);
         return NET_ERR_IPv4_WRONG_IP_ADDRESS;
     }
 
@@ -173,32 +173,32 @@ errval_t ip_unmarshal(
     // Re-consider it, this may break the layer model ?
 
     // 2. Fragmentation
-    const uint16_t identification = ntohs(packet->id);
-    const uint16_t flag_offset = ntohs(packet->offset);
-    const bool flag_reserved = flag_offset & IP_RF;
-    const bool flag_no_frag  = flag_offset & IP_DF;
-    const bool flag_more_frag= flag_offset & IP_MF;
-    const uint32_t offset    = (flag_offset & IP_OFFMASK) * 8;
-    assert(offset <= 0xFFFF);
+    const uint16_t id             = ntohs(packet->id);
+    const uint16_t flag_offset    = ntohs(packet->offset);
+    const bool     flag_reserved  = flag_offset & IP_RF;
+    const bool     flag_no_frag   = flag_offset & IP_DF;
+    const bool     flag_more_frag = flag_offset & IP_MF;
+    const uint16_t offset         = (flag_offset & IP_OFFMASK) * 8;
     if (flag_reserved || (flag_no_frag && flag_more_frag)) {
         LOG_ERR("Problem with flags, reserved: %d, no_frag: %d, more_frag: %d", flag_reserved, flag_no_frag, flag_more_frag);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
 
-    // 2.1 Find or Create the binding
+    // 2.1 Find the corresponding MAC address
     ip_addr_t src_ip = ntohl(packet->src);
     mac_addr src_mac = MAC_NULL;
     err = arp_lookup_mac(ip->arp, src_ip, &src_mac);
     if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
-        USER_PANIC_ERR(err, "You received a message, but you don't know the IP-MAC pair ?");
+        USER_PANIC_ERR(err, "You received an IP message, but you don't know the IP-MAC pair ?");
     } else
         DEBUG_FAIL_RETURN(err, "Can't find binding for given IP address");
 
+    // 2.2 Remove the IP header
     buffer_add_ptr(&buf, header_size);
 
     // 3. Assemble the IP message
     uint8_t proto = packet->proto;
-    err = ip_assemble(ip, src_ip, proto, identification, buf, offset, flag_more_frag, flag_no_frag);
+    err = ip_assemble(ip, src_ip, proto, id, buf, offset, flag_more_frag, flag_no_frag);
     DEBUG_FAIL_RETURN(err, "Can't assemble the IP message from the packet");
 
     // 3.1 TTL: TODO, should we deal with it ?
@@ -239,14 +239,14 @@ errval_t ip_marshal(
     {
         msg->retry_interval = ARP_WAIT_US;
         submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
-        return NET_OK_SUBMIT_EVENT;
+        return NET_THROW_SUBMIT_EVENT;
     }
     case SYS_ERR_OK: { // Continue sending
         assert(!(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST)));
         msg->dst_mac = dst_mac;
         
         check_send_message((void*)msg);
-        return NET_OK_SUBMIT_EVENT;
+        return NET_THROW_SUBMIT_EVENT;
     }
     default: 
         DEBUG_ERR(err, "Can't establish binding for given IP address");

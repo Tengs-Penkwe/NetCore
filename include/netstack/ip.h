@@ -52,9 +52,9 @@ static inline ip_msg_key_t ip_message_hash(ip_addr_t src_ip, uint16_t seqno) {
 }
 __END_DECLS
 
-typedef struct ip_message IP_message;
+typedef struct ip_recv IP_recv;
 // The hash table of IP messages
-KHASH_MAP_INIT_INT64(ip_msg, IP_message*)
+KHASH_MAP_INIT_INT64(ip_msg, IP_recv*)
 
 typedef struct ip_gatherer {
     alignas(ATOMIC_ISOLATION)

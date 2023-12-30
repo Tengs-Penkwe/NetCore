@@ -146,7 +146,7 @@ errval_t tcp_unmarshal(
                 return err_push(err, NET_ERR_TCP_QUEUE_FULL);
             }
             sem_post(&server->sema);
-            return NET_OK_TCP_ENQUEUE;
+            return NET_THROW_TCP_ENQUEUE;
         }
         assert(0);
     case EVENT_HASH_NOT_EXIST: 

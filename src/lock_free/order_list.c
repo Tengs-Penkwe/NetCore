@@ -17,7 +17,7 @@ errval_t ordlist_init(OrdList* list, list_key_compare cmp_func, enum ordlist_pol
         break;
     default:
         LOG_ERR("Unknown policy: %d", policy);
-        return SYS_ERR_FAIL;
+        return SYS_ERR_WRONG_CONFIG;
     }
 
     list->policy = policy;
