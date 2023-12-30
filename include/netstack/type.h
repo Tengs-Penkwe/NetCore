@@ -25,6 +25,12 @@ typedef struct buffer {
 
 __BEGIN_DECLS
 
+static inline void dump_buffer(Buffer buf)
+{
+    printf("Buffer: data: %p, \tfrom_hdr: %d, \tvalid_size: %d, \twhole_size: %d, \n\tfrom_pool: %d, \tmempool: %p\n",
+        buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, buf.mempool);
+}
+
 static inline void free_buffer(Buffer buf) {
     if (buf.from_pool) {
         assert(buf.mempool);
