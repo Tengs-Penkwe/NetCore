@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <event/states.h>
 #include <time.h>
+#include <errno.h>      //strerror
 
 enum log_level log_matrix[LOG_MODULE_COUNT] = {
 #define X(module, level) level,
@@ -59,8 +60,8 @@ errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FIL
     FILE *log = fopen(log_file, "w");
     if (log == NULL) {
         char error[128];
-        sprintf(error, "Error opening file: %s, going to use the standard output", log_file);
-        perror(error);
+        const char *error_msg = strerror(errno);
+        sprintf(error, "Error opening file: %s because %s, going to use the standard output", error_msg, log_file);
         return EVENT_LOGFILE_CREATE;
     } 
     printf("Opened log file at %s, level set as %s\n", log_file, level_to_string(log_level));

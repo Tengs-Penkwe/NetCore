@@ -10,7 +10,8 @@
 #include <poll.h>
 
 #include <unistd.h>
-#include <stdio.h>
+#include <errno.h>      //strerror
+#include <stdio.h>      //perror
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,8 +25,8 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     // Open TAP device
     int tap_fd = open(tap_path, O_RDWR);
     if (tap_fd < 0) {
-        LOG_FATAL("Failed to open %s", tap_path);
-        perror("reason");
+        const char *error_msg = strerror(errno);
+        DEVICE_FATAL("Failed to open %s, because %s", tap_path, error_msg);
         return NET_ERR_DEVICE_INIT;
     }
 
@@ -37,7 +38,8 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     strncpy(ifr.ifr_name, tap_name, IFNAMSIZ);
 
     if (ioctl(tap_fd, TUNSETIFF, (void *) &ifr) < 0) {
-        perror("ioctl(TUNSETIFF)");
+        const char *error_msg = strerror(errno);
+        DEVICE_FATAL("ioctl(TUNSETIFF): %s", error_msg);
         close(tap_fd);
         return NET_ERR_DEVICE_INIT;
     }
@@ -120,7 +122,8 @@ errval_t device_send(NetDevice* device, Buffer buf) {
     ///TODO: if two threads write at the same time, will there be problem ?
     ssize_t written = write(device->tap_fd, buf.data, (size_t)buf.valid_size);
     if (written < 0) {
-        perror("write to TAP device");
+        const char *error_msg = strerror(errno);
+        DEVICE_ERR("write to TAP device: %s", error_msg);
         device->fail_sent += 1;
         return NET_ERR_DEVICE_SEND;
     }
@@ -138,7 +141,8 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
 
     // Get MAC address
     if (ioctl(device->tap_fd, SIOCGIFHWADDR, &device->ifr) < 0) {
-        perror("ioctl(SIOCGIFHWADDR)");
+        const char *error_msg = strerror(errno);
+        DEVICE_ERR("ioctl(SIOCGIFHWADDR): %s", error_msg);
         return NET_ERR_DEVICE_GET_MAC;
     }
     *ret_mac = ntoh6(mem2mac(device->ifr.ifr_hwaddr.sa_data));
@@ -158,7 +162,7 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
     err = pool_alloc(mempool, MEMPOOL_BYTES, &frame->buf);
     if (err_no(err) == EVENT_MEMPOOL_EMPTY)
     {
-        EVENT_WARN("We don't have more memory in the mempool !");
+        EVENT_WARN("We don't have more memory in the mempool, directly malloc!");
 
         assert(frame->buf.data == NULL);
         frame->buf = (Buffer) {
@@ -169,6 +173,7 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
             .mempool    = NULL,
             .from_pool  = false,
         };
+        assert(frame->buf.data);
     }
     else if (err_is_fail(err))
     {
@@ -179,7 +184,8 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
     int nbytes = read(device->tap_fd, frame->buf.data, frame->buf.valid_size);
     if (nbytes <= 0) 
     {
-        perror("read packet from TAP device failed, but the loop continue");
+        const char *error_msg = strerror(errno);
+        DEVICE_ERR("read packet from TAP device failed: %s, but the loop continue", error_msg);
         free_ether_unmarshal(frame);
     }
     else
@@ -220,7 +226,8 @@ errval_t device_loop(NetDevice* device, NetWork* net, MemPool* mempool) {
     while (true) {
         int ret = poll(pfd, 1, -1); // Wait indefinitely
         if (ret < 0) {
-            perror("poll");
+            const char *error_msg = strerror(errno);
+            DEVICE_ERR("poll faild %s", error_msg);
             close(device->tap_fd);
             return NET_ERR_DEVICE_FAIL_POLL;
         }

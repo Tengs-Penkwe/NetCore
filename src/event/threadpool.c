@@ -1,7 +1,7 @@
 #include <common.h>
 #include <event/threadpool.h>
 #include <event/timer.h>
-#include <stdio.h>     // perror
+#include <errno.h>         //sterror
 #include <event/states.h>
 
 #include <sys/syscall.h>   //syscall
@@ -23,7 +23,8 @@ errval_t thread_pool_init(size_t workers)
 
     // 1.2 Semaphore to notify woker 
     if (sem_init(&g_threadpool.sem, 0, 0) != 0) {
-        perror("Can't initialize the semaphore");
+        const char *error_msg = strerror(errno);
+        EVENT_FATAL("Can't initialize the semaphore: %s", error_msg);
         return SYS_ERR_INIT_FAIL;
     }
 

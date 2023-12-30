@@ -8,8 +8,8 @@
 #include <lock_free/memorypool.h>
 #include <event/states.h>
 
-#include <stdio.h>         //perror
 #include <sys/syscall.h>   //syscall
+#include <errno.h>         //strerror
                            
 static void driver_exit(int signum);
 
@@ -23,19 +23,22 @@ static errval_t signal_init(void) {
     // Block The signal for timer
     // Note: we are in main thread !
     if (sigprocmask(SIG_BLOCK, &set, NULL) != 0) {
-        perror("sigprocmask");
+        const char *error_msg = strerror(errno);
+        LOG_FATAL("sigprocmask: %s", error_msg);
         return SYS_ERR_FAIL;
     }
 
     // Setup SIGINT handler
     if (signal(SIGINT, driver_exit) == SIG_ERR) {
-        perror("Unable to set signal handler for SIGINT");
+        const char *error_msg = strerror(errno);
+        LOG_FATAL("Unable to set signal handler for SIGINT: %s", error_msg);
         return SYS_ERR_FAIL;
     }
     
     // Setup SIGTERM handler
     if (signal(SIGTERM, driver_exit) == SIG_ERR) {
-        perror("Unable to set signal handler for SIGTERM");
+        const char *error_msg = strerror(errno);
+        LOG_FATAL("Unable to set signal handler for SIGTERM: %s", error_msg);
         return SYS_ERR_FAIL;
     }
 

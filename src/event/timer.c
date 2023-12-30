@@ -3,10 +3,10 @@
 #include <event/states.h>
 
 #include <stdint.h>
-#include <stdio.h>      //perror
 #include <signal.h>
 #include <time.h>
-#include <errno.h>      //errno
+#include <errno.h>      //errno   
+#include <error.h>      //strerror
 
 #include <pthread.h>
 #include <sched.h>       //sched_yield
@@ -72,8 +72,8 @@ inline void cancel_timer_task(timer_t timerid) {
     if (timer_delete(timerid) == -1) {
         // ALRAM: errno is not thread safe
         if (errno != EINVAL) {
-            perror("timer_delete");
-            USER_PANIC("Can't delete the timer");
+            const char *error_msg = strerror(errno);
+            USER_PANIC("Can't delete the timer: %s", error_msg);
         }
         TIMER_ERR("The timer has already been deleted");
     }
@@ -93,8 +93,8 @@ static void* timer_thread (void* localstates) {
     sigemptyset(&set);
     sigaddset(&set, SIG_TIGGER_SUBMIT);
     if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0) {
-        perror("sigprocmask");
-        USER_PANIC("Can't unblock the signal");
+        const char *error_msg = strerror(errno);
+        USER_PANIC("Can't unblock the signal: %s", error_msg);
     }
 
     // Set up action for trigger submit signal
