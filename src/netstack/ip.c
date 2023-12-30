@@ -115,7 +115,7 @@ errval_t handle_ip_segment_assembly(
         IP_WARN("Too much IP segmentation message for bucket %d, will drop it in upper module", key);
         return err;
     } else {
-        return err_push(err, NET_THROW_IPv4_SEG);
+        return err_push(err, NET_THROW_SUBMIT_EVENT);
     }
 }
 

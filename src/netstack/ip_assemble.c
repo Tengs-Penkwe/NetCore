@@ -103,13 +103,8 @@ static void* assemble_thread(void* state) {
     }
 }
 
-/// @brief delete the message from the hash table, and free the memory
-/// 1. Assumption: single thread
-/// 2. DO free recv itself
-void drop_recvd_message(void* message) {
-    IP_recv* recv = message; assert(recv);
-    IP_assembler* assemble = recv->assembler; assert(assemble);
-
+static void delete_msg_from_hash_table(IP_assembler* assemble, IP_recv* recv) {
+    assert(assemble && recv);
     ip_msg_key_t msg_key = IP_MSG_KEY(recv->src_ip, recv->id);
     khint64_t key = kh_get(ip_msg, assemble->recv_messages, msg_key);
 
@@ -117,7 +112,18 @@ void drop_recvd_message(void* message) {
         USER_PANIC("The message doesn't exist in hash table before we delete it!");
 
     // Delete the message from the hash table
-    kh_del(ip_msg, assemble->recv_messages, msg_key);
+    kh_del(ip_msg, assemble->recv_messages, key);
+}
+
+/// @brief delete the message from the hash table, and free the memory
+/// 1. Assumption: single thread
+/// 2. DO free recv itself
+void drop_recvd_message(void* message) {
+    IP_recv* recv = message; assert(recv && recv->seg);
+    IP_assembler* assemble = recv->assembler; assert(assemble);
+    
+    // 1. remove the message from the hash table
+    delete_msg_from_hash_table(assemble, recv);
 
     if (recv->whole_size != recv->recvd_size)
         IP_WARN("We drop a message that is not complete, size: %d, received: %d", recv->whole_size, recv->recvd_size);
@@ -144,18 +150,22 @@ void drop_recvd_message(void* message) {
 /// 1. Assumption: single thread
 /// 2. DO NOT free recv itself
 /// @brief Assemble the segments into a single buffer, free the memory of the segments
-static Buffer segment_assemble(IP_recv* recv) {
+static Buffer segment_assemble_and_delete_from_hash(IP_recv* recv) {
     assert(recv && recv->seg);
+    IP_assembler* assemble = recv->assembler; assert(assemble);
 
-    // 1. We are assmebling a complete message, so th size must match   
+    // 1. remove the message from the hash table
+    delete_msg_from_hash_table(assemble, recv);
+
+    // 2. We are assmebling a complete message, so th size must match   
     uint16_t whole_size = recv->whole_size;
     assert(recv->recvd_size == whole_size);
 
-    // 2. Reserve some space if the receiver want to re-use the buffer
+    // 3. Reserve some space if the receiver want to re-use the buffer
     uint8_t* all_data = malloc(whole_size + DEVICE_HEADER_RESERVE); assert(all_data);
     all_data += DEVICE_HEADER_RESERVE;
     
-    // 3. Create the buffer
+    // 4. Create the buffer
     Buffer ret_buf =  {
         .data       = all_data,
         .from_hdr   = DEVICE_HEADER_RESERVE, 
@@ -165,7 +175,7 @@ static Buffer segment_assemble(IP_recv* recv) {
         .mempool    = NULL,
     };
 
-    // 4. Traverse the AVL tree, and copy the data to the buffer
+    // 5. Traverse the AVL tree, and copy the data to the buffer
     Mseg_itr_t seg_itr = { 0 };
     Mseg_itr_first(recv->seg, &seg_itr); // Initialize the iterator
 
@@ -213,7 +223,7 @@ void check_recvd_message(void* message) {
             // We don't need to care about duplicate segment here, they are deal in ip_assemble
             IP_DEBUG("We spliced an IP message of size %d, ttl: %d, now let's process it", recv->whole_size, recv->times_to_live / 1000);
             
-            Buffer buf = segment_assemble(recv);
+            Buffer buf = segment_assemble_and_delete_from_hash(recv);
             IP_handle* handle = malloc(sizeof(IP_handle)); assert(handle);
             *handle = (IP_handle) {
                 .ip     = assemble->ip,
@@ -261,20 +271,22 @@ errval_t ip_assemble(IP_segment* segment)
 
         recv = malloc(sizeof(IP_recv)); assert(recv);
         *recv = (IP_recv) {
-            .assembler      = segment->assembler,
+            .assembler     = segment->assembler,
             .src_ip        = segment->src_ip,
             .proto         = segment->proto,
             .id            = segment->id,
-            .whole_size    = SIZE_DONT_KNOW,        // We don't know the size util the last packet arrives
+            .whole_size    = SIZE_DONT_KNOW,    // We don't know the size util the last packet arrives
             .recvd_size    = recvd_size,
-            .seg           = malloc(sizeof(Mseg)),  // Root of AVL tree
+            .seg           = 0,                 // Initialize the AVL tree
             .timer         = 0,
-            .times_to_live = IP_GIVEUP_RECV_US,
+            .times_to_live = IP_RETRY_RECV_US,
         };
-        assert(recv->seg);
 
-        recv->seg->offset = offset;
-        recv->seg->buf    = buf;
+        // Insert the first segment to the AVL tree
+        Mseg *seg = malloc(sizeof(Mseg)); assert(seg);
+        seg->offset = offset;
+        seg->buf    = buf;
+        assert(seg == Mseg_insert(&recv->seg, seg));    // This is the first segment, so it must be inserted
 
         int ret;
         key = kh_put(ip_msg, assemble->recv_messages, msg_key, &ret); 
@@ -295,13 +307,18 @@ errval_t ip_assemble(IP_segment* segment)
         // Set the value of key
         kh_value(assemble->recv_messages, key) = recv;
         
+        // Submit a delayed task to check the message 
+        IP_DEBUG("We have received %d bytes of a message of size %d, now let's wait for %d ms", recv->recvd_size, recv->whole_size, recv->times_to_live / 1000);
+        Task task_for_myself = MK_TASK(&assemble->event_que, &assemble->event_come, check_recvd_message, (void*)recv);
+        recv->timer = submit_delayed_task(MK_DELAY_TASK(recv->times_to_live, drop_recvd_message, task_for_myself));
+        
     } else {
 
         recv = kh_val(assemble->recv_messages, key); assert(recv);
         assert(segment->proto == recv->proto);
 
         ///ALARM: global state, also modified in check_recvd_message()
-        recv->times_to_live /= 1.5;  // We got 1 more packet, wait less time
+        recv->times_to_live = IP_RETRY_RECV_US; // Reset the TTL
 
         Mseg *seg = malloc(sizeof(Mseg)); assert(seg);
         seg->offset = offset;
@@ -330,16 +347,10 @@ errval_t ip_assemble(IP_segment* segment)
     if (recv->recvd_size == recv->whole_size)
     {
         IP_DEBUG("We have received a complete IP message of size %d, now let's process it", recv->whole_size);
+        // cancel_timer_task(recv->timer);
         check_recvd_message((void*) recv);
-        return NET_THROW_IPv4_ASSEMBLE;
     }
-    else
-    {
-        IP_DEBUG("We have received %d bytes of a message of size %d, now let's wait for %d ms", recv->recvd_size, recv->whole_size, recv->times_to_live / 1000);
-        Task task_for_myself = MK_TASK(&assemble->event_que, &assemble->event_come, check_recvd_message, (void*)recv);
-        recv->timer = submit_delayed_task(MK_DELAY_TASK(recv->times_to_live, drop_recvd_message, task_for_myself));
-        return NET_THROW_SUBMIT_EVENT;
-    }
+    return NET_THROW_IPv4_SEG;
 }
 
 /**

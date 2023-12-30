@@ -22,11 +22,6 @@ void event_ether_unmarshal(void* unmarshal) {
         EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
         break;
     }
-    case NET_THROW_IPv4_SEG:
-    {
-        EVENT_INFO("A Segmented IP message received, Can't free the buffer now");
-        break;
-    }
     case NET_ERR_TCP_QUEUE_FULL:
     {
         assert(err_pop(err) == EVENT_ENQUEUE_FULL);
@@ -42,6 +37,7 @@ void event_ether_unmarshal(void* unmarshal) {
     case SYS_ERR_OK:
         free_buffer(frame.buf);
         break;
+    case NET_THROW_IPv4_SEG:
     default:
         USER_PANIC_ERR(err, "Unknown error");
     }
@@ -100,13 +96,9 @@ void event_ip_assemble(void* recvd_segment) {
     err = ip_assemble(&seg);
     switch (err_no(err))
     {
-    case NET_THROW_IPv4_ASSEMBLE: {
-        EVENT_INFO("An IP message is successfully assembled, Let the handler free the buffer");
-        break;
-    }
-    case NET_THROW_SUBMIT_EVENT:
+    case NET_THROW_IPv4_SEG:
     {
-        EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
+        EVENT_INFO("A Segmented IP message received, Can't free the buffer now");
         break;
     }
     case NET_ERR_IPv4_DUPLITCATE_SEG:
