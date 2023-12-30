@@ -16,6 +16,7 @@ errval_t icmp_init(
     return SYS_ERR_OK;
 }
 
+// Assumption: Caller free the buffer
 errval_t icmp_marshal(
     ICMP* icmp, ip_addr_t dst_ip, uint8_t type, uint8_t code, ICMP_data field, Buffer buf
 ) {
@@ -39,7 +40,7 @@ errval_t icmp_marshal(
     case ICMP_IRQ:
     case ICMP_IR:
         ICMP_ERR("Not Supported ICMP type :%d!", type);
-        break;
+        return SYS_ERR_NOT_IMPLEMENTED;
     default:
         ICMP_ERR("WRONG ICMP type :%d!", type);
         return NET_ERR_ICMP_WRONG_TYPE;
@@ -106,7 +107,7 @@ errval_t icmp_unmarshal(
     case ICMP_IRQ:
     case ICMP_IR:
         ICMP_ERR("Not Supported ICMP type :%d!", type);
-        break;
+        return SYS_ERR_NOT_IMPLEMENTED;
     default:
         ICMP_ERR("WRONG ICMP type :%d!", type);
         return NET_ERR_ICMP_WRONG_TYPE;

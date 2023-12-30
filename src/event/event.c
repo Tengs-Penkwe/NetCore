@@ -29,6 +29,7 @@ void event_ether_unmarshal(void* unmarshal) {
         free_buffer(frame.buf);
         break;
     }
+    case SYS_ERR_NOT_IMPLEMENTED:
     case NET_ERR_ETHER_WRONG_MAC:
     case NET_ERR_ETHER_NO_MAC:
         free_buffer(frame.buf);
@@ -46,17 +47,15 @@ void event_ether_unmarshal(void* unmarshal) {
 void event_arp_marshal(void* send) {
     errval_t err; assert(send);
 
-    // TODO: copy the argument to stack, and free the argument
-    ARP_marshal* marshal = send;
+    ARP_marshal marshal = *(ARP_marshal*) send;
+    free(send);
 
-    err = arp_marshal(marshal->arp, marshal->opration, marshal->dst_ip, marshal->dst_mac, marshal->buf);
+    err = arp_marshal(marshal.arp, marshal.opration, marshal.dst_ip, marshal.dst_mac, marshal.buf);
     switch (err_no(err))
     {
     case SYS_ERR_OK:
-        free_arp_marshal(marshal);
+        free_buffer(marshal.buf);
         break;
-    // case 
-    //     break;
     default:
         USER_PANIC_ERR(err, "Unknown error");
     }
@@ -65,23 +64,23 @@ void event_arp_marshal(void* send) {
 void event_icmp_marshal(void* send) {
     errval_t err; assert(send);
 
-    // TODO: copy the argument to stack, and free the argument
-    ICMP_marshal* marshal = send;
+    ICMP_marshal marshal = *(ICMP_marshal*) send;
+    free(send);
 
-    err = icmp_marshal(marshal->icmp, marshal->dst_ip, marshal->type, marshal->code, marshal->field, marshal->buf);
+    err = icmp_marshal(marshal.icmp, marshal.dst_ip, marshal.type, marshal.code, marshal.field, marshal.buf);
     switch (err_no(err))
     {
     case NET_THROW_SUBMIT_EVENT:
     {
         EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
-        free(send);
         break;
     }
+    case SYS_ERR_NOT_IMPLEMENTED:
+        EVENT_INFO("ICMP type not implemented, free the buffer now");
+        __attribute__((fallthrough));
     case SYS_ERR_OK:
-        free_icmp_marshal(marshal);
+        free_buffer(marshal.buf);
         break;
-    // case 
-    //     break;
     default:
         USER_PANIC_ERR(err, "Unknown error");
     }
@@ -130,8 +129,6 @@ void event_ip_handle(void* recv) {
     case SYS_ERR_OK:
         free_buffer(handle.buf); 
         break;
-    // case 
-    //     break;
     default:
         USER_PANIC_ERR(err, "Unknown error");
     }
