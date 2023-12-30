@@ -5,6 +5,7 @@
 #include <netstack/ip.h>
 #include <event/timer.h>
 #include <event/threadpool.h>
+#include <event/states.h>
 
 #include "ip_gather.h"
 #include "ip_slice.h"
@@ -12,33 +13,27 @@
 errval_t ip_init(
     IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     assert(ip && ether && arp);
 
     ip->my_ip = my_ip;
     ip->ether = ether;
     ip->arp = arp;
     ip->seg_count = 0;
-
-    // 1.2 Message Queue for single-thread handling of TCP
-    for (size_t i = 0; i < IP_SEG_QUEUE_NUMBER; i++)
+    ip->gatherer_num  = IP_GATHERER_NUM;
+    
+    // 1. Message Queue for single-thread handling of IP segmentation
+    for (size_t i = 0; i < ip->gatherer_num; i++)
     {
-        BQelem * queue_elements = calloc(IP_SEG_QUEUE_SIZE, sizeof(BQelem));
-        err = bdqueue_init(&ip->msg_queue[i], queue_elements, IP_SEG_QUEUE_SIZE);
+        err = gather_init(&ip->gatherers[i], IP_GATHER_QUEUE_SIZE, i);
         if (err_is_fail(err)) {
-            free(queue_elements);
-            IP_ERR("Can't Initialize the queues for TCP messages");
-            return SYS_ERR_INIT_FAIL;
+            IP_FATAL("Can't initialize the gatherer %d, TODO: free the memory", i);
+            return err_push(err, SYS_ERR_INIT_FAIL);
         }
-        // 2.1 spinlock for eqch queue
-        atomic_flag_clear(&ip->que_locks[i]);
     }
-    ip->queue_num  = IP_SEG_QUEUE_NUMBER;
-    ip->queue_size = IP_SEG_QUEUE_SIZE;
 
-    TCP_NOTE("TCP Module Initialized, the hash-table for server has size %d, there are %d message "
-             "queue, each have %d as maximum size",
-             TCP_SERVER_BUCKETS, TCP_QUEUE_NUMBER, TCP_QUEUE_SIZE);
+    TCP_NOTE("IP Module Initialized, there are %d gatherers, each has %d slots",
+             ip->gatherer_num, IP_GATHER_QUEUE_SIZE);
 
     // 2. ICMP (Internet Control Message Protocol )
     ip->icmp = calloc(1, sizeof(ICMP));
@@ -58,8 +53,9 @@ errval_t ip_init(
     err = tcp_init(ip->tcp, ip);
     DEBUG_FAIL_RETURN(err, "Can't initialize global TCP state");
 
-    IP_INFO("IP Module initialized");
-    return SYS_ERR_OK;
+    return err;
+
+    //TODO: have better error handling (resource release)
 }
 
 void ip_destroy(
@@ -71,6 +67,7 @@ void ip_destroy(
     IP_ERR("NYI");
 }
 
+
 errval_t ip_assemble(
     IP* ip, ip_addr_t src_ip, uint8_t proto, uint16_t id, Buffer buf, uint16_t offset, bool more_frag, bool no_frag
 ) {
@@ -78,35 +75,45 @@ errval_t ip_assemble(
     assert(ip);
     IP_DEBUG("Assembling a message, ID: %d, size: %d, offset: %d, no_frag: %d, more_frag: %d", id, buf.valid_size, offset, no_frag, more_frag);
 
-    IP_recv *msg = malloc(sizeof(IP_recv)); assert(msg);
-    *msg = (IP_recv) {
-        .ip     = ip,
-        .proto  = proto,
-        .id     = id,
-        .src_ip = src_ip,
-        .buf    = buf,
-    };
-
+    // 1. if no_frag, then we can directly handle it
     if (no_frag == true
         || (more_frag == false && offset == 0)) {  // Which means this isn't a segmented packet
                                                    
         assert(offset == 0 && more_frag == false);
         
-        err = ip_handle(msg);
-        free(msg);
+        err = ip_handle(ip, proto, src_ip, buf);
         DEBUG_FAIL_RETURN(err, "Can't handle this IP message ?");
         return err;
     }
 
+    // 2. if there is a fragment, then we need to find the gatherer
     ip_msg_key_t key = ip_message_hash(src_ip, id);
-    
-    err = enbdqueue(&ip->msg_queue[key], NULL, msg);
+
+    // 2.1 Create the message structure
+    IP_message *msg = calloc(1, sizeof(IP_message)); assert(msg);
+    *msg = (IP_message) {
+        .gatherer      = &ip->gatherers[key],
+        .src_ip        = src_ip,
+        .proto         = proto,
+        .id            = id,
+        .seg = {
+            .offset    = offset,
+            .more_frag = more_frag,
+            .no_frag   = no_frag,
+            .buf       = buf,
+        },
+        .timer         = 0,
+        .times_to_live = IP_RETRY_RECV_US,
+    };
+
+    // 3. Add the message to the gatherer's queue
+    err = enbdqueue(&ip->gatherers[key].msg_queue, NULL, msg);
     if (err_is_fail(err)) {
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
         IP_WARN("Too much IP segmentation message for bucket %d, will drop it in upper module", key);
         return err;
     } else {
-        return NET_OK_IPv4_SEG_LATER_FREE;
+        return err_push(err, NET_OK_IPv4_SEG_LATER_FREE);
     }
 }
 
@@ -231,7 +238,7 @@ errval_t ip_marshal(
     case NET_ERR_ARP_NO_MAC_ADDRESS:   // Get Address first
     {
         msg->retry_interval = ARP_WAIT_US;
-        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_TASK(check_get_mac, (void*)msg)));
+        submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
         return NET_OK_SUBMIT_EVENT;
     }
     case SYS_ERR_OK: { // Continue sending
