@@ -174,7 +174,7 @@ errval_t ip_slice(IP_send* msg) {
         const uint16_t seg_size = last_slice ? (uint16_t)size_left : IP_MTU;
 
         err = ip_send(ip, msg->dst_ip, msg->dst_mac, msg->id, msg->proto,
-                    msg->buf, sent_size, seg_size, last_slice);
+                    msg->buf, msg->sent_size, seg_size, last_slice);
         if (err_is_fail(err)) {
             IP_INFO("Sending a segment failed, will try latter in %d ms", msg->retry_interval / 1000);
             return err;
