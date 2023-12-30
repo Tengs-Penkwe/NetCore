@@ -6,6 +6,7 @@
 #include <event/timer.h>
 #include <event/threadpool.h>
 #include <event/states.h>
+#include <event/event.h>
 
 #include "ip_gather.h"
 #include "ip_slice.h"
@@ -105,10 +106,15 @@ errval_t ip_assemble(
         .times_to_live = IP_RETRY_RECV_US,
     };
 
-    // 3. Add the message to the gatherer's queue
-    err = enbdqueue(&ip->gatherers[key].msg_queue, NULL, msg);
+    // 3. Add the message to the gatherer's queue, we do this to ensure the message is handled in a single thread. To handle the 
+    //   segmentation in multi-thread is too complicated, requires a lot of synchronization, and it's rarely used, doesn't worth it
+    Task task_for_gatherer = MK_TASK(&ip->gatherers[key].event_que, &ip->gatherers[key].event_come, event_ip_gather, (void*)msg);
+    err = submit_task(task_for_gatherer);
     if (err_is_fail(err)) {
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
+        // Will be freed in upper module (event caller)
+        // free_buffer(buf);
+        free(msg);
         IP_WARN("Too much IP segmentation message for bucket %d, will drop it in upper module", key);
         return err;
     } else {

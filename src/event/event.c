@@ -87,6 +87,38 @@ void event_icmp_marshal(void* send) {
     }
 }
 
+void event_ip_gather(void* recvd_msg) {
+    errval_t err; assert(recv);
+
+    IP_recv * recv = recvd_msg;
+    // The recv message already contains the pointer to the IP_gatherer, don't need to add complexity
+    err = ip_gather(recv);
+    switch (err_no(err))
+    {
+    case NET_THROW_IPv4_ASSEMBLE: {
+        EVENT_INFO("An IP message is successfully assembled, Let the handler free the buffer");
+        free(recv);
+        break;
+    }
+    case NET_THROW_SUBMIT_EVENT:
+    {
+        EVENT_INFO("An Event is submitted, and the buffer is re-used, can't free now");
+        free(recv);
+        break;
+    }
+    case NET_ERR_IPv4_DUPLITCATE_SEG:
+    {
+        EVENT_INFO("A duplicated IP message received, free the buffer now");
+        free_buffer(recv->seg.buf);
+        free(recv);
+        break;
+    }
+    case SYS_ERR_OK:
+    default:
+        USER_PANIC_ERR(err, "Unknown error");
+    }
+}
+
 void event_ip_handle(void* recv) {
     errval_t err; assert(recv);
 

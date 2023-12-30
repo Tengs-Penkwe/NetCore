@@ -27,10 +27,12 @@ typedef struct {
 
 #include <netstack/ip.h>
 
-typedef struct {
-    IP *ip;
+/// Assumption: single thread 
+// typedef struct {
+//     IP_gatherer *gatherer;
+//     IP_recv     *recv;
 
-} IP_marshal;
+// } IP_gather;
 
 typedef struct {
     IP       *ip;
@@ -42,12 +44,12 @@ typedef struct {
 #include <netstack/icmp.h>
 
 typedef struct {
-    ICMP* icmp;
+    ICMP     *icmp;
     ip_addr_t dst_ip;
-    uint8_t type;
-    uint8_t code;
+    uint8_t   type;
+    uint8_t   code;
     ICMP_data field;
-    Buffer buf;
+    Buffer    buf;
 
 } ICMP_marshal;
 
@@ -75,6 +77,14 @@ static inline void free_arp_marshal(ARP_marshal* marshal)
     free(marshal);
 }
 
+// static inline void free_ip_gather(IP_recv* recv)
+// {
+//     assert(recv);
+//     USER_PANIC("NYI");
+//     free(recv);
+//     // free(gather);
+// }
+
 static inline void free_ip_handle(IP_handle* handle)
 {
     assert(handle);
@@ -85,6 +95,7 @@ static inline void free_ip_handle(IP_handle* handle)
 void event_ether_unmarshal(void* unmarshal);
 void event_arp_marshal(void* marshal);
 void event_icmp_marshal(void* marshal);
+void event_ip_gather(void* gather);
 void event_ip_handle(void* handle);
 
 __END_DECLS

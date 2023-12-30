@@ -18,6 +18,7 @@ typedef uintptr_t errval_t;
     X(NET_THROW_SUBMIT_EVENT,          "Successfully Submit the event, the buffer is re-used, free the memory later") \
     X(NET_THROW_TCP_ENQUEUE,           "Successfully Enqueued a TCP message, need to free memory later") \
     X(NET_THROW_IPv4_SEG,              "We need to assemble this IP message, free the memory later !") \
+    X(NET_THROW_IPv4_ASSEMBLE,         "An segmented IP message is successfully assembled, free the memory later !") \
     X(COUNT_OK,                        "Count for OK codes, shouldn't happen") \
 
 #define SYSTEM_ERR_CODES \

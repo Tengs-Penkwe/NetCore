@@ -12,6 +12,9 @@
 #include "tcp.h"
 #include <semaphore.h>  
 #include "khash.h"      // Hash table for IP segmentation
+#include "kavl-lite.h"  // AVL tree for segmentation
+#include <pthread.h>    // pthread_t, spinlock_t
+#include <time.h>       // timer_t
 
 // Segmentation offset should be 8 alignment
 // ETHER_MTU (1500) - IP (max 60) => round down to 32
@@ -58,15 +61,57 @@ KHASH_MAP_INIT_INT64(ip_msg, IP_recv*)
 
 typedef struct ip_gatherer {
     alignas(ATOMIC_ISOLATION)
-        BdQueue       msg_queue;
+        BdQueue       event_que;
+    sem_t             event_come;
     size_t            queue_size;
-    sem_t             msg_come;
     pthread_t         self;
     
     struct ip_state  *ip;
     
     khash_t(ip_msg)  *recv_messages;
 } IP_gatherer __attribute__((aligned(ATOMIC_ISOLATION)));
+
+/***************************************************
+*         IP Message (Contains Segments)
+* All the segments are stored in a AVL tree, sorted, 
+* after all the segments are received, we can create 
+* a single IP_recv to hold all the data and pass it
+****************************************************/
+#define SIZE_DONT_KNOW  0xFFFFFFFF
+
+typedef struct message_segment Mseg;
+typedef struct message_segment {
+    uint32_t         offset; ///< Offset of the segment
+    Buffer           buf;    ///< Stores the data
+    KAVLL_HEAD(Mseg) head;
+} Mseg ;
+
+#define seg_cmp(p, q) (((q)->offset < (p)->offset) - ((p)->offset < (q)->offset))
+
+typedef struct ip_recv {
+    IP_gatherer     *gatherer;
+    ip_addr_t        src_ip;
+    uint8_t          proto;  ///< Protocal over IP
+    uint16_t         id;     ///< Message ID
+
+    union {
+        struct {
+            uint32_t size;  ///< Size of the whole message
+            uint32_t recvd;  ///< How many bytes have we received (no duplicate)
+            Mseg    *seg;         ///< AVL tree of segments
+        } whole;
+        struct {
+            uint16_t offset;  ///< Offset of the segment
+            bool     no_frag;
+            bool     more_frag;
+            Buffer   buf;  ///< Stores the data
+        } seg ;
+    };
+
+    timer_t          timer;
+    int              times_to_live;
+} IP_recv;
+
 
 typedef struct ip_state {
     alignas(ATOMIC_ISOLATION)
@@ -92,6 +137,10 @@ errval_t ip_init(
 
 void ip_destroy(
     IP* ip
+);
+
+errval_t ip_gather(
+    IP_recv* recv
 );
 
 errval_t ip_marshal(    

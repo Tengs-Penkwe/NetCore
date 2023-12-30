@@ -7,13 +7,17 @@
 #include <event/event.h>   //event_ip_handle
 
 static void* gather_thread(void* state);
-static void ip_gather(void* recvd_msg);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 KAVLL_INIT(Mseg, Mseg, head, seg_cmp)
 #pragma GCC diagnostic pop
 
+/// @brief      Initialize the gatherer thread
+/// @param gather       Pointer to the gatherer thread
+/// @param queue_size   Size of the message queue
+/// @param id           ID of the gatherer thread
+/// @return     Error code
 errval_t gather_init(
     IP_gatherer* gather, size_t queue_size, size_t id
 ) {
@@ -21,14 +25,14 @@ errval_t gather_init(
     
     // 1. Initialize the message queue
     BQelem * queue_elements = calloc(queue_size, sizeof(BQelem));
-    err = bdqueue_init(&gather->msg_queue, queue_elements, queue_size);
+    err = bdqueue_init(&gather->event_que, queue_elements, queue_size);
     if (err_is_fail(err)) {
         IP_FATAL("Can't Initialize the queues for TCP messages, TODO: free the memory");
-        return SYS_ERR_INIT_FAIL;
+        return err_push(err, SYS_ERR_INIT_FAIL);
     }
         
     // 2. Initialize the semaphore for senders
-    if (sem_init(&gather->msg_come, 0, 0) != 0) {
+    if (sem_init(&gather->event_come, 0, 0) != 0) {
         IP_FATAL("Can't Initialize the semaphores for IP segmented messages, TODO: free the memory");
         return SYS_ERR_INIT_FAIL;
     }
@@ -48,7 +52,7 @@ errval_t gather_init(
     // 3.2 Create the gather thread
     if (pthread_create(&gather->self, NULL, gather_thread, (void*)local) != 0) {
         TCP_FATAL("Can't create worker thread, TODO: free the memory");
-        return SYS_ERR_INIT_FAIL;
+        return EVENT_ERR_THREAD_CREATE;
     }
     
     return err;
@@ -59,8 +63,8 @@ void gather_destroy(
 ) {
     assert(gather);
 
-    bdqueue_destroy(&gather->msg_queue);
-    sem_destroy(&gather->msg_come);
+    bdqueue_destroy(&gather->event_que);
+    sem_destroy(&gather->event_come);
     pthread_cancel(gather->self);
     
     IP_ERR("TODO: free the memory");
@@ -68,33 +72,36 @@ void gather_destroy(
     free(gather);
 }
 
+/// @brief     The gatherer thread
+/// We need to make sure that the segmented messages are processed in single-thread manner, 
+/// to handle out-of-order, duplicate, and missing segments in multi-thread is too complicated,
+/// and requires significant resource, which is not worth it.
 static void* gather_thread(void* state) {
     LocalState* local = state; assert(local);
     local->my_pid = syscall(SYS_gettid);
     set_local_state(local);
+    IP_NOTE("%s started with pid %d", local->my_name, local->my_pid);
+
+    CORES_SYNC_BARRIER;
 
     IP_gatherer* gather = local->my_state; assert(gather);
-    // TODO: remove my_id from local state
-    // int my_id = local->my_id;  
     
-    CORES_SYNC_BARRIER;
-    IP_NOTE("%s started with pid %d", local->my_name, local->my_pid);
-    
-    IP_recv* msg = NULL;
-    
+    Task* task = NULL;
     while (true)
     {
-        if (debdqueue(&gather->msg_queue, NULL, (void**)&msg) == EVENT_DEQUEUE_EMPTY) {
-            sem_wait(&gather->msg_come);
+        if (debdqueue(&gather->event_que, NULL, (void**)&task) == EVENT_DEQUEUE_EMPTY) {
+            sem_wait(&gather->event_come);
         } else {
-            assert(msg);
-            ip_gather(msg);
-            free(msg);
-            msg = NULL;
+            assert(task);
+            (task->process)(task->arg);
+            free(task);
+            task = NULL;
         }
     }
 }
 
+/// Assumption: single thread
+/// delete the message from the hash table, and free the memory
 void drop_message(void* message) {
     IP_recv* msg = message; assert(msg);
     IP_gatherer* gather = msg->gatherer; assert(gather);
@@ -111,62 +118,67 @@ void drop_message(void* message) {
     if (msg->whole.size != msg->whole.recvd)
         IP_WARN("We drop a message that is not complete, size: %d, received: %d", msg->whole.size, msg->whole.recvd);
 
+    // can't use kval_free, because we need to free the buffer
+    // kval_free(Mseg, head, msg->whole.seg, free);
+
     Mseg_itr_t seg_itr = { 0 };
     Mseg_itr_first(msg->whole.seg, &seg_itr); // Initialize the iterator
 
     uint16_t offset = 0;
-    while (kavll_at(&seg_itr))
-    {
+    do {
         const Mseg *node = kavll_at(&seg_itr);
         assert(offset == node->offset);   
 
-        free_buffer(node->buf);
-
+        free_buffer(node->buf);     
         // Move to the next node
         offset += node->buf.valid_size;
-        Mseg_itr_next(&seg_itr);
-    }
+
+        free((void*)node);
+    } while (Mseg_itr_next(&seg_itr));
 
     free(message);
 }
 
+/// Assumption: single thread
+/// @brief Assemble the segments into a single buffer, free the memory of the segments
 static Buffer segment_assemble(IP_recv* msg) {
     assert(msg && msg->whole.seg);
     
-    uint8_t* all_data = malloc(msg->whole.size); assert(all_data);
+    uint16_t whole_size = msg->whole.size;
+    uint8_t* all_data = malloc(whole_size); assert(all_data);
+
     Mseg_itr_t seg_itr = { 0 };
     Mseg_itr_first(msg->whole.seg, &seg_itr); // Initialize the iterator
 
     uint16_t offset = 0;
-    while (kavll_at(&seg_itr))
-    {
+    do {
         const Mseg *node = kavll_at(&seg_itr);
         assert(offset == node->offset);   
 
         memcpy(all_data + offset, node->buf.data, node->buf.valid_size);
         free_buffer(node->buf);
-
         // Move to the next node
         offset += node->buf.valid_size;
-        Mseg_itr_next(&seg_itr);
-    }
 
-    kavll_free(Mseg, head, msg->whole.seg, free);
+        free((void*)node);
+    } while (Mseg_itr_next(&seg_itr));
+    
+    free(msg);
 
     return (Buffer) {
         .data       = all_data,
-        .from_hdr   = 0,
-        .valid_size = msg->whole.size,
-        .whole_size = msg->whole.size,
+        .from_hdr   = 0,                //TODO: do we need free space above ?
+        .valid_size = whole_size,
+        .whole_size = whole_size,
         .from_pool  = false,
         .mempool    = NULL,
     };
 }
 
-/**
+/** Assumption: single thread
+ *
  * @brief Checks the status of an IP message, drops it if TTL expired, or processes it if complete.
  *        This functions is called in a periodic event
- * 
  * @param message Pointer to the IP_recv structure to be checked.
  */
 void check_recvd_message(void* message) {
@@ -197,9 +209,9 @@ void check_recvd_message(void* message) {
                 .src_ip = msg->src_ip,
                 .buf    = buf,
             };
-            err =  submit_task(MK_NORM_TASK(event_ip_handle, (void*)handle));
+            err = submit_task(MK_NORM_TASK(event_ip_handle, (void*)handle));
             if (err_is_fail(err)) {
-                DEBUG_ERR(err, "We assemble an IP message, but can't submit it as an event, will drop it");
+                DEBUG_ERR(err, "We assembled an IP message, but can't submit it as an event, will drop it");
                 free_buffer(buf);
                 free(handle);
             }
@@ -207,20 +219,21 @@ void check_recvd_message(void* message) {
         else
         {
             IP_VERBOSE("Done Checking a message, ttl: %d ms, whole size: %d, received %d", msg->times_to_live / 1000, msg->whole.size, msg->whole.recvd);
-            Task task_for_myself = MK_TASK(&gather->msg_queue, &gather->msg_come, check_recvd_message, (void*)msg);
+            // Here we submit a delayed task to check the message again to ourself, this is to ensure that the message is processed in single thread
+            Task task_for_myself = MK_TASK(&gather->event_que, &gather->event_come, check_recvd_message, (void*)msg);
             msg->timer = submit_delayed_task(MK_DELAY_TASK(msg->times_to_live, drop_message, task_for_myself));
             submit_delayed_task(MK_DELAY_TASK(msg->times_to_live, drop_message, MK_NORM_TASK(check_recvd_message, (void*)msg)));
         }
     }
 }
 
-static void ip_gather(void* recvd_msg)
+errval_t ip_gather(IP_recv* recv)
 {
-    IP_recv *recv = recvd_msg;  assert(recv);
-    IP_gatherer*gather = recv->gatherer; assert(gather);
+    assert(recv);
+    IP_gatherer* gather = recv->gatherer; assert(gather);
 
     IP_recv* msg = NULL;
-    ip_msg_key_t msg_key = IP_MSG_KEY(((IP_recv*)recvd_msg)->src_ip, ((IP_recv*)recvd_msg)->id);
+    ip_msg_key_t msg_key = IP_MSG_KEY(recv->src_ip, recv->id);
 
     uint16_t recvd_size = msg->seg.buf.valid_size;
     uint16_t offset     = msg->seg.offset;
@@ -245,12 +258,15 @@ static void ip_gather(void* recvd_msg)
         key = kh_put(ip_msg, gather->recv_messages, msg_key, &ret); 
         switch (ret) {
         case -1:    // The operation failed
+            free(msg->whole.seg);
             USER_PANIC("Can't add a new message with seqno: %d to hash table", msg->id);
         case 1:     // the bucket is empty 
         case 2:     // the element in the bucket has been deleted 
         case 0: 
             break;
-        default:    USER_PANIC("Can't be this case: %d", ret);
+        default: 
+            free(msg->whole.seg);
+            USER_PANIC("Can't be this case: %d", ret);
         }
         // Set the value of key
         kh_value(gather->recv_messages, key) = msg;
@@ -269,9 +285,10 @@ static void ip_gather(void* recvd_msg)
 
         if (seg != Mseg_insert(&msg->whole.seg, seg)) { // Already exists !
             IP_ERR("We have duplicate IP message segmentation with offset: %d", seg->offset);
-            free_buffer(seg->buf);
+            // Will be freed in upper module (event caller)
+            // free_buffer(buf);
             free(seg);
-            return;
+            return NET_ERR_IPv4_DUPLITCATE_SEG;
         }
     }
 
@@ -290,12 +307,14 @@ static void ip_gather(void* recvd_msg)
     {
         IP_DEBUG("We have received a complete IP message of size %d, now let's process it", msg->whole.size);
         check_recvd_message((void*) recv);
+        return NET_THROW_IPv4_ASSEMBLE;
     }
     else
     {
         IP_DEBUG("We have received %d bytes of a message of size %d, now let's wait for %d ms", msg->whole.recvd, msg->whole.size, msg->times_to_live / 1000);
-        Task task_for_myself = MK_TASK(&gather->msg_queue, &gather->msg_come, check_recvd_message, (void*)msg);
+        Task task_for_myself = MK_TASK(&gather->event_que, &gather->event_come, check_recvd_message, (void*)msg);
         msg->timer = submit_delayed_task(MK_DELAY_TASK(msg->times_to_live, drop_message, task_for_myself));
+        return NET_THROW_SUBMIT_EVENT;
     }
 }
 
