@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
     char *log_file_name = "/var/log/TCP-IP/output.json";
-    int log_level = COMMON_LOG_LEVEL; // default log level
+    int log_level = LOG_LEVEL_VERBOSE; // default log level
     bool ansi_log = false;
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
@@ -102,24 +102,28 @@ int main(int argc, char *argv[]) {
         }
     }
     
+    // 1. Initialize the log system
     FILE *log_file = NULL;
 
+    char err_msg[128];
     err = log_init(log_file_name, (enum log_level)log_level, ansi_log, &log_file);
     if (err_no(err) == EVENT_LOGFILE_CREATE)
     {
-        printf("\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
+        sprintf(err_msg, "\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
         log_file = stdout;
+        fwrite(err_msg, sizeof(char), strlen(err_msg), log_file);
     }
     else if (err_is_fail(err))
     {
-        printf("\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
+        sprintf(err_msg, "\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
+        write(STDERR_FILENO, err_msg, strlen(err_msg));
         return -1;
     }
     assert(log_file);
     g_states.log_file = log_file;
     // After this point, we can use log
 
-    //TODO: free it ?
+    // 2. Initialize the thread state key (LocalState)
     create_thread_state_key();
 
     LocalState *master = calloc(1, sizeof(LocalState));
@@ -131,6 +135,14 @@ int main(int argc, char *argv[]) {
     };
     set_local_state(master);
 
+    // 3. Initialize the signal set (the timer thread use the signal to wake up)
+    err = signal_init();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't Initialize the signals");
+        return -1;
+    }
+
+    // 4. Initialize the network device
     NetDevice* device = calloc(1, sizeof(NetDevice));
     assert(device);
     err = device_init(device, tap_path, tap_name);
@@ -140,9 +152,11 @@ int main(int argc, char *argv[]) {
     }
     g_states.device = device;
 
+    // pass configuration to the network module through global states
     g_states.max_workers_for_single_tcp_server = workers;
     g_states.max_workers_for_single_udp_server = workers;
 
+    // 5. Initialize the network module
     NetWork* net = calloc(1, sizeof(NetWork));
     assert(net);
     err = network_init(net, device);
@@ -152,6 +166,7 @@ int main(int argc, char *argv[]) {
     }
     g_states.network = net;
 
+    // 6. Initialize the memory pool
     MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
     memset(mempool, 0x00, sizeof(MemPool));
     err = mempool_init(mempool, MEMPOOL_BYTES, MEMPOOL_AMOUNT);
@@ -161,12 +176,7 @@ int main(int argc, char *argv[]) {
     }
     g_states.mempool = mempool;
 
-    err = signal_init();
-    if (err_is_fail(err)) {
-        DEBUG_ERR(err, "Can't Initialize the signals");
-        return -1;
-    }
-
+    // 7. Initialize the thread pool
     err = thread_pool_init(workers);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the thread mempool");
@@ -174,6 +184,7 @@ int main(int argc, char *argv[]) {
     }
     g_states.threadpool = &g_threadpool;
 
+    // 8. Initialize the timer thread (timed event)
     err = timer_thread_init();
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the Timer");
