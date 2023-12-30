@@ -66,7 +66,12 @@ errval_t log_init(const char* log_file, enum log_level log_level, bool ansi, FIL
     printf("Opened log file at %s, level set as %s\n", log_file, level_to_string(log_level));
 
     // Set full buffer mode, size as 65536
-    setvbuf(log, NULL, _IONBF, 0);
+#ifdef NDEBUG
+    setvbuf(log, NULL, _IOFBF, 65536);      // Full buffer, 64KB buffer size
+#else
+    setvbuf(log, NULL, _IONBF, 0);          // No buffer, directly write to the file
+#endif
+
     // TODO: read it from global state ?
     for (int i = 0; i < LOG_MODULE_COUNT; i++) {
         if (log_matrix[i] < log_level) {
@@ -241,15 +246,18 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
 
     len_tail = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle, " %s:%d->%s() \x1B[0m\n", file, line, func);
 
-    fwrite(buffer, sizeof(char), len_leader + len_middle + len_tail, stdout);
-
+    // 1. Directly write to stderr
+    fwrite(buffer, sizeof(char), len_leader + len_middle + len_tail, stderr);
     if (err_is_fail(err)) {
         leader = "Error calltrace:\n";
-        fwrite(leader, sizeof(char), strlen(leader), stdout);
-        err_print_calltrace(err, stdout);
-        fflush(stdout);
+        fwrite(leader, sizeof(char), strlen(leader), stderr);
+        err_print_calltrace(err, stderr);
     }
+    fflush(stderr);
+
+    // 2. Flush all the log files
     fflush(local->log_file);
+    fflush(g_states.log_file);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -284,8 +292,12 @@ void user_panic_fn(const char *file, const char *func, int line, const char *msg
     int len_suffix = snprintf(buffer + len_leader + len_middle, sizeof(buffer) - len_leader - len_middle,
                               " %s:%d->%s(): \x1B[0m\n", file, line, func);
 
+    // Directly write to stderr
     write(STDERR_FILENO, buffer, len_leader + len_middle + len_suffix);
+    
+    // Flush all the log files
     fflush(local->log_file);
+    fflush(g_states.log_file);
 
     abort();
 }
