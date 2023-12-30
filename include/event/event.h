@@ -56,7 +56,6 @@ typedef struct {
 
 __BEGIN_DECLS
 
-// todo: delete this
 static inline void free_ether_unmarshal(Ether_unmarshal* unmarshal) 
 {
     assert(unmarshal);
@@ -64,7 +63,6 @@ static inline void free_ether_unmarshal(Ether_unmarshal* unmarshal)
     free(unmarshal);
 }
 
-// todo: delete this
 static inline void free_icmp_marshal(ICMP_marshal* marshal)
 {
     assert(marshal);
@@ -72,7 +70,6 @@ static inline void free_icmp_marshal(ICMP_marshal* marshal)
     free(marshal);
 }
 
-// todo: delete this
 static inline void free_arp_marshal(ARP_marshal* marshal)
 {
     assert(marshal);
