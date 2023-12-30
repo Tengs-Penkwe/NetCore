@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include "threadpool.h"
 #include <lock_free/queue.h>  // Lock-free structures
+#include <time.h>
 
 #define SIG_TIGGER_SUBMIT   SIGRTMIN
 
@@ -31,8 +32,9 @@ __BEGIN_DECLS
 errval_t timer_thread_init(void);
 void timer_thread_destroy(void);
 
-void submit_periodic_task(DelayedTask dt, delayed_us repeat);
-void submit_delayed_task(DelayedTask dt);
+timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat);
+timer_t submit_delayed_task(DelayedTask dt);
+void cancel_timer_task(timer_t timerid);
 
 extern struct Timer timer;
 
