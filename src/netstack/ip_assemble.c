@@ -126,7 +126,7 @@ void drop_recvd_message(void* message) {
     delete_msg_from_hash_table(assemble, recv);
 
     if (recv->whole_size != recv->recvd_size)
-        IP_WARN("We drop a message that is not complete, size: %d, received: %d", recv->whole_size, recv->recvd_size);
+        IP_INFO("Droppd a incomplete message from %0.8X, id: %d , size: %d, received: %d", recv->src_ip, recv->id, recv->whole_size, recv->recvd_size);
 
     // can't use kval_free, because we need to free the buffer
     // kval_free(Mseg, head, msg->whole.seg, free);
@@ -137,8 +137,10 @@ void drop_recvd_message(void* message) {
     uint16_t offset = 0;
     do {
         const Mseg *node = kavll_at(&seg_itr);
-        assert(offset == node->offset);   
-        offset += node->buf.valid_size;
+        if (offset != node->offset) {
+            IP_INFO("The hole in the dropped message (%d bytes in whole), %d <-> %d", recv->whole_size, offset, node->offset);
+        }
+        offset = node->offset + node->buf.valid_size;
 
         free_buffer(node->buf);     
         free((void*)node);
