@@ -186,6 +186,7 @@ static Buffer segment_assemble_and_delete_from_hash(IP_recv* recv) {
         const Mseg *node = kavll_at(&seg_itr);
         assert(offset == node->offset);   
 
+        // TODO: deal with overlap
         memcpy(all_data + offset, node->buf.data, node->buf.valid_size);
         offset += node->buf.valid_size;
 
@@ -326,6 +327,7 @@ errval_t ip_assemble(IP_segment* segment)
         seg->offset = offset;
         seg->buf    = buf;
 
+        // TODO: ALARM: doesn't deal with overlap !!!
         if (seg != Mseg_insert(&recv->seg, seg)) { // Already exists !
             IP_ERR("We have duplicate IP message segmentation with offset: %d", seg->offset);
             // Will be freed in upper module (event caller)
