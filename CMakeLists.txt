@@ -36,6 +36,15 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
 include_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/inc)
 link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
 
+# Test directory
+add_subdirectory(tests/Unity)
+include_directories(tests/Unity/src)
+
+# Test files
+file(GLOB UNIT_TEST_SRCS
+    "tests/unit/*.c"
+    )
+
 # Source files for the driver
 file(GLOB DRIVER_C_SRCS 
     "src/driver.c"
@@ -69,10 +78,17 @@ add_compile_options(
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
 
+# The network driver executable
 add_executable(TCP-IP ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
 target_link_libraries(TCP-IP lfds711)
 
+# The user executable
 add_executable(USER ${USER_C_SRCS} ${USER_CPP_SRCS})
+
+# The unit tests for the driver
+# add_executable(UNIT_TESTS ${UNIT_TEST_SRCS} ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
+# target_link_libraries(RUN_TESTS Unity)
+
 
 # Specific compile options for a target
 # target_compile_options(YourExecutable PRIVATE -Wshadow -Wconversion)
@@ -90,10 +106,10 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT TCP-IP_RUN
-    COMMAND TCP-IP --log-file="../log/output.json" &
+    COMMAND TCP-IP --log-file="../log/output.json" --log-level=2 &
     DEPENDS TCP-IP
     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
-    COMMENT "Debug TCP-IP executable"
+    COMMENT "Debug TCP-IP executable log level DEBUG"
 )
 
 # Custom command to run the USER executable
