@@ -92,8 +92,25 @@ set(STRICT_OPTIONS
     -Wpadded
 )
 
+set(KLIB_OPTIONS
+    -Wno-conversion  -Wno-sign-conversion -Wno-cast-qual
+)
+set(LFDS_OPTIONS
+    -Wno-unknown-pragmas  -Wno-padded          
+)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuseless-cast -Wconversion-null -Wextra-semi")
+
+############################################
+############# Library ############
+###########################################
+# Create a library target
+add_library(NetCoreLib ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
+
+# Link libraries and set compile options (as needed)
+target_link_libraries(NetCoreLib lfds711)
+target_compile_options(NetCoreLib PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
 
 ############################################
 ############# Executables ############
@@ -101,13 +118,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuseless-cast -Wconversion-null -Wextra
 # The network driver executable
 add_executable(NetCore ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS} ${DRIVER_MAIN})
 target_link_libraries(NetCore lfds711)
-target_compile_options(NetCore PRIVATE
-    ${COMMON_OPTIONS} ${STRICT_OPTIONS}
-# For klib
-    -Wno-conversion  -Wno-sign-conversion -Wno-cast-qual
-# For liblfds
-    -Wno-unknown-pragmas  -Wno-padded          
-    )
+target_compile_options(NetCore PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
 
 # The user executable
 add_executable(User ${USER_C_SRCS} ${USER_CPP_SRCS})
@@ -116,10 +127,9 @@ target_compile_options(User PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS})
 # The unit tests for the driver
 add_executable(Unit_tests ${UNIT_TEST_SRCS} ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
 target_link_libraries(Unit_tests lfds711 unity)
-target_compile_options(Unit_tests PRIVATE
-    -Wno-conversion  -Wno-sign-conversion -Wno-cast-qual -Wno-unknown-pragmas  -Wno-padded -Wno-attributes
-    -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
-    )
+target_compile_options(Unit_tests PRIVATE ${KLIB_OPTIONS} ${LFDS_OPTIONS}
+    -Wno-attributes -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
+)
 
 ############################################
 #############    Commands    ############
