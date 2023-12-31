@@ -41,9 +41,6 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
 # Lock free stuctures
 include_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/inc)
 link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
-# # Unity testing framework
-# include_directories(tests/Unity/src)
-# add_subdirectory(tests/Unity)
 
 ############################################
 ############# Source Files ############
@@ -52,14 +49,14 @@ link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
 file(GLOB DRIVER_C_SRCS 
     "src/netutil/*.c"  "src/netstack/*.c" "src/event/*.c" 
     "src/device/*.c" "src/log/*.c" "src/errors/*.c" "src/lock_free/*.c")
-file(GLOB DRIVER_MAIN "src/driver.c")
+file(GLOB DRIVER_MAIN "app/driver/driver.c")
 file(GLOB DRIVER_CPP_SRCS)
 # Unit test for the driver
 file(GLOB UNIT_TEST_SRCS "tests/unit/*.c")
 
 # Source files for the user
 file(GLOB USER_C_SRCS "src/ipc/*.c")
-file(GLOB USER_CPP_SRCS "src/user.cpp")
+file(GLOB USER_CPP_SRCS "app/user/user.cpp")
 
 ############################################
 ############# Compile Flags ############
