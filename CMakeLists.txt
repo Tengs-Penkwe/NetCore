@@ -8,7 +8,7 @@ project(NetCore)
 # Set the C standard to C23 and C++ standard to C++17
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED True)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Generate compile_commands.json for clangd
