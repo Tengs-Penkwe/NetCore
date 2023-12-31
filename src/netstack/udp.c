@@ -77,10 +77,6 @@ errval_t udp_unmarshal(
         UDP_ERR("UDP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), buf.valid_size);
         return NET_ERR_UDP_WRONG_FIELD;
     }
-    assert(buf.valid_size >= UDP_LEN_MIN && buf.valid_size <= UDP_LEN_MAX);
-    if (buf.valid_size >= ETHER_MTU - 20) {
-        UDP_NOTE("This UDP paceket is very big: %d", buf.valid_size);
-    }
 
     udp_port_t src_port = ntohs(packet->src);
     udp_port_t dst_port = ntohs(packet->dest);
