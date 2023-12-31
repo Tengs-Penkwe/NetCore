@@ -1,5 +1,5 @@
 #include <event/memorypool.h>
-#include <netstack/type.h>      // Buffer
+#include <event/buffer.h>      // Buffer
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     assert(pool && bytes > 0 && amount > 0);

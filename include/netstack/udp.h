@@ -1,7 +1,7 @@
 #ifndef __VNET_UDP_H__
 #define __VNET_UDP_H__
 
-#include <netstack/type.h>
+#include <event/buffer.h>
 #include <netutil/udp.h>
 #include <lock_free/hash_table.h>
 #include <ipc/rpc.h>

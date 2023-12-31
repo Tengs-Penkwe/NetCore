@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <netutil/etharp.h>
-#include <netstack/type.h>
+#include <event/buffer.h>
 
 __BEGIN_DECLS
 

@@ -2,7 +2,7 @@
 #define __VNET_ICMP_H__
 
 #include "ip.h"
-#include <netstack/type.h>
+#include <event/buffer.h>
 
 typedef struct icmp_state {
     struct ip_state* ip;

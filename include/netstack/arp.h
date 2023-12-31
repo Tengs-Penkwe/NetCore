@@ -4,7 +4,7 @@
 #include <netutil/ip.h>
 #include <pthread.h>
 #include <lock_free/hash_table.h>
-#include <netstack/type.h>
+#include <event/buffer.h>
 
 #define  ARP_HASH_BUCKETS     128
 

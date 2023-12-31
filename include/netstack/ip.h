@@ -2,7 +2,7 @@
 #define __VNET_IP_H__
 #include <stdatomic.h>      // seg_count
 
-#include <netstack/type.h>  // Buffer
+#include <event/buffer.h>  // Buffer
 #include <netutil/ip.h>
 #include "ethernet.h"
 #include "arp.h"

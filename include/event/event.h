@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <event/memorypool.h>
-#include <netstack/type.h>
+#include <event/buffer.h>
 
 typedef struct ethernet_state Ethernet;
 typedef struct memory_pool MemPool;
