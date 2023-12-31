@@ -1,4 +1,3 @@
-#include <driver.h>
 #include <netstack/network.h>
 #include <device/device.h>
 
@@ -67,7 +66,7 @@ int main(int argc, char *argv[]) {
     int c;
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
-    char *log_file_name = "/var/log/TCP-IP/output.json";
+    char *log_file_name = "/var/log/NetCore/output.json";
     int log_level = LOG_LEVEL_VERBOSE; // default log level
     bool ansi_log = false;
 
@@ -109,13 +108,13 @@ int main(int argc, char *argv[]) {
     err = log_init(log_file_name, (enum log_level)log_level, ansi_log, &log_file);
     if (err_no(err) == EVENT_LOGFILE_CREATE)
     {
-        sprintf(err_msg, "\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
+        sprintf(err_msg, "\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file_name);
         log_file = stdout;
         fwrite(err_msg, sizeof(char), strlen(err_msg), log_file);
     }
     else if (err_is_fail(err))
     {
-        sprintf(err_msg, "\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
+        sprintf(err_msg, "\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file_name);
         write(STDERR_FILENO, err_msg, strlen(err_msg));
         return -1;
     }

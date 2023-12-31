@@ -312,5 +312,5 @@ void dump_tcp_msg(const TCP_msg *msg) {
     printf("   Flags: %s\n", flags_to_string(msg->flags));
     printf("   Sequence Number: %u\n", msg->seqno);
     printf("   Acknowledgment Number: %u\n", msg->ackno);
-    printf("   Data Size: %zu bytes\n", msg->buf.valid_size);
+    printf("   Data Size: %u bytes\n", msg->buf.valid_size);
 }

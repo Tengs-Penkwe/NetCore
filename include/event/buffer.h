@@ -28,7 +28,7 @@ __BEGIN_DECLS
 static inline void dump_buffer(Buffer buf)
 {
     printf("Buffer: data: %p, \tfrom_hdr: %d, \tvalid_size: %d, \twhole_size: %d, \n\tfrom_pool: %d, \tmempool: %p\n",
-        buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, buf.mempool);
+        buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, (void *)buf.mempool);
 }
 
 static inline void free_buffer(Buffer buf) {
@@ -48,7 +48,7 @@ static inline Buffer buffer_create(uint8_t *data, uint32_t from_hdr, uint32_t va
     if (from_pool) assert(mempool); else assert(mempool == NULL);
     return (Buffer) {
         .data       = data,
-        .from_hdr   = from_hdr,
+        .from_hdr   = (uint16_t)from_hdr,
         .valid_size = valid_size,
         .whole_size = whole_size,
         .from_pool  = from_pool,

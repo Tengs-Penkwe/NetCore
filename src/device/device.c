@@ -1,5 +1,4 @@
 #include <device/device.h>
-#include <driver.h>
 #include <netstack/network.h>
 #include <netutil/dump.h>
 #include <netutil/htons.h>

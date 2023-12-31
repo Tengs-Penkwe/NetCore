@@ -19,7 +19,7 @@ static inline void pbufrow(const void* buffer, size_t length) {
 }
 
 static inline void pbuf(const void* buffer, size_t length, size_t column) {
-    uint8_t* ptr = (uint8_t*) buffer;
+    const uint8_t* ptr = (const uint8_t*) buffer;
     size_t nrows = length / column;
     for (size_t row = 0; row < nrows; row += 1) {
         printf("[%04lu] ", row * column);

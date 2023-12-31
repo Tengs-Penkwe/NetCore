@@ -35,7 +35,7 @@ errval_t thread_pool_init(size_t workers)
     for (size_t i = 0; i < workers; i++)
     {
         char* name = calloc(16, sizeof(char));
-        sprintf(name, "Slave%d", i);
+        sprintf(name, "Slave%d", (int)i);
 
         local[i] = (LocalState) {
             .my_name  = name,
