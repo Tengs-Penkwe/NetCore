@@ -82,7 +82,6 @@ set(COMMON_OPTIONS
     -Wundef -Wuninitialized -Wpointer-arith
     -Wshadow -Wunused -Wno-unused-but-set-variable
     -Wmissing-declarations -Wredundant-decls
-    -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration
     -Wmissing-field-initializers -Wtype-limits -Wno-packed-bitfield-compat
     -Wmissing-noreturn -Wno-format
     -Wmissing-include-dirs
@@ -93,7 +92,7 @@ set(STRICT_OPTIONS
     -Wpadded
 )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuseless-cast -Wconversion-null -Wextra-semi")
 
 ############################################
@@ -111,22 +110,22 @@ target_compile_options(NetCore PRIVATE
     )
 
 # The user executable
-add_executable(USER ${USER_C_SRCS} ${USER_CPP_SRCS})
-target_compile_options(NetCore PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS})
+add_executable(User ${USER_C_SRCS} ${USER_CPP_SRCS})
+target_compile_options(User PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS})
 
 # The unit tests for the driver
-add_executable(UNIT_TESTS ${UNIT_TEST_SRCS} ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
-target_link_libraries(UNIT_TESTS lfds711 unity)
-target_compile_options(UNIT_TESTS PRIVATE
+add_executable(Unit_tests ${UNIT_TEST_SRCS} ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
+target_link_libraries(Unit_tests lfds711 unity)
+target_compile_options(Unit_tests PRIVATE
     -Wno-conversion  -Wno-sign-conversion -Wno-cast-qual -Wno-unknown-pragmas  -Wno-padded -Wno-attributes
-    -Wno-unused-but-set-variable
+    -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
     )
 
 ############################################
 #############    Commands    ############
 ############################################
 add_custom_command(
-    OUTPUT NetCore_DEBUG
+    OUTPUT NETCORE_DEBUG
     COMMAND NetCore --log-file="/dev/stdout" --log-ansi
     DEPENDS NetCore
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
@@ -134,7 +133,7 @@ add_custom_command(
 )
 
 add_custom_command(
-    OUTPUT NetCore_RUN
+    OUTPUT NETCORE_RUN
     COMMAND NetCore --log-file="log/output.json" --log-level=2 &
     DEPENDS NetCore
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
@@ -143,31 +142,31 @@ add_custom_command(
 
 add_custom_command(
     OUTPUT USER_RUN
-    COMMAND USER &
-    DEPENDS USER
+    COMMAND User &
+    DEPENDS User
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Running USER executable"
 )
 
 add_custom_command(
-    OUTPUT TCP_IP_UNIT_TEST
-    COMMAND UNIT_TESTS
-    DEPENDS UNIT_TESTS
+    OUTPUT NETCORE_UNIT_TESTS
+    COMMAND Unit_tests
+    DEPENDS Unit_tests
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Running unit tests"
 )
 
 # Custom target to run both executables
 add_custom_target(run
-    DEPENDS USER_RUN NetCore_RUN 
+    DEPENDS USER_RUN NETCORE_RUN 
 )
 
 # Custom target to run both executables
 add_custom_target(debug
-    DEPENDS USER_RUN NetCore_DEBUG 
+    DEPENDS USER_RUN NETCORE_DEBUG 
 )
 
 # Custom target to run unit tests
-add_custom_target(unit_test
-    DEPENDS TCP_IP_UNIT_TEST
+add_custom_target(tests
+    DEPENDS NETCORE_UNIT_TESTS
 )
