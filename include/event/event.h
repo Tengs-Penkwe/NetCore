@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 #include <netstack/type.h>
 
 typedef struct ethernet_state Ethernet;

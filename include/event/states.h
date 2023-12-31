@@ -5,7 +5,7 @@
 #include <time.h>
 #include <netstack/network.h>
 #include <device/device.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 #include <event/threadpool.h>
 #include <stdlib.h>
 

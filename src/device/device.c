@@ -17,7 +17,7 @@
 
 #include <event/event.h>
 #include <event/threadpool.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 
 errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_name) {
     // errval_t err;

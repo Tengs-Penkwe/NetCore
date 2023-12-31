@@ -1,4 +1,4 @@
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 #include <netstack/type.h>      // Buffer
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {

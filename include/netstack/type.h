@@ -2,7 +2,7 @@
 #define __NETSTACK_TYPE_H__
 
 #include <common.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 
 typedef struct buffer {
     uint8_t       *data;      // Not the real start
