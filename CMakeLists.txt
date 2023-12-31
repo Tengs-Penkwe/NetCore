@@ -41,9 +41,9 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
 # Lock free stuctures
 include_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/inc)
 link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
-# Unity testing framework
-include_directories(tests/Unity/src)
-add_subdirectory(tests/Unity)
+# # Unity testing framework
+# include_directories(tests/Unity/src)
+# add_subdirectory(tests/Unity)
 
 ############################################
 ############# Source Files ############
@@ -124,12 +124,8 @@ target_compile_options(NetCore PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS} ${KLI
 add_executable(User ${USER_C_SRCS} ${USER_CPP_SRCS})
 target_compile_options(User PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS})
 
-# The unit tests for the driver
-add_executable(Unit_tests ${UNIT_TEST_SRCS} ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
-target_link_libraries(Unit_tests lfds711 unity)
-target_compile_options(Unit_tests PRIVATE ${KLIB_OPTIONS} ${LFDS_OPTIONS}
-    -Wno-attributes -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
-)
+# The tests for the driver
+add_subdirectory(tests)    # Contains tests and its CMakeLists.txt
 
 ############################################
 #############    Commands    ############
@@ -158,14 +154,6 @@ add_custom_command(
     COMMENT "Running USER executable"
 )
 
-add_custom_command(
-    OUTPUT NETCORE_UNIT_TESTS
-    COMMAND Unit_tests
-    DEPENDS Unit_tests
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMENT "Running unit tests"
-)
-
 # Custom target to run both executables
 add_custom_target(run
     DEPENDS USER_RUN NETCORE_RUN 
@@ -174,9 +162,4 @@ add_custom_target(run
 # Custom target to run both executables
 add_custom_target(debug
     DEPENDS USER_RUN NETCORE_DEBUG 
-)
-
-# Custom target to run unit tests
-add_custom_target(tests
-    DEPENDS NETCORE_UNIT_TESTS
 )

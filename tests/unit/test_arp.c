@@ -1,14 +1,6 @@
 #include "unity.h"
 #include <netstack/arp.h>
 
-void setUp(void) {
-    // Code to run before each test
-}
-
-void tearDown(void) {
-    // Code to run after each test
-}
-
 void test_ArpInit(void) {
     ARP arp;
     Ethernet ether;
@@ -47,12 +39,4 @@ void test_ArpDestroy(void) {
     // This test might be tricky to implement as it's hard to verify destruction.
     // Depending on your implementation, you might check if resources are freed.
     // For now, just ensuring it doesn't crash might be enough.
-}
-
-int main(void) {
-    UNITY_BEGIN();
-    RUN_TEST(test_ArpInit);
-    RUN_TEST(test_ArpRegisterAndLookup);
-    RUN_TEST(test_ArpDestroy);
-    return UNITY_END();
 }
