@@ -49,7 +49,7 @@ errval_t tcp_marshal(
         .protocol       = IP_PROTO_TCP,
         .len_no_iph     = htonl(buf.valid_size),
     };
-    packet->chksum  = tcp_udp_checksum_in_net_order(buf.data, ip_header);
+    packet->chksum  = tcp_checksum_in_net_order(buf.data, ip_header);
 
     err = ip_marshal(tcp->ip, dst_ip, IP_PROTO_TCP, buf);
     DEBUG_FAIL_RETURN(err, "Can't marshal the TCP packet and sent by IP");
@@ -90,7 +90,7 @@ errval_t tcp_unmarshal(
     };
     uint16_t chksum = ntohs(packet->chksum);
     packet->chksum  = 0;
-    uint16_t tcp_chksum = ntohs(tcp_udp_checksum_in_net_order(buf.data, ip_header));
+    uint16_t tcp_chksum = ntohs(tcp_checksum_in_net_order(buf.data, ip_header));
     if (chksum != tcp_chksum) {
         TCP_ERR("The TCP checksum %p should be %p", chksum, tcp_chksum);
         return NET_ERR_TCP_WRONG_FIELD;

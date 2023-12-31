@@ -62,8 +62,7 @@ static uint32_t part_checksum(const void *buf, uint16_t len) {
     return sum;
 }
 
-// return the result in 
-uint16_t tcp_udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader) {
+uint16_t tcp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader) {
 
     uint16_t whole_len_no_iph = ntohs(pheader.len_no_iph);
     assert(pheader.reserved == 0);
@@ -76,8 +75,12 @@ uint16_t tcp_udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip
     sum  = (sum >> 16) + (sum & 0xFFFF);
     sum += (sum >> 16);
 
-    if (sum == 0xFFFF) sum += 1;
-    
     ///TODO: why we don't need htons here ?
     return /*htons*/(uint16_t)(~sum);
+}
+
+uint16_t udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader) {
+    uint16_t checksum_maybe_zero = tcp_checksum_in_net_order(data_no_iph, pheader);
+    uint16_t checksum_no_zero = (checksum_maybe_zero == 0x0000) ? 0xFFFF : checksum_maybe_zero;
+    return checksum_no_zero;
 }
