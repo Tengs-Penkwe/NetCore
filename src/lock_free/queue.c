@@ -58,10 +58,6 @@ void enqueue(Queue* queue, void* data) {
     lfds711_queue_umm_enqueue(&queue->queue, qe);
 }
 
-/// @brief   Dequeue an element
-/// @param queue 
-/// @param ret_data 
-/// @return  1 means succeded, 0 means failed (empty)
 errval_t dequeue(Queue* queue, void** ret_data) 
 {
     struct lfds711_queue_umm_element *qe = NULL;

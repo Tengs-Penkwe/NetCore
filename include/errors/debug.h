@@ -6,10 +6,8 @@
 
 __BEGIN_DECLS
 
-void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...);
-
-void user_panic_fn(const char *file, const char *func, int line, const char *msg, ...)
-    __attribute__((noreturn));
+void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...) __attribute__((format(printf, 5, 0)));
+void user_panic_fn(const char *file, const char *func, int line, const char *msg, ...) __attribute__((format(printf, 4, 0))) __attribute__((noreturn));
 
 #ifdef NDEBUG
 #define DEBUG_ERR(err, msg, ...) ((void)(0 && err))

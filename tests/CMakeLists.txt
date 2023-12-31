@@ -21,8 +21,10 @@ file(GLOB TEST_SRCS "unit/*.c")
 # Unit tests
 add_executable(Unit_tests ${TEST_SRCS})
 target_link_libraries(Unit_tests NetCoreLib unity)
-target_compile_options(Unit_tests PRIVATE ${KLIB_OPTIONS} ${LFDS_OPTIONS}
+target_compile_options(Unit_tests PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS}
     -Wno-attributes -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
+    -Wno-missing-declarations
+    -Wno-uninitialized
 )
 
 add_custom_command(

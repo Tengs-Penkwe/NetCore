@@ -74,7 +74,7 @@ static void server_destroy(TCP_server* server) {
     for(size_t i = 0; i < server->worker_num; i++) {
         pthread_cancel(server->worker[i]);
     }
-    USER_PANIC("NYI, server_destroy");
+    LOG_FATAL("NYI, server_destroy");
 }
 
 errval_t tcp_server_register(

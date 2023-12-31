@@ -28,16 +28,17 @@ __BEGIN_DECLS
 static inline void dump_buffer(Buffer buf)
 {
     printf("Buffer: data: %p, \tfrom_hdr: %d, \tvalid_size: %d, \twhole_size: %d, \n\tfrom_pool: %d, \tmempool: %p\n",
-        buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, (void *)buf.mempool);
+        (void*)buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, (void *)buf.mempool);
 }
 
 static inline void free_buffer(Buffer buf) {
+    uint8_t* original_data = buf.data - (size_t)buf.from_hdr;
     if (buf.from_pool) {
         assert(buf.mempool);
-        pool_free(buf.mempool, buf.data - buf.from_hdr);
+        pool_free(buf.mempool, original_data);
     } else {
         assert(buf.mempool == NULL);
-        free(buf.data - buf.from_hdr);
+        free(original_data);
     }
 }
 

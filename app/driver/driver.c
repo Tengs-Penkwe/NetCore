@@ -10,7 +10,7 @@
 #include <sys/syscall.h>   //syscall
 #include <errno.h>         //strerror
                            
-static void driver_exit(int signum);
+static void driver_exit(int signum) __attribute__((noreturn));
 
 static errval_t signal_init(void) {
     // Initialize the signal set
@@ -47,7 +47,7 @@ static errval_t signal_init(void) {
 
 #include "ketopt.h"
 
-ko_longopt_t longopts[] = {
+static ko_longopt_t longopts[] = {
     { "help",      ko_no_argument,       'h' },
     { "version",   ko_no_argument,       'v' },
     { "tap-path",  ko_optional_argument,  0  },
@@ -197,7 +197,6 @@ int main(int argc, char *argv[]) {
     }
     
     driver_exit(0);
-    return -1;
 }
 
 static void driver_exit(int signum) {

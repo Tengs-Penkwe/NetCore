@@ -359,9 +359,6 @@ errval_t ip_assemble(IP_segment* segment)
 
 /**
  * @brief Unmarshals a complete IP message and processes it based on its protocol type.
- * 
- * @param msg Pointer to the IP message to be unmarshalled.
- * 
  * @return Returns error code indicating success or failure.
  */
 errval_t ip_handle(IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf) {

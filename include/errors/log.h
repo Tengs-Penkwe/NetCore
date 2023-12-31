@@ -58,8 +58,8 @@ enum log_module {
 
 #define __BASEFILE__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
-void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...);
+void log_ansi(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...) __attribute__((format(printf, 6, 0)));
+void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...) __attribute__((format(printf, 6, 0)));
 
 // Defined in log.c, Control the log level of different module
 extern enum log_level log_matrix[LOG_MODULE_COUNT];

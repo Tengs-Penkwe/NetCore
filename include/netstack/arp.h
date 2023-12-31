@@ -22,9 +22,10 @@ typedef struct arp_state {
     ip_addr_t      ip;
 } ARP;
 
-#define ARP_HASH_KEY(ip)   (Hash_key)(ip)
-static_assert(sizeof(Hash_key) == sizeof(void*));
-static_assert(sizeof(void*)    >= sizeof(mac_addr));
+typedef uint64_t ARP_Hash_key;
+#define ARP_HASH_KEY(ip)   (ARP_Hash_key)(ip)
+static_assert(sizeof(ARP_Hash_key) == sizeof(void*), "The size of Hash_key must be equal to the size of a pointer");
+static_assert(sizeof(void*)        >= sizeof(mac_addr), "We use pointer as key(mac_addr), so the size of pointer must be larger than the size of mac_addr");
 
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip

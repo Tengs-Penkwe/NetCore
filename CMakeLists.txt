@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 
 ############################################
 ######### Project Name & Standard #########
@@ -61,16 +61,29 @@ file(GLOB USER_CPP_SRCS "app/user/user.cpp")
 ############################################
 ############# Compile Flags ############
 ############################################
-# Enable common warnings
-add_compile_options(-Wall -Wextra -Werror -pedantic)
+
+# Common warnings
+add_compile_options(-Wall -Wextra -Werror -pedantic -Wno-unknown-warning-option)
+
+# Clang options: use -Weverything but disable some warnings
+if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set(CLANG_OPTIONS -Weverything
+        -Wno-reserved-identifier -Wno-reserved-macro-identifier -Wno-newline-eof -Wno-extra-semi-stmt -Wno-declaration-after-statement
+        -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-binary-literal -Wno-c++98-compat -Wno-pre-c2x-compat
+        -Wno-covered-switch-default -Wno-switch-enum -Wno-disabled-macro-expansion
+        -Wno-used-but-marked-unused
+        -Wno-cast-align
+    )
+endif()
 
 set(COMMON_OPTIONS
+    ${CLANG_OPTIONS} 
+    -Wconversion -Wpadded -Wcast-qual
     -Wlogical-op
     -Wduplicated-cond -Wduplicated-branches
     -Wnull-dereference -Wvector-operation-performance
     -Walloca -Wunsafe-loop-optimizations -Wdisabled-optimization
     -Wpacked-bitfield-compat -Wstack-protector
-    -Wcast-align -Wcast-qual
     -Wtautological-compare
     -Wsign-compare -Wsign-conversion
     -Wstrict-overflow=5 -Wfloat-equal -Wdouble-promotion
@@ -84,16 +97,11 @@ set(COMMON_OPTIONS
     -Wmissing-include-dirs
 )
 
-set(STRICT_OPTIONS
-    -Wconversion 
-    -Wpadded
-)
-
 set(KLIB_OPTIONS
-    -Wno-conversion  -Wno-sign-conversion -Wno-cast-qual
+    -Wno-conversion -Wno-sign-conversion -Wno-cast-qual -Wno-unsafe-buffer-usage -Wno-array-bounds-pointer-arithmetic -Wno-comma 
 )
 set(LFDS_OPTIONS
-    -Wno-unknown-pragmas  -Wno-padded          
+    -Wno-unknown-pragmas -Wno-padded -Wno-atomic-implicit-seq-cst        
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wimplicit-function-declaration ")
@@ -107,7 +115,7 @@ add_library(NetCoreLib ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
 
 # Link libraries and set compile options (as needed)
 target_link_libraries(NetCoreLib lfds711)
-target_compile_options(NetCoreLib PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
+target_compile_options(NetCoreLib PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
 
 ############################################
 ############# Executables ############
@@ -115,11 +123,11 @@ target_compile_options(NetCoreLib PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS} ${
 # The network driver executable
 add_executable(NetCore ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS} ${DRIVER_MAIN})
 target_link_libraries(NetCore lfds711)
-target_compile_options(NetCore PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
+target_compile_options(NetCore PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
 
 # The user executable
 add_executable(User ${USER_C_SRCS} ${USER_CPP_SRCS})
-target_compile_options(User PRIVATE ${COMMON_OPTIONS} ${STRICT_OPTIONS})
+target_compile_options(User PRIVATE ${COMMON_OPTIONS})
 
 # The tests for the driver
 add_subdirectory(tests)    # Contains tests and its CMakeLists.txt
