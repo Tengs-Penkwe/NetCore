@@ -159,26 +159,9 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
         .buf     = { 0 }, 
     };
 
-    err = pool_alloc(mempool, MEMPOOL_BYTES, &frame->buf);
-    if (err_no(err) == EVENT_MEMPOOL_EMPTY)
-    {
-        EVENT_WARN("We don't have more memory in the mempool, directly malloc!");
-
-        assert(frame->buf.data == NULL);
-        frame->buf = (Buffer) {
-            .data       = malloc(MEMPOOL_BYTES),
-            .from_hdr   = 0,
-            .valid_size = MEMPOOL_BYTES,
-            .whole_size = MEMPOOL_BYTES,
-            .mempool    = NULL,
-            .from_pool  = false,
-        };
-        assert(frame->buf.data);
-    }
-    else if (err_is_fail(err))
-    {
-        USER_PANIC_ERR(err, "Shouldn't happen");
-    }
+    assert(pool_alloc(mempool, MEMPOOL_BYTES, &frame->buf) == SYS_ERR_OK);
+    assert(frame->buf.valid_size == MEMPOOL_BYTES);
+    assert(frame->buf.data);
 
     buffer_add_ptr(&frame->buf, DEVICE_HEADER_RESERVE);
     int nbytes = read(device->tap_fd, frame->buf.data, frame->buf.valid_size);
