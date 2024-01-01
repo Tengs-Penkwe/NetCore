@@ -1,5 +1,5 @@
-#ifndef _ETHARP_H_
-#define _ETHARP_H_
+#ifndef __ETHARP_H__
+#define __ETHARP_H__
 
 #include <common.h>
 
@@ -16,7 +16,8 @@
 
 typedef struct eth_addr {
     uint8_t addr[6];
-} __attribute__((__packed__)) mac_addr ;
+} mac_addr ;
+static_assert(sizeof(mac_addr) == 6, "mac_addr must be 6 bytes long");  
 
 struct eth_hdr {
     struct eth_addr dst;
@@ -52,28 +53,32 @@ struct arp_hdr {
 __BEGIN_DECLS
 
 static inline bool maccmp(mac_addr m1, mac_addr m2) {
-    for (int i = 0; i < 6; i++)
-        if (m1.addr[i] != m2.addr[i]) return false;
-    return true;
+    return memcmp(m1.addr, m2.addr, sizeof(mac_addr)) == 0;
 }
 
 static inline mac_addr tomac(uint64_t mac) {
-    uint8_t* s = (uint8_t *)&mac;
-    return (mac_addr) {.addr = { s[0], s[1], s[2], s[3], s[4], s[5]}};
+    return (mac_addr) {
+        .addr = {
+            (uint8_t)(mac & 0xFF),
+            (uint8_t)((mac >> 8) & 0xFF),
+            (uint8_t)((mac >> 16) & 0xFF),
+            (uint8_t)((mac >> 24) & 0xFF),
+            (uint8_t)((mac >> 32) & 0xFF),
+            (uint8_t)((mac >> 40) & 0xFF)
+        }
+    };
 }
 
 static inline uint64_t frommac(mac_addr from) {
-    uint64_t to = 0;
-    for (int i = 5; i >= 0; i--) {
-        to <<= 8;
-        to |= from.addr[i];
-    }
-    return to;
+    uint64_t to;
+    memcpy(&to, &from, sizeof(mac_addr));
+    return (to & 0x0000FFFFFFFFFFFF);    // Mask to ensure upper bytes are zero
 }
 
 static inline mac_addr mem2mac(void* mac) {
-    uint8_t* s = mac;
-    return (mac_addr) {.addr = { s[0], s[1], s[2], s[3], s[4], s[5]}};
+    mac_addr result;
+    memcpy(result.addr, mac, 6); // Assuming mac_addr.addr is an array of 6 uint8_t
+    return result;
 }
 
 static inline mac_addr voidptr2mac(void* mac_as_ptr) {

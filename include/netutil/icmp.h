@@ -38,10 +38,33 @@ enum icmp_te_type {
 #define ICMP_HLEN 8 
 
 struct icmp_hdr {
-  uint8_t type;
-  uint8_t code;
-  uint16_t chksum;
+uint8_t type;
+uint8_t code;
+uint16_t chksum;
 } __attribute__((__packed__)) ;
+
+struct icmp_echo {
+  uint16_t id;
+  uint16_t seqno;
+} __attribute__((__packed__));
+
+struct icmp_qench {
+  uint32_t unused;
+} __attribute__((__packed__));
+
+struct icmp_redirect {
+  uint32_t gateway;
+} __attribute__((__packed__));
+
+struct icmp_timeex {
+  uint32_t unused;
+} __attribute__((__packed__));
+
+struct icmp_timestamp {
+  uint32_t originate;
+  uint32_t receive;
+  uint32_t transmit;
+} __attribute__((__packed__));
 
 #define ICMPH_TYPE(hdr) ((hdr)->type)
 #define ICMPH_CODE(hdr) ((hdr)->code)

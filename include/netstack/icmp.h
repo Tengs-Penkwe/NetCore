@@ -2,26 +2,24 @@
 #define __VNET_ICMP_H__
 
 #include "ip.h"
-#include <netstack/type.h>
+#include <event/buffer.h>
+#include <netutil/icmp.h>
 
 typedef struct icmp_state {
     struct ip_state* ip;
 
 } ICMP;
 
-struct icmp_echo {
-    uint16_t id;
-    uint16_t seqno;
-} __attribute__((__packed__));
-
 typedef struct icmp_data {
     union {
         struct icmp_echo echo;
+        struct icmp_qench qench;
+        struct icmp_redirect redirect;
+        struct icmp_timeex timeex;
+        struct icmp_timestamp timestamp;
     };
-} __attribute__((__packed__)) ICMP_data;
-
-// STATIC_ASSERT_SIZEOF(union (icmp_data) echo, 4);
-
+} ICMP_data;
+ 
 __BEGIN_DECLS
 
 errval_t icmp_init(

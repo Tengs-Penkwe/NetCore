@@ -56,7 +56,7 @@ errval_t udp_marshal(
         .protocol   = IP_PROTO_UDP,
         .len_no_iph = htons(buf.valid_size),
     };
-    packet->chksum = tcp_udp_checksum_in_net_order(buf.data, ip_header);
+    packet->chksum = udp_checksum_in_net_order(buf.data, ip_header);
 
     err = ip_marshal(udp->ip, dst_ip, IP_PROTO_UDP, buf);
     DEBUG_FAIL_RETURN(err, "Can't marshal the message and sent by IP");
@@ -77,10 +77,6 @@ errval_t udp_unmarshal(
         UDP_ERR("UDP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), buf.valid_size);
         return NET_ERR_UDP_WRONG_FIELD;
     }
-    assert(buf.valid_size >= UDP_LEN_MIN && buf.valid_size <= UDP_LEN_MAX);
-    if (buf.valid_size >= ETHER_MTU - 20) {
-        UDP_NOTE("This UDP paceket is very big: %d", buf.valid_size);
-    }
 
     udp_port_t src_port = ntohs(packet->src);
     udp_port_t dst_port = ntohs(packet->dest);
@@ -97,7 +93,7 @@ errval_t udp_unmarshal(
             .protocol   = IP_PROTO_UDP,
             .len_no_iph = htons(buf.valid_size),
         };
-        uint16_t checksum = ntohs(tcp_udp_checksum_in_net_order(buf.data, ip_header));
+        uint16_t checksum = ntohs(udp_checksum_in_net_order(buf.data, ip_header));
         if (pkt_chksum != checksum) {
             UDP_ERR("This UDP Pacekt Has Wrong Checksum 0x%0.4x, Should be 0x%0.4x", pkt_chksum, checksum);
             return NET_ERR_UDP_WRONG_FIELD;

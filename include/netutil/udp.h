@@ -5,9 +5,6 @@
 
 typedef uint16_t udp_port_t;
 
-#define UDP_LEN_MIN    8
-#define UDP_LEN_MAX   (0xFFFF - 14 - 20 - 8)
-
 /** UDP header **/
 #define UDP_HLEN 8
 struct udp_hdr {

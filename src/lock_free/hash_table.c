@@ -45,11 +45,24 @@ errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum h
     return SYS_ERR_OK;
 }
 
+
 void hash_destroy(HashTable* hash) {
     assert(hash);
-    LOG_ERR("Clean it"
-    "1. free the freelist and all elements inside"
-    );
+    
+    size_t element_count = 0;
+    lfds711_hash_a_query(&hash->hash, LFDS711_HASH_A_QUERY_GET_POTENTIALLY_INACCURATE_COUNT, NULL, &element_count);
+
+    // 1.1 Cleanup the hash table
+    LOG_ERR("TODO: cleanup the hash table");
+    // lfds711_hash_a_cleanup(&hash->hash, hash_element_cleanup_callback);
+    
+    size_t free_count = 0;
+    lfds711_freelist_query(&hash->freelist, LFDS711_FREELIST_QUERY_SINGLETHREADED_GET_COUNT, NULL, &free_count);
+
+    // 2.1 Clenup the freelist
+    lfds711_freelist_cleanup(&hash->freelist, freelist_element_cleanup_callback);
+
+    EVENT_NOTE("Hash table destroyed, %d elements in hash, %d elements in freelist", element_count, free_count);
 }
 
 errval_t hash_insert(HashTable* hash, Hash_key key, void* data, bool overwrite) {

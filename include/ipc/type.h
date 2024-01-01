@@ -53,7 +53,7 @@ typedef struct rpc_message {
 
 #define RPC_PAYLOAD_FULL_SIZE sizeof(((struct ipc_message *)0)->payload)
 
-static_assert(sizeof(rpc_message_t) == 64);
+static_assert(sizeof(rpc_message_t) == 64, "RPC message size is not 64 bytes");
 
 /// type of the receive handler function.
 typedef void (*rpc_recv_handler_fn)(void *ac);
@@ -168,7 +168,7 @@ typedef struct rpc {
 static inline void message_info(rpc_message_t* msg) {
     IPC_ERR("RPC Message:\n "
         "\t Command:0x%x \t Valid: 0x%x \t Length: %d\n",
-        msg->meta.cmd, msg->meta.valid, msg->meta.length);
+        msg->meta.cmd, msg->meta.valid, msg->meta.length)
 }
 
 static inline void rpc_info(rpc_t* rpc) {

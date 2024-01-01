@@ -42,7 +42,7 @@ errval_t assemble_init(
 
     // 3.1 Local state for the assemble thread
     char* name = calloc(32, sizeof(char));
-    sprintf(name, "IP Assembler%d", id);
+    sprintf(name, "IP Assembler%d", (int)id);
 
     LocalState* local = calloc(1, sizeof(LocalState)); 
     *local = (LocalState) {
@@ -61,18 +61,30 @@ errval_t assemble_init(
     return err;
 }
 
-void assemble_destroy(
-    IP_assembler* assemble
+void assembler_destroy(
+    IP_assembler* assemble, size_t id
 ) {
     assert(assemble);
 
-    bdqueue_destroy(&assemble->event_que);
-    sem_destroy(&assemble->event_come);
     pthread_cancel(assemble->self);
+    LOG_NOTE("IP assembler %d destroyed", id);
     
-    IP_ERR("TODO: free the memory");
-    // kavll_free(Mseg, head, assemble->seg, free);
-    free(assemble);
+    // free(assemble);
+    // assmbler is statically allocated in IP struct
+}
+
+static void assembler_thread_cleanup(void* args) {
+    LocalState *local = args; assert(local);
+    IP_assembler* assembler = local->my_state; assert(assembler);
+
+    bdqueue_destroy(&assembler->event_que);
+    LOG_NOTE("Bounded queue destroyed");
+
+    sem_destroy(&assembler->event_come);
+    LOG_NOTE("Semaphore destroyed");
+    
+    kh_destroy(ip_msg, assembler->recv_messages);
+    LOG_NOTE("Hash table destroyed");
 }
 
 /// @brief     The assembler thread
@@ -84,6 +96,8 @@ static void* assemble_thread(void* state) {
     local->my_pid = syscall(SYS_gettid);
     set_local_state(local);
     IP_NOTE("%s started with pid %d", local->my_name, local->my_pid);
+
+    pthread_cleanup_push(assembler_thread_cleanup, local);
 
     CORES_SYNC_BARRIER;
 
@@ -101,6 +115,8 @@ static void* assemble_thread(void* state) {
             task = NULL;
         }
     }
+    
+    pthread_cleanup_pop(1);
 }
 
 static void delete_msg_from_hash_table(IP_assembler* assemble, IP_recv* recv) {
@@ -186,6 +202,7 @@ static Buffer segment_assemble_and_delete_from_hash(IP_recv* recv) {
         const Mseg *node = kavll_at(&seg_itr);
         assert(offset == node->offset);   
 
+        // TODO: deal with overlap
         memcpy(all_data + offset, node->buf.data, node->buf.valid_size);
         offset += node->buf.valid_size;
 
@@ -326,6 +343,7 @@ errval_t ip_assemble(IP_segment* segment)
         seg->offset = offset;
         seg->buf    = buf;
 
+        // TODO: ALARM: doesn't deal with overlap !!!
         if (seg != Mseg_insert(&recv->seg, seg)) { // Already exists !
             IP_ERR("We have duplicate IP message segmentation with offset: %d", seg->offset);
             // Will be freed in upper module (event caller)
@@ -357,9 +375,6 @@ errval_t ip_assemble(IP_segment* segment)
 
 /**
  * @brief Unmarshals a complete IP message and processes it based on its protocol type.
- * 
- * @param msg Pointer to the IP message to be unmarshalled.
- * 
  * @return Returns error code indicating success or failure.
  */
 errval_t ip_handle(IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf) {

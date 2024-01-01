@@ -5,8 +5,9 @@
 #include <time.h>
 #include <netstack/network.h>
 #include <device/device.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 #include <event/threadpool.h>
+#include <event/timer.h>
 #include <stdlib.h>
 
 /* ***********************************************************
@@ -32,6 +33,9 @@ typedef struct global_states {
     size_t          sent;    // Maybe inaccurate because multi-threading
     size_t          fail_sent;
     struct timespec start_time;
+    
+    /// @brief For Timed Event
+    Timer          *timer;
     
     /// @brief For Log
     FILE           *log_file;

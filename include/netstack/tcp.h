@@ -3,7 +3,7 @@
 
 #include <netutil/tcp.h>
 #include <lock_free/hash_table.h>
-#include <netstack/type.h>
+#include <event/buffer.h>
 
 #define TCP_SERVER_BUCKETS    64
 

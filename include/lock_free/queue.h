@@ -1,9 +1,7 @@
 #ifndef __LOCK_FREE_QUEUE_H__
 #define __LOCK_FREE_QUEUE_H__
 
-#include <common.h>      // BEGIN, END DECLS
 #include "defs.h"
-#include "liblfds711.h"  // Lock-free structures
 
 #define INIT_QUEUE_SIZE             128
 #define ADDITIONAL_LIST_ELEMENTS    4
@@ -13,7 +11,6 @@ typedef struct {
         struct lfds711_freelist_state    freelist;
     alignas(ATOMIC_ISOLATION)
         struct lfds711_freelist_state    usedlist;
-    struct lfds711_freelist_element      free_ele[INIT_QUEUE_SIZE];
 
     // struct lfds711_prng_st_state    *psts;
     // struct lfds711_freelist_element

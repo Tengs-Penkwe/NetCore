@@ -3,6 +3,9 @@
 #include <event/states.h>
 #include <time.h>
 #include <errno.h>      //strerror
+                        
+static int error_ansi(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) __attribute__((format(printf, 4, 0)));
+static int error_json(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) __attribute__((format(printf, 4, 0)));
 
 enum log_level log_matrix[LOG_MODULE_COUNT] = {
 #define X(module, level) level,
@@ -25,7 +28,7 @@ static const char* level_to_string(enum log_level level) {
     }
 }
 
-const char *level_colors[] = {
+static const char *level_colors[] = {
     [LOG_LEVEL_VERBOSE] = "", 
     [LOG_LEVEL_INFO]    = "\x1B[1m", 
     [LOG_LEVEL_DEBUG]   = "\x1B[0;36m", 
@@ -49,7 +52,7 @@ static const char* module_to_string(enum log_module module) {
         case MODULE_ICMP:      return "ICMP";
         case MODULE_UDP:       return "UDP ";
         case MODULE_TCP:       return "TCP ";
-        default:        return "UNKNOWN_MODULE";
+        default:               return "UNKNOWN_MODULE";
     }
 }
 

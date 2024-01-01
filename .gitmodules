@@ -7,3 +7,6 @@
 [submodule "lib/liblfds"]
 	path = lib/liblfds
 	url = git@github.com:Tengs-Penkwe/liblfds.git
+[submodule "tests/Unity"]
+	path = tests/Unity
+	url = https://github.com/ThrowTheSwitch/Unity

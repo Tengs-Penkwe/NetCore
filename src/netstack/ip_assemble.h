@@ -13,8 +13,8 @@ errval_t assemble_init(
     IP_assembler* assemble, size_t queue_size, size_t id
 );
 
-void assemble_destroy(
-    IP_assembler* assemble
+void assembler_destroy(
+    IP_assembler* assemble, size_t id
 );
 
 errval_t handle_ip_segment_assembly(

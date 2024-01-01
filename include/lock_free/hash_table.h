@@ -25,7 +25,7 @@ typedef struct lfds711_btree_au_state HashBucket;
 
 typedef uint64_t Hash_key;
 
-static_assert(sizeof(Hash_key) == sizeof(void*));
+static_assert(sizeof(Hash_key) == sizeof(void*), "The size of Hash_key must be equal to the size of a pointer");
 
 __BEGIN_DECLS
 
@@ -47,7 +47,7 @@ static inline void key_hash_func(void const *key, lfds711_pal_uint_t *hash)
 {
     *hash = 0;
     Hash_key key_64 = (Hash_key)key;
-    LFDS711_HASH_A_HASH_FUNCTION(&key_64, sizeof(Hash_key), *hash);
+    LFDS711_HASH_A_HASH_FUNCTION(&key_64, sizeof(Hash_key), *hash)
 
     return;
 }

@@ -2,7 +2,7 @@
 #define __NETSTACK_TYPE_H__
 
 #include <common.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 
 typedef struct buffer {
     uint8_t       *data;      // Not the real start
@@ -28,16 +28,17 @@ __BEGIN_DECLS
 static inline void dump_buffer(Buffer buf)
 {
     printf("Buffer: data: %p, \tfrom_hdr: %d, \tvalid_size: %d, \twhole_size: %d, \n\tfrom_pool: %d, \tmempool: %p\n",
-        buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, buf.mempool);
+        (void*)buf.data, buf.from_hdr, buf.valid_size, buf.whole_size, buf.from_pool, (void *)buf.mempool);
 }
 
 static inline void free_buffer(Buffer buf) {
+    uint8_t* original_data = buf.data - (size_t)buf.from_hdr;
     if (buf.from_pool) {
         assert(buf.mempool);
-        pool_free(buf.mempool, buf.data - buf.from_hdr);
+        pool_free(buf.mempool, original_data);
     } else {
         assert(buf.mempool == NULL);
-        free(buf.data - buf.from_hdr);
+        free(original_data);
     }
 }
 
@@ -48,7 +49,7 @@ static inline Buffer buffer_create(uint8_t *data, uint32_t from_hdr, uint32_t va
     if (from_pool) assert(mempool); else assert(mempool == NULL);
     return (Buffer) {
         .data       = data,
-        .from_hdr   = from_hdr,
+        .from_hdr   = (uint16_t)from_hdr,
         .valid_size = valid_size,
         .whole_size = whole_size,
         .from_pool  = from_pool,

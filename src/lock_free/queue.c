@@ -21,16 +21,37 @@ errval_t queue_init(Queue* queue) {
 
     // 2.4: push all the list elements into free list first
     for (int i = 0; i < INIT_QUEUE_SIZE; i++) {
-        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(queue->free_ele[i], &queue->elements[i]);
-        lfds711_freelist_push(&queue->freelist, &queue->free_ele[i], NULL);
+        struct lfds711_freelist_element* fe = calloc(1, sizeof(struct lfds711_freelist_element)); assert(fe);
+        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(*fe, &queue->elements[i]);
+        lfds711_freelist_push(&queue->freelist, fe, NULL);
     }
 
     return SYS_ERR_OK;
 }
 
 void queue_destroy(Queue* queue) {
-    lfds711_queue_umm_cleanup(&queue->queue, NULL); 
-    LOG_ERR("TODO: Free the free list");
+        
+    size_t element_count = 0;
+    lfds711_queue_umm_query(&queue->queue, LFDS711_QUEUE_UMM_QUERY_SINGLETHREADED_GET_COUNT, NULL, &element_count); 
+
+    // 1.1 Cleanup the queue
+    lfds711_queue_umm_cleanup(&queue->queue, umm_queue_element_cleanup_callback);
+    
+    size_t free_count = 0;
+    lfds711_freelist_query(&queue->freelist, LFDS711_FREELIST_QUERY_SINGLETHREADED_GET_COUNT, NULL, &free_count);
+    
+    // 2.1 Clenup the freelist
+    LOG_ERR("TODO: cleanup the freelist");
+    lfds711_freelist_cleanup(&queue->freelist, NULL);
+
+    size_t used_count = 0;
+    lfds711_freelist_query(&queue->usedlist, LFDS711_FREELIST_QUERY_SINGLETHREADED_GET_COUNT, NULL, &used_count);
+
+    // 2.2 Clenup the usedlist
+    LOG_ERR("TODO: why this call doesn't fail but the above call fails?");
+    lfds711_freelist_cleanup(&queue->usedlist, freelist_element_cleanup_callback);
+
+    EVENT_NOTE("Queue destroyed, %d elements in queue, %d elements in freelist, %d elements in usedlist", element_count, free_count, used_count);
 }
 
 void enqueue(Queue* queue, void* data) {
@@ -58,10 +79,6 @@ void enqueue(Queue* queue, void* data) {
     lfds711_queue_umm_enqueue(&queue->queue, qe);
 }
 
-/// @brief   Dequeue an element
-/// @param queue 
-/// @param ret_data 
-/// @return  1 means succeded, 0 means failed (empty)
 errval_t dequeue(Queue* queue, void** ret_data) 
 {
     struct lfds711_queue_umm_element *qe = NULL;

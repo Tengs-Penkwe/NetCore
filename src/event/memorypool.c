@@ -1,5 +1,5 @@
-#include <lock_free/memorypool.h>
-#include <netstack/type.h>      // Buffer
+#include <event/memorypool.h>
+#include <event/buffer.h>      // Buffer
 
 errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
     assert(pool && bytes > 0 && amount > 0);
@@ -64,14 +64,22 @@ errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf) {
     errval_t err;
     assert(pool && ret_buf);
     void *ret_addr = NULL;
+    bool from_pool = false;
 
     err = debdqueue(&pool->queue, NULL, &ret_addr);
-    if (err_no(err) == EVENT_DEQUEUE_EMPTY) {
-        EVENT_ERR("No more memory in the pool !");
-        USER_PANIC("Directly malloc and return Buffer");
-        return EVENT_MEMPOOL_EMPTY;
-    } else if (err_is_fail(err)) {
-        USER_PANIC("Unknown Situation");
+    switch (err_no(err))
+    {
+    case EVENT_DEQUEUE_EMPTY: 
+        assert(ret_addr == NULL);
+        ret_addr = malloc(MEMPOOL_BYTES);   assert(ret_addr);
+        from_pool = true;
+        EVENT_ERR("No more memory in the pool ! Directly malloc and return Buffer");
+        break;
+    case SYS_ERR_OK:
+        from_pool = true;
+        break;
+    default:
+        USER_PANIC_ERR(err, "Unknown error");
     }
     assert(ret_addr);
     
@@ -82,8 +90,8 @@ errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf) {
         0,
         MEMPOOL_BYTES,
         MEMPOOL_BYTES,
-        true,
-        pool
+        from_pool,
+        (from_pool) ? pool : NULL
     );
 
     return SYS_ERR_OK;

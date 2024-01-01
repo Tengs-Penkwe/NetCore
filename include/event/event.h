@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <lock_free/memorypool.h>
-#include <netstack/type.h>
+#include <event/memorypool.h>
+#include <event/buffer.h>
 
 typedef struct ethernet_state Ethernet;
 typedef struct memory_pool MemPool;

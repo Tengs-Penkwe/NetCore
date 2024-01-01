@@ -9,8 +9,6 @@
 uint16_t inet_checksum(void *dataptr, uint16_t len);
 
 
-#include <netutil/udp.h>
-
 struct pseudo_ip_header_in_net_order {
     uint32_t src_addr;
     uint32_t dst_addr;
@@ -19,12 +17,18 @@ struct pseudo_ip_header_in_net_order {
     uint16_t len_no_iph;
 } __attribute__((packed));
 
-static_assert(sizeof(struct pseudo_ip_header_in_net_order) == 12);
+static_assert(sizeof(struct pseudo_ip_header_in_net_order) == 12, "pseudo_ip_header_in_net_order has wrong size");
 
 /**
- * Calculate the TCP/UDP checksum according to RFC1071
+ * Calculate the UDP checksum according to RFC1071
  */
-uint16_t tcp_udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader);
+uint16_t udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader);
+
+/**
+ * Calculate the TCP checksum according to RFC1071
+ */
+uint16_t tcp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader);
+
 
 #endif
 

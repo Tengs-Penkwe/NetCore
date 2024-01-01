@@ -1,17 +1,16 @@
-#include <driver.h>
 #include <netstack/network.h>
 #include <device/device.h>
 
 #include <event/threadpool.h>
 #include <event/event.h>
 #include <event/timer.h>
-#include <lock_free/memorypool.h>
+#include <event/memorypool.h>
 #include <event/states.h>
 
 #include <sys/syscall.h>   //syscall
 #include <errno.h>         //strerror
                            
-static void driver_exit(int signum);
+static void driver_exit(int signum) __attribute__((noreturn));
 
 static errval_t signal_init(void) {
     // Initialize the signal set
@@ -48,7 +47,7 @@ static errval_t signal_init(void) {
 
 #include "ketopt.h"
 
-ko_longopt_t longopts[] = {
+static ko_longopt_t longopts[] = {
     { "help",      ko_no_argument,       'h' },
     { "version",   ko_no_argument,       'v' },
     { "tap-path",  ko_optional_argument,  0  },
@@ -67,7 +66,7 @@ int main(int argc, char *argv[]) {
     int c;
     char *tap_path = "/dev/net/tun", *tap_name = "tap0";
     int workers = 8; // default number of workers
-    char *log_file_name = "/var/log/TCP-IP/output.json";
+    char *log_file_name = "/var/log/NetCore/output.json";
     int log_level = LOG_LEVEL_VERBOSE; // default log level
     bool ansi_log = false;
 
@@ -109,13 +108,13 @@ int main(int argc, char *argv[]) {
     err = log_init(log_file_name, (enum log_level)log_level, ansi_log, &log_file);
     if (err_no(err) == EVENT_LOGFILE_CREATE)
     {
-        sprintf(err_msg, "\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file);
+        sprintf(err_msg, "\x1B[1;91mCan't Initialize open the log file: %s, use the standard output instead\x1B[0m\n", log_file_name);
         log_file = stdout;
         fwrite(err_msg, sizeof(char), strlen(err_msg), log_file);
     }
     else if (err_is_fail(err))
     {
-        sprintf(err_msg, "\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file);
+        sprintf(err_msg, "\x1B[1;91mCan't Initialize the log system: %s\x1B[0m\n", log_file_name);
         write(STDERR_FILENO, err_msg, strlen(err_msg));
         return -1;
     }
@@ -185,11 +184,12 @@ int main(int argc, char *argv[]) {
     g_states.threadpool = &g_threadpool;
 
     // 8. Initialize the timer thread (timed event)
-    err = timer_thread_init();
+    err = timer_thread_init(&g_timer);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the Timer");
         return -1;
     }
+    g_states.timer = &g_timer;
 
     err = device_loop(device, net, mempool);
     if (err_is_fail(err)) {
@@ -198,13 +198,10 @@ int main(int argc, char *argv[]) {
     }
     
     driver_exit(0);
-    return -1;
 }
 
 static void driver_exit(int signum) {
     (void) signum;
-    LOG_ERR("Ending TODO: free resources!");
-
 
     network_destroy(g_states.network);
 
@@ -212,9 +209,10 @@ static void driver_exit(int signum) {
 
     mempool_destroy(g_states.mempool);
 
-    thread_pool_destroy();
+    timer_thread_destroy(g_states.timer);
+    // Prior to the thread pool destrcution, because there may be some timed event
 
-    timer_thread_destroy();
+    thread_pool_destroy();
 
     LOG_NOTE("Bye Bye !");
     

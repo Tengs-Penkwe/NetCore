@@ -47,7 +47,7 @@ static errval_t server_init(TCP_server* server) {
     // Now we have a new server, we need to start a new thread(s) for it
     for (size_t i = 0; i < server->worker_num; i++) {
         char* name = calloc(16, sizeof(char));
-        sprintf(name, "TCP Server %d", i);
+        sprintf(name, "TCP Server %d", (int)i);
 
         local[i] = (LocalState) {
             .my_name  = name,
@@ -74,7 +74,7 @@ static void server_destroy(TCP_server* server) {
     for(size_t i = 0; i < server->worker_num; i++) {
         pthread_cancel(server->worker[i]);
     }
-    USER_PANIC("NYI, server_destroy");
+    LOG_FATAL("NYI, server_destroy");
 }
 
 errval_t tcp_server_register(
