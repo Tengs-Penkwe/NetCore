@@ -29,27 +29,50 @@ typedef uint32_t ip_addr_t;
 #define IPH_HL(hdr) ((hdr)->ihl * 4)
 
 struct ip_hdr {
-  /* header length */
-  uint8_t ihl:4 ;
-  /* version  */
-  uint8_t version:4 ;
-  /* type of service */
-  uint8_t tos;
-  /* total length */
-  uint16_t len;
-  /* identification */
-  uint16_t id;
-  /* fragment offset field */
-  uint16_t offset;
-  /* time to live */
-  uint8_t ttl;
-  /* protocol*/
-  uint8_t proto;
-  /* checksum */
-  uint16_t chksum;
-  /* source and destination IP addresses */
-  ip_addr_t src;
-  ip_addr_t dest; 
+    uint8_t   ihl     : 4; /* header length */
+    uint8_t   version : 4;
+    uint8_t   tos;    /* type of service */
+    uint16_t  len;    /* total length */
+    uint16_t  id;     /* identification */
+    uint16_t  offset; /* fragment offset field */
+    uint8_t   ttl;    /* time to live */
+    uint8_t   proto;
+    uint16_t  chksum;
+    ip_addr_t src;
+    ip_addr_t dest;
 } __attribute__((__packed__));
+
+#include <inttypes.h>
+
+#define IPv4_ADDRESTRLEN   16
+#define IPv6_ADDRESTRLEN   46
+typedef unsigned __int128 ipv6_addr_t ;
+static_assert(sizeof(ipv6_addr_t) == 16, "ipv6_addr_t must be 16 bytes");
+
+// Structure of an IPv6 header
+struct ipv6_hdr {
+    uint32_t  version : 4;  // Version
+    uint32_t  tc : 8;       // Traffic Class
+    uint32_t  fl : 20;      // Flow Label
+    uint16_t  len;          // Payload Length
+    uint8_t   next_header;  // Next Header
+    uint8_t   hop_limit;    // Hop Limit
+    ipv6_addr_t src;        // Source IPv6 address
+    ipv6_addr_t dest;       // Destination IPv6 address
+} __attribute__((__packed__));
+
+typedef struct ipv6_hopbyhop_hdr {
+    uint8_t   next_header;  // Next Header
+    uint8_t   length;       // Length
+    uint8_t   options[];    // Options
+} __attribute__((__packed__)) ipv6_hopbyhop_hdr_t;
+
+typedef struct ipv6_routing_hdr {
+    uint8_t   next_header;  // Next Header
+    uint8_t   length;       // Length
+    uint8_t   routing_type; // Routing Type
+    uint8_t   segments_left;// Segments Left
+    uint8_t   data[];       // Routing Data
+} __attribute__((__packed__)) ipv6_routing_hdr_t;
 
 #endif // _IP_H_

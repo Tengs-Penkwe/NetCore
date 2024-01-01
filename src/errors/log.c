@@ -49,6 +49,8 @@ static const char* module_to_string(enum log_module module) {
         case MODULE_ETHER:     return "ETHR";
         case MODULE_ARP:       return "ARP ";
         case MODULE_IP:        return "IP  ";
+        case MODULE_IPv6:      return "IPv6";
+        case MODULE_NDP :      return "NDP ";
         case MODULE_ICMP:      return "ICMP";
         case MODULE_UDP:       return "UDP ";
         case MODULE_TCP:       return "TCP ";

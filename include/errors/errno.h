@@ -1,5 +1,5 @@
-#ifndef __ERRNO_H__
-#define __ERRNO_H__
+#ifndef __NETCORE_ERRNO_H__
+#define __NETCORE_ERRNO_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -57,6 +57,8 @@ typedef uintptr_t errval_t;
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
+    X(NET_ERR_IPv6_WRONG_FIELD,        "Wrong Field in IPv6 packet") \
+    X(NET_ERR_IPv6_NEXT_HEADER,        "Not Supported next header in IPv6 packet") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \

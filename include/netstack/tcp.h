@@ -34,6 +34,10 @@ errval_t tcp_init(
     TCP* tcp, struct ip_state* ip
 );
 
+void tcp_destroy(
+    TCP* tcp
+);
+
 errval_t tcp_marshal(
     TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,

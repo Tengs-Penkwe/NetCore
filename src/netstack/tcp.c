@@ -17,6 +17,18 @@ errval_t tcp_init(TCP* tcp, IP* ip) {
     return SYS_ERR_OK;
 }
 
+void tcp_destroy(
+    TCP* tcp
+) {
+    assert(tcp);
+
+    // 1. Destroy the hash table for servers
+    // err = hash_destroy(&tcp->servers);
+    // DEBUG_FAIL_RETURN(err, "Can't destroy the hash table of tcp servers");
+
+    TCP_ERR("Not implemented yet");
+}
+
 errval_t tcp_marshal(
     TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,

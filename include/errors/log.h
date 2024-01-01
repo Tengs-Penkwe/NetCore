@@ -45,6 +45,8 @@ void log_close(FILE* log);
     X(MODULE_ETHER,             COMMON_LOG_LEVEL) \
     X(MODULE_ARP,               COMMON_LOG_LEVEL) \
     X(MODULE_IP,                COMMON_LOG_LEVEL) \
+    X(MODULE_IPv6,              COMMON_LOG_LEVEL) \
+    X(MODULE_NDP,               COMMON_LOG_LEVEL) \
     X(MODULE_ICMP,              COMMON_LOG_LEVEL) \
     X(MODULE_UDP,               COMMON_LOG_LEVEL) \
     X(MODULE_TCP,               COMMON_LOG_LEVEL)
@@ -146,6 +148,24 @@ extern bool ansi_output;
 #define IP_ERR(fmt, ...)              LOG(MODULE_IP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
 #define IP_FATAL(fmt, ...)            LOG(MODULE_IP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
 
+// Define logging macros for IPv6 module
+#define IP6_VERBOSE(fmt, ...)         LOG(MODULE_IPv6, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define IP6_INFO(fmt, ...)            LOG(MODULE_IPv6, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define IP6_DEBUG(fmt, ...)           LOG(MODULE_IPv6, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define IP6_NOTE(fmt, ...)            LOG(MODULE_IPv6, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define IP6_WARN(fmt, ...)            LOG(MODULE_IPv6, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define IP6_ERR(fmt, ...)             LOG(MODULE_IPv6, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define IP6_FATAL(fmt, ...)           LOG(MODULE_IPv6, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
+
+// Define logging macros for NDP module
+#define NDP_VERBOSE(fmt, ...)         LOG(MODULE_NDP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
+#define NDP_INFO(fmt, ...)            LOG(MODULE_NDP, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define NDP_DEBUG(fmt, ...)           LOG(MODULE_NDP, LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define NDP_NOTE(fmt, ...)            LOG(MODULE_NDP, LOG_LEVEL_NOTE, fmt, ##__VA_ARGS__)
+#define NDP_WARN(fmt, ...)            LOG(MODULE_NDP, LOG_LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define NDP_ERR(fmt, ...)             LOG(MODULE_NDP, LOG_LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define NDP_FATAL(fmt, ...)           LOG(MODULE_NDP, LOG_LEVEL_FATAL, fmt, ##__VA_ARGS__)
+          
 // Define logging macros for ICMP module
 #define ICMP_VERBOSE(fmt, ...)        LOG(MODULE_ICMP, LOG_LEVEL_VERBOSE, fmt, ##__VA_ARGS__)
 #define ICMP_INFO(fmt, ...)           LOG(MODULE_ICMP, LOG_LEVEL_INFO, fmt, ##__VA_ARGS__)
