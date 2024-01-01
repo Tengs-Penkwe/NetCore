@@ -6,9 +6,10 @@
 #include <netutil/icmp.h>
 #include <netutil/udp.h>
 #include <netutil/tcp.h>
-#include <netutil/ipv6.h>
+#include <netutil/ip.h>
 
 #include <stdio.h>  //printf
+                    
 __BEGIN_DECLS
 
 static inline void pbufrow(const void* buffer, size_t length) {
@@ -31,24 +32,25 @@ static inline void pbuf(const void* buffer, size_t length, size_t column) {
         pbufrow(ptr, length - nrows * column);
     }
 }
-    
-// Helper function to print MAC address
-void print_mac_address(const mac_addr *addr);
 
-// Helper function to print IP address in human-readable format
-void print_ip_address(ip_addr_t ip);
+int format_mac_address(const mac_addr *addr, char *buffer, size_t max_len);
+int format_ipv6_addr(ipv6_addr_t addr, char *buffer, size_t max_len);
+int format_ip_address(ip_addr_t ip, char *buffer, size_t max_len);
+int format_tcp_flags(uint8_t flags, char *buffer, size_t max_len);
+int format_tcp_header(const struct tcp_hdr *tcp_header, char *buffer, size_t max_len);
+int format_udp_header(const struct udp_hdr *udp_header, char *buffer, size_t max_len);
+int format_ethernet_header(const struct eth_hdr *eth_header, char *buffer, size_t max_len);
+int format_icmp_header(const struct icmp_hdr *icmp_header, char *buffer, size_t max_len);
+int format_arp_header(const struct arp_hdr *arp_header, char *buffer, size_t max_len);
+int format_ipv4_header(const struct ip_hdr *ip_header, char *buffer, size_t max_len);
+int format_ipv6_header(const struct ipv6_hdr *ipv6_header, char *buffer, size_t max_len);
+int format_packet_info(const void *packet_start, char *buffer, size_t max_len);
 
-void dump_ethernet_header(const struct eth_hdr *eth_header);
-void dump_arp_header(const struct arp_hdr *arp_header);
-void print_tcp_flags(uint8_t flags);
-void dump_tcp_header(const struct tcp_hdr *tcp_header);
-void dump_ipv4_header(const struct ip_hdr *ip_header);
-void dump_ipv6_header(const struct ipv6_hdr *ipv6_header);
-void dump_icmp_header(const struct icmp_hdr *icmp_header);
-void dump_udp_header(const struct udp_hdr *udp_header);
-
-// Function to dump packet information
-void dump_packet_info(const void *packet_start);
+static inline void dump_packet_info(const void* packet_start) {
+    char buffer[1024];
+    format_packet_info(packet_start, buffer, sizeof(buffer));
+    printf("%s\n", buffer);
+}
 
 __END_DECLS
 
