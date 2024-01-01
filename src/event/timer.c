@@ -12,9 +12,10 @@
 #include <sched.h>       //sched_yield
 #include <sys/syscall.h> //gettid
 
-alignas(ATOMIC_ISOLATION) struct Timer timer;
+alignas(ATOMIC_ISOLATION) Timer g_timer;
 
 static void* timer_thread (void*) __attribute__((noreturn));
+static void timer_thread_cleanup(void* args);
 
 static void time_to_submit_task(int sig, siginfo_t *info, void *ucontext) {
     (void) ucontext;
@@ -27,7 +28,10 @@ static void time_to_submit_task(int sig, siginfo_t *info, void *ucontext) {
         DEBUG_ERR(err, "Failed to submit a Task after delay, will execute the fail function");
         // TODO: Should I test if fail is NULL ?
         (dt->fail)((void*) dt);
-    }
+        g_timer.count_failed += 1;
+    } 
+
+    g_timer.count_submitted += 1;
     free(dt);
 }
 
@@ -76,11 +80,23 @@ inline void cancel_timer_task(timer_t timerid) {
     }
 }
 
-static void* timer_thread (void* localstates) {
-    assert(localstates);
-    LocalState* local = localstates;
+static void timer_thread_cleanup(void* args) {
+    Timer* timer_state = args; assert(timer_state);
+
+    // It is automatically free'd by pthread library
+    // free_states(get_local_state());
+
+    TIMER_NOTE("Timer thread cleanup, %d events received, %d events submitted, %d events failed",
+        timer_state->count_recvd, timer_state->count_submitted, timer_state->count_failed);
+}
+
+static void* timer_thread (void* states) {
+    LocalState* local = states; assert(local);
     local->my_pid = syscall(SYS_gettid);
     set_local_state(local);
+    Timer* timer = (Timer*)local->my_state; assert(timer);
+
+    pthread_cleanup_push(timer_thread_cleanup, local->my_state);
 
     TIMER_NOTE("Timer thread started!");
     CORES_SYNC_BARRIER;
@@ -103,20 +119,23 @@ static void* timer_thread (void* localstates) {
 
     while (true) {
         pause();
-        timer.count += 1;
+        // We should use timer pointer, but for performance, we use global variable
+        g_timer.count_recvd += 1;
     }
-    assert(0);
+    pthread_cleanup_pop(1);
 }
 
-errval_t timer_thread_init(void) {
+errval_t timer_thread_init(Timer* timer) {
     errval_t err;
      
     // 1. Unlimited Queue for submission
-    err = queue_init(&timer.queue);
+    err = queue_init(&timer->queue);
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock-free queue for timer");
     
     // 2. Count how many submission has been made
-    timer.count = 0;
+    timer->count_recvd = 0;
+    timer->count_submitted = 0;
+    timer->count_failed = 0;
 
     // 3. pass local state (unnecessary)
     LocalState *local = calloc(1, sizeof(LocalState));
@@ -124,11 +143,11 @@ errval_t timer_thread_init(void) {
         .my_name  = "Timer",
         .my_pid   = (pid_t)-1,
         .log_file = (g_states.log_file == 0) ? stdout : g_states.log_file,
-        .my_state = NULL,
+        .my_state = timer,     // For cleanup
     };
 
     // 4. create the thread
-    if (pthread_create(&timer.thread, NULL, timer_thread, (void*)local) != 0) {
+    if (pthread_create(&timer->thread, NULL, timer_thread, (void*)local) != 0) {
         TIMER_FATAL("Can't create the timer thread");
         free(local);
         return EVENT_ERR_THREAD_CREATE;
@@ -138,9 +157,8 @@ errval_t timer_thread_init(void) {
     return SYS_ERR_OK;
 }
 
-void timer_thread_destroy(void) {
-    assert(pthread_cancel(timer.thread) == 0);
-    queue_destroy(&timer.queue);
-    //TODO: free all the things
-    TIMER_ERR("NYI: destroy Timer Moudle");
+void timer_thread_destroy(Timer* timer) {
+    assert(pthread_cancel(timer->thread) == 0);
+    queue_destroy(&timer->queue);
+    TIMER_ERR("Timer thread destruction NOT IMPLEMENTED!");
 }

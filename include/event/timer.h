@@ -21,22 +21,25 @@ typedef struct delayed_task {
     Task       task;
 } DelayedTask;
 
-struct Timer {
+typedef struct timer_state {
     alignas(ATOMIC_ISOLATION)
         Queue  queue;  
     pthread_t  thread;
-    size_t     count;
-} __attribute__((aligned(ATOMIC_ISOLATION)));
+    size_t     count_recvd;
+    size_t     count_submitted;
+    size_t     count_failed;
+} __attribute__((aligned(ATOMIC_ISOLATION))) Timer;
+
 __BEGIN_DECLS
 
-errval_t timer_thread_init(void);
-void timer_thread_destroy(void);
+errval_t timer_thread_init(Timer* timer);
+void timer_thread_destroy(Timer* timer_state);
 
 timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat);
 timer_t submit_delayed_task(DelayedTask dt);
 void cancel_timer_task(timer_t timerid);
 
-extern struct Timer timer;
+extern Timer g_timer;
 
 __END_DECLS
 

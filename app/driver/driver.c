@@ -184,11 +184,12 @@ int main(int argc, char *argv[]) {
     g_states.threadpool = &g_threadpool;
 
     // 8. Initialize the timer thread (timed event)
-    err = timer_thread_init();
+    err = timer_thread_init(&g_timer);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the Timer");
         return -1;
     }
+    g_states.timer = &g_timer;
 
     err = device_loop(device, net, mempool);
     if (err_is_fail(err)) {
@@ -210,9 +211,10 @@ static void driver_exit(int signum) {
 
     mempool_destroy(g_states.mempool);
 
-    thread_pool_destroy();
+    timer_thread_destroy(g_states.timer);
+    // Prior to the thread pool destrcution, because there may be some timed event
 
-    timer_thread_destroy();
+    thread_pool_destroy();
 
     LOG_NOTE("Bye Bye !");
     
