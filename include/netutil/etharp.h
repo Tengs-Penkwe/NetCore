@@ -17,7 +17,14 @@
 typedef struct eth_addr {
     uint8_t addr[6];
 } mac_addr ;
-static_assert(sizeof(mac_addr) == 6, "mac_addr must be 6 bytes long");  
+static_assert(sizeof(mac_addr) == ETH_ADDR_LEN, "mac_addr must be 6 bytes long");  
+
+typedef enum mac_type {
+    MAC_TYPE_UNICAST,
+    MAC_TYPE_MULTICAST,
+    MAC_TYPE_BROADCAST,
+    MAC_TYPE_NULL
+} mac_type_t;
 
 struct eth_hdr {
     struct eth_addr dst;
@@ -84,6 +91,23 @@ static inline mac_addr mem2mac(void* mac) {
 static inline mac_addr voidptr2mac(void* mac_as_ptr) {
     uint64_t s = (uint64_t)mac_as_ptr;
     return tomac(s);
+}
+
+static inline bool mac_is_ndp(mac_addr mac) {
+    return mac.addr[0] == 0x33 && mac.addr[1] == 0x33;
+}
+
+static inline enum mac_type get_mac_type(const mac_addr addr) {
+    if (addr.addr[0] & 0x01) {
+        return MAC_TYPE_MULTICAST;
+    }
+    if (memcmp(addr.addr, "\xFF\xFF\xFF\xFF\xFF\xFF", ETH_ADDR_LEN) == 0) {
+        return MAC_TYPE_BROADCAST;
+    }
+    if (memcmp(addr.addr, "\x00\x00\x00\x00\x00\x00", ETH_ADDR_LEN) == 0) {
+        return MAC_TYPE_NULL;
+    }
+    return MAC_TYPE_UNICAST;
 }
 
 __END_DECLS
