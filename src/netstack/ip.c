@@ -69,6 +69,7 @@ void ip_destroy(
     {
         assembler_destroy(&ip->assemblers[i], i);
     }
+    LOG_ERR("ICMP, UDP, TCP, they need to be destroyed");
     
     free(ip);
 }

@@ -58,7 +58,8 @@ static errval_t server_init(TCP_server* server) {
 
         if (pthread_create(&server->worker[i], NULL, server_thread, (void*)&local[i]) != 0) {
             TCP_FATAL("Can't create worker thread");
-            bdqueue_destroy(&server->msg_queue);    
+            bool queue_elements_from_heap = true;
+            bdqueue_destroy(&server->msg_queue, queue_elements_from_heap);    
             free(local);
             free(server);
             return NET_ERR_TCP_CREATE_WORKER;
@@ -69,7 +70,8 @@ static errval_t server_init(TCP_server* server) {
 
 static void server_destroy(TCP_server* server) {
     assert(server->is_live == false);
-    bdqueue_destroy(&server->msg_queue);
+    bool queue_elements_from_heap = true;
+    bdqueue_destroy(&server->msg_queue, queue_elements_from_heap);
 
     for(size_t i = 0; i < server->worker_num; i++) {
         pthread_cancel(server->worker[i]);

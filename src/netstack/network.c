@@ -30,5 +30,7 @@ errval_t network_init(NetWork* net, NetDevice* device) {
 void network_destroy(NetWork* net) {
     assert(net);
     ethernet_destroy(net->ether);
-    LOG_ERR("TODO: free ");
+    LOG_NOTE("Network Module destroyed, IP: %0.8X, MAC: %0.6lX",
+            net->my_ip, frommac(net->my_mac));
+    free(net);
 }

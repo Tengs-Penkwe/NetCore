@@ -56,7 +56,8 @@ errval_t thread_pool_init(size_t workers)
 }
 
 void thread_pool_destroy(void) {
-    bdqueue_destroy(&g_threadpool.queue);
+    bool queue_elements_from_heap = false;
+    bdqueue_destroy(&g_threadpool.queue, queue_elements_from_heap);
 
     for (size_t i = 0; i < g_threadpool.workers; i++) 
         assert(pthread_cancel(g_threadpool.threads[i]) == 0);

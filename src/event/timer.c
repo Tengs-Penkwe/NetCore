@@ -86,6 +86,7 @@ static void timer_thread_cleanup(void* args) {
     // It is automatically free'd by pthread library
     // free_states(get_local_state());
 
+    // TODO: we may have more than 1 timer threads, so this statistic should be local 
     TIMER_NOTE("Timer thread cleanup, %d events received, %d events submitted, %d events failed",
         timer_state->count_recvd, timer_state->count_submitted, timer_state->count_failed);
 }
@@ -160,5 +161,8 @@ errval_t timer_thread_init(Timer* timer) {
 void timer_thread_destroy(Timer* timer) {
     assert(pthread_cancel(timer->thread) == 0);
     queue_destroy(&timer->queue);
-    TIMER_ERR("Timer thread destruction NOT IMPLEMENTED!");
+
+    TIMER_NOTE(
+        "Timer Module destroyed, %d events received, %d events submitted, %d events failed",
+        timer->count_recvd, timer->count_submitted, timer->count_failed);
 }

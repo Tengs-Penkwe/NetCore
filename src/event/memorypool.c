@@ -45,19 +45,21 @@ errval_t mempool_init(MemPool* pool, size_t bytes, size_t amount) {
 }
 
 void mempool_destroy(MemPool* mempool) {
-    bdqueue_destroy(&mempool->queue);
-    assert(mempool->elems);
-    free(mempool->elems);
+    bool queue_elements_from_heap = true;
+    bdqueue_destroy(&mempool->queue, queue_elements_from_heap);
+    // already freed by bdqueue_destroy
+    // free(mempool->elems);
     
     assert(&mempool->pool);
     free(mempool->pool);
+
+    EVENT_NOTE("Memory Pool destroyed, it has %d pieces, each has %d bytes, add up to %d KiB",
+               mempool->amount, mempool->bytes, mempool->amount * mempool->bytes / 1024);
     
     assert(mempool);
     memset(mempool, 0, sizeof(MemPool));
     free(mempool);
     mempool = NULL;
-
-    EVENT_ERR("Memory pool destroyed");
 }
 
 errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf) {

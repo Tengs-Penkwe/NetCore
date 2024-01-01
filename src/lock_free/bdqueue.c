@@ -16,15 +16,19 @@ errval_t bdqueue_init(BdQueue* queue, BQelem *element_array, size_t number_elems
     return SYS_ERR_OK;
 }
 
-void bdqueue_destroy(BdQueue* queue) {
+void bdqueue_destroy(BdQueue* queue, bool element_on_heap) {
     size_t element_count = 0;
     lfds711_queue_bmm_query(&queue->queue, LFDS711_QUEUE_BMM_QUERY_GET_POTENTIALLY_INACCURATE_COUNT, NULL, &element_count); 
 
     // We were given an array of elements (a large chunk of allocated heap), can't free them one by one
     lfds711_queue_bmm_cleanup(&queue->queue, NULL); 
     
-    free(queue->element_array);
-    
+    if (element_on_heap) {
+        free(queue->element_array);
+        queue->element_array = NULL;
+    }
+    queue->number_elements = 0;        
+
     LOG_NOTE("bounded queue destroyed, whole capacity: %zu, element count: %zu", queue->number_elements, element_count);
 }
 

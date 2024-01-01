@@ -76,8 +76,9 @@ void assembler_destroy(
 static void assembler_thread_cleanup(void* args) {
     LocalState *local = args; assert(local);
     IP_assembler* assembler = local->my_state; assert(assembler);
-
-    bdqueue_destroy(&assembler->event_que);
+  
+    bool queue_elements_from_heap = false;
+    bdqueue_destroy(&assembler->event_que, queue_elements_from_heap);
     LOG_NOTE("Bounded queue destroyed");
 
     sem_destroy(&assembler->event_come);

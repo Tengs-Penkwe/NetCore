@@ -57,7 +57,7 @@ void ethernet_destroy(
     arp_destroy(ether->arp);
     ip_destroy(ether->ip);
 
-    LOG_ERR("NYI");
+    LOG_NOTE("Ethernet Module destroyed");
 }
 
 errval_t ethernet_marshal(
