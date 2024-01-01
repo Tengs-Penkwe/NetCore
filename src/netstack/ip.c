@@ -64,9 +64,13 @@ void ip_destroy(
     IP* ip
 ) {
     assert(ip);
+
+    for (size_t i = 0; i < ip->assembler_num; i++)
+    {
+        assembler_destroy(&ip->assemblers[i], i);
+    }
     
     free(ip);
-    IP_ERR("NYI");
 }
 
 

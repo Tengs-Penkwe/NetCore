@@ -20,6 +20,13 @@ static void umm_queue_element_cleanup_callback(struct lfds711_queue_umm_state *q
 }
 
 __attribute__((unused))
+static void bmm_queue_element_cleanup_callback(struct lfds711_queue_bmm_state *qs, void *key, void *value) {
+    assert(qs && value);
+    (void) key; 
+    // Static queue doesn't need to free the element
+}
+
+__attribute__((unused))
 static void hash_element_cleanup_callback(struct lfds711_hash_a_state *has, struct lfds711_hash_a_element *hae) {
     assert(has && hae);
     // free(hae);

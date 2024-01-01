@@ -61,18 +61,30 @@ errval_t assemble_init(
     return err;
 }
 
-void assemble_destroy(
-    IP_assembler* assemble
+void assembler_destroy(
+    IP_assembler* assemble, size_t id
 ) {
     assert(assemble);
 
-    bdqueue_destroy(&assemble->event_que);
-    sem_destroy(&assemble->event_come);
     pthread_cancel(assemble->self);
+    LOG_NOTE("IP assembler %d destroyed", id);
     
-    IP_ERR("TODO: free the memory");
-    // kavll_free(Mseg, head, assemble->seg, free);
-    free(assemble);
+    // free(assemble);
+    // assmbler is statically allocated in IP struct
+}
+
+static void assembler_thread_cleanup(void* args) {
+    LocalState *local = args; assert(local);
+    IP_assembler* assembler = local->my_state; assert(assembler);
+
+    bdqueue_destroy(&assembler->event_que);
+    LOG_NOTE("Bounded queue for %s destroyed", local->my_name);
+
+    sem_destroy(&assembler->event_come);
+    LOG_NOTE("Semaphore for %s destroyed", local->my_name);
+    
+    kh_destroy(ip_msg, assembler->recv_messages);
+    LOG_NOTE("Hash table for %s destroyed", local->my_name);
 }
 
 /// @brief     The assembler thread
@@ -84,6 +96,8 @@ static void* assemble_thread(void* state) {
     local->my_pid = syscall(SYS_gettid);
     set_local_state(local);
     IP_NOTE("%s started with pid %d", local->my_name, local->my_pid);
+
+    pthread_cleanup_push(assembler_thread_cleanup, local);
 
     CORES_SYNC_BARRIER;
 
@@ -101,6 +115,8 @@ static void* assemble_thread(void* state) {
             task = NULL;
         }
     }
+    
+    pthread_cleanup_pop(1);
 }
 
 static void delete_msg_from_hash_table(IP_assembler* assemble, IP_recv* recv) {

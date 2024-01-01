@@ -11,8 +11,13 @@ errval_t bdqueue_init(BdQueue* queue, BQelem *element_array, size_t number_elems
 }
 
 void bdqueue_destroy(BdQueue* queue) {
-    lfds711_queue_bmm_cleanup(queue, NULL); 
-    LOG_ERR("TODO: Free the whole thing");
+    size_t element_count = 0;
+    lfds711_queue_bmm_query(queue, LFDS711_QUEUE_BMM_QUERY_GET_POTENTIALLY_INACCURATE_COUNT, NULL, &element_count); 
+
+    // 1.1 Cleanup the queue
+    lfds711_queue_bmm_cleanup(queue, bmm_queue_element_cleanup_callback); 
+    
+    LOG_NOTE("bounded queue destroyed, %d elements in queue", element_count);
 }
 
 errval_t enbdqueue(BdQueue* queue, void* key, void* data) {

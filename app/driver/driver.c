@@ -202,8 +202,6 @@ int main(int argc, char *argv[]) {
 
 static void driver_exit(int signum) {
     (void) signum;
-    LOG_ERR("Ending TODO: free resources!");
-
 
     network_destroy(g_states.network);
 
