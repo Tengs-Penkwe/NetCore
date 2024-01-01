@@ -5,7 +5,12 @@
 #include "defs.h"
 #include "liblfds711.h"  // Lock-free structures
 
-typedef struct lfds711_queue_bmm_state BdQueue;
+typedef struct {
+    struct lfds711_queue_bmm_state queue;
+    void                          *element_array;
+    size_t                         number_elements;
+} BdQueue;
+
 typedef struct lfds711_queue_bmm_element BQelem;
 
 __BEGIN_DECLS

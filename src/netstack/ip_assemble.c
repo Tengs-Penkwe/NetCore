@@ -78,13 +78,13 @@ static void assembler_thread_cleanup(void* args) {
     IP_assembler* assembler = local->my_state; assert(assembler);
 
     bdqueue_destroy(&assembler->event_que);
-    LOG_NOTE("Bounded queue for %s destroyed", local->my_name);
+    LOG_NOTE("Bounded queue destroyed");
 
     sem_destroy(&assembler->event_come);
-    LOG_NOTE("Semaphore for %s destroyed", local->my_name);
+    LOG_NOTE("Semaphore destroyed");
     
     kh_destroy(ip_msg, assembler->recv_messages);
-    LOG_NOTE("Hash table for %s destroyed", local->my_name);
+    LOG_NOTE("Hash table destroyed");
 }
 
 /// @brief     The assembler thread
