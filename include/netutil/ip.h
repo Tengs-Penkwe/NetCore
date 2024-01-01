@@ -1,5 +1,5 @@
-#ifndef _IP_H_
-#define _IP_H_
+#ifndef _NETUTIL_IP_H_
+#define _NETUTIL_IP_H_
 
 #include <common.h>
 
@@ -42,12 +42,22 @@ struct ip_hdr {
     ip_addr_t dest;
 } __attribute__((__packed__));
 
-#include <inttypes.h>
-
 #define IPv4_ADDRESTRLEN   16
 #define IPv6_ADDRESTRLEN   46
+
+#define IPv6_PROTO_TCP     6
+#define IPv6_PROTO_UDP     17
+#define IPv6_PROTO_ICMP    58
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 typedef unsigned __int128 ipv6_addr_t ;
+#pragma GCC diagnostic pop
 static_assert(sizeof(ipv6_addr_t) == 16, "ipv6_addr_t must be 16 bytes");
+
+static inline ipv6_addr_t mk_ipv6(uint64_t hi, uint64_t lo) {
+    return ((ipv6_addr_t)hi << 64) | lo;
+}
 
 // Structure of an IPv6 header
 struct ipv6_hdr {

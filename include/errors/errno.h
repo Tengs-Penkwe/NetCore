@@ -45,6 +45,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_DEVICE_SEND,             "Can't send raw packet by network device") \
     X(NET_ERR_DEVICE_FAIL_POLL,        "Can't poll on the device !") \
     X(NET_ERR_DEVICE_GET_MAC,          "Can't get MAC address of my network device") \
+    X(NET_ERR_ETHER_NULL_MAC,          "Destination MAC address of received message is a NULL MAC") \
     X(NET_ERR_ETHER_WRONG_MAC,         "Destination MAC address of received message doesn't meet with our MAC") \
     X(NET_ERR_ETHER_NO_MAC,            "Can't get MAC address of my ethernet") \
     X(NET_ERR_ETHER_NO_IP_ADDRESS,     "We don't have IP address associated with given MAC address") \
@@ -57,6 +58,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
+    X(NET_ERR_NDP_WRONG_FIELD,         "Wrong Field in NDP packet") \
     X(NET_ERR_IPv6_WRONG_FIELD,        "Wrong Field in IPv6 packet") \
     X(NET_ERR_IPv6_NEXT_HEADER,        "Not Supported next header in IPv6 packet") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \

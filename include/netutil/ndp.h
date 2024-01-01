@@ -2,6 +2,7 @@
 #define __NDP_H__
 
 #include <stdint.h>
+#include "ip.h"
 
 /* NDP message types */
 #define NDP_ROUTER_SOLICITATION       133
@@ -18,7 +19,7 @@
 #define NDP_OPTION_MTU                           5
 
 /* Common NDP header format */
-struct ndp_header {
+struct ndp_hdr {
     uint8_t  type;       /* Message type */
     uint8_t  code;       /* Message code */
     uint16_t checksum;   /* Checksum */
@@ -26,14 +27,12 @@ struct ndp_header {
 
 /* NDP Router Solicitation */
 struct ndp_router_solicitation {
-    struct ndp_header header;
     uint32_t reserved;
     // Options follow...
 };
 
 /* NDP Router Advertisement */
 struct ndp_router_advertisement {
-    struct ndp_header header;
     uint8_t  cur_hop_limit;
     uint8_t  flags;
     uint16_t router_lifetime;
@@ -44,26 +43,23 @@ struct ndp_router_advertisement {
 
 /* NDP Neighbor Solicitation */
 struct ndp_neighbor_solicitation {
-    struct ndp_header header;
     uint32_t reserved;
-    uint8_t  target_address[16]; // IPv6 address
+    ipv6_addr_t to_addr;
     // Options follow...
 };
 
 /* NDP Neighbor Advertisement */
 struct ndp_neighbor_advertisement {
-    struct ndp_header header;
-    uint32_t flags;
-    uint8_t  target_address[16]; // IPv6 address
+    uint32_t    flags;
+    ipv6_addr_t to_addr;
     // Options follow...
 };
 
 /* NDP Redirect */
 struct ndp_redirect {
-    struct ndp_header header;
-    uint32_t reserved;
-    uint8_t  target_address[16]; // IPv6 address
-    uint8_t  destination_address[16]; // IPv6 address
+    uint32_t    reserved;
+    ipv6_addr_t to_addr;
+    ipv6_addr_t from_addr;
     // Options follow...
 };
 
@@ -73,6 +69,16 @@ struct ndp_option {
     uint8_t length; /* Length of the option in units of 8 octets */
     // Option Data follows...
 };
+
+typedef struct ndp_data {
+    union {
+        struct ndp_router_solicitation    router_solicitation;
+        struct ndp_router_advertisement   router_advertisement;
+        struct ndp_neighbor_solicitation  neighbor_solicitation;
+        struct ndp_neighbor_advertisement neighbor_advertisement;
+        struct ndp_redirect               redirect;
+    };
+} NDP_data;
 
 /* Function declarations */
 // Functions to parse and process NDP messages would be defined here.

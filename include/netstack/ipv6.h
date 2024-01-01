@@ -8,7 +8,7 @@
 #include "udp.h"
 #include "tcp.h"
 
-typedef struct ip_state {
+typedef struct ipv6_state {
     ipv6_addr_t my_ip;
     Ethernet   *ether;
     NDP        *ndp;

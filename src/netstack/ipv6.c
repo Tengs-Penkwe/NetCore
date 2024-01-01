@@ -11,7 +11,7 @@
 errval_t ipv6_init(
     IPv6* ip, ipv6_addr_t my_ip, Ethernet* ether, NDP* ndp, UDP* udp, TCP* tcp
 ) {
-    errval_t err = SYS_ERR_OK;
+    errval_t err = SYS_ERR_NOT_IMPLEMENTED;
 
     ip->my_ip = my_ip;
     ip->ether = ether;
@@ -39,10 +39,6 @@ void ipv6_destroy(
     }
     IP6_NOTE("IPv6 Module Destroyed");
 }
-
-errval_t ipv6_marshal(
-    IPv6* ip, ipv6_addr_t dst_ip, Buffer buf
-);
 
 errval_t ipv6_unmarshal(
     IPv6* ip, Buffer buf
@@ -82,15 +78,20 @@ errval_t ipv6_unmarshal(
 
     // 6. Check the next header
     switch (next_header) {
-        case IP_PROTO_UDP:
+        case IPv6_PROTO_UDP:
             IP6_DEBUG("UDP packet received");
             // err = udp_unmarshal(ip->udp, buf);
             // DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
             break;
-        case IP_PROTO_TCP:
+        case IPv6_PROTO_TCP:
             IP6_DEBUG("TCP packet received");
             // err = tcp_unmarshal(ip->tcp, buf);
             // DEBUG_FAIL_RETURN(err, "Can't unmarshal the TCP packet");
+            break;
+        case IPv6_PROTO_ICMP:
+            IP_DEBUG("ICMP packet received");
+            // err = icmp_unmarshal(ip->icmp, buf);
+            // DEBUG_FAIL_RETURN(err, "Can't unmarshal the ICMP packet");
             break;
         default:
             IP6_ERR("Invalid IPv6 packet next header %d", next_header);

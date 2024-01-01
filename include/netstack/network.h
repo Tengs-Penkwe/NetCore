@@ -4,6 +4,7 @@
 #include <device/device.h>
 #include "ethernet.h"
 #include "ip.h"
+#include "ipv6.h"
 #include "icmp.h"
 #include "arp.h"
 #include "udp.h"
@@ -14,6 +15,7 @@ typedef struct net_work {
     Ethernet  *ether;
     ARP       *arp;
     IP        *ip;
+    IPv6      *ip6;
     ICMP      *icmp;
     UDP       *udp;
     TCP       *tcp;
