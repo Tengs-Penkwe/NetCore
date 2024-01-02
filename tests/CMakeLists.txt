@@ -17,11 +17,11 @@ add_subdirectory(Unity)
 
 # Add your test source files here
 file(GLOB UNIT_TEST_SRCS "unit/*.c")
-file(GLOB SYSTEM_TEST_SRCS "system/*.c")
+file(GLOB INTEGRATION_TEST_SRCS "integration/*.c")
 
 set(DISABLE_WARNINGS
     -Wno-attributes -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
-    -Wno-missing-declarations -Wno-uninitialized
+    -Wno-missing-declarations -Wno-uninitialized -Wno-suggest-attribute=noreturn
 )
 
 # Unit tests
@@ -29,9 +29,9 @@ add_executable(Unit_tests ${UNIT_TEST_SRCS})
 target_link_libraries(Unit_tests NetCoreLib unity)
 target_compile_options(Unit_tests PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS} ${DISABLE_WARNINGS})
 
-add_executable(System_tests ${SYSTEM_TEST_SRCS})
-target_link_libraries(System_tests NetCoreLib unity)
-target_compile_options(System_tests PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS} ${DISABLE_WARNINGS})
+add_executable(Integration_tests ${INTEGRATION_TEST_SRCS})
+target_link_libraries(Integration_tests NetCoreLib unity)
+target_compile_options(Integration_tests PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS} ${DISABLE_WARNINGS})
 
 add_custom_command(
     OUTPUT NETCORE_UNIT_TESTS
@@ -42,14 +42,14 @@ add_custom_command(
 )
 
 add_custom_command(
-    OUTPUT NETCORE_SYSTEM_TESTS
-    COMMAND System_tests
-    DEPENDS System_tests
+    OUTPUT NETCORE_INTEGRATION_TESTS
+    COMMAND Integration_tests
+    DEPENDS Integration_tests
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMENT "Running system tests"
+    COMMENT "Running integration tests"
 )
 
 # Custom target to run unit tests
 add_custom_target(tests
-    DEPENDS NETCORE_UNIT_TESTS NETCORE_SYSTEM_TESTS
+    DEPENDS NETCORE_UNIT_TESTS NETCORE_INTEGRATION_TESTS
 )

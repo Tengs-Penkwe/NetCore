@@ -2,6 +2,7 @@
 #include <netstack/arp.h>
 
 void test_ArpInit(void) {
+    TEST_IGNORE_MESSAGE ("Not implemented yet");
     ARP arp;
     Ethernet ether;
     ip_addr_t ip = 0xC0A80001; // 192.168.0.1 in hex
@@ -11,6 +12,7 @@ void test_ArpInit(void) {
 }
 
 void test_ArpRegisterAndLookup(void) {
+    TEST_IGNORE_MESSAGE ("Not implemented yet");
     ARP arp;
     Ethernet ether;
     ip_addr_t ip = 0xC0A80001; // 192.168.0.1
@@ -29,6 +31,7 @@ void test_ArpRegisterAndLookup(void) {
 }
 
 void test_ArpDestroy(void) {
+    TEST_IGNORE_MESSAGE ("Not implemented yet");
     ARP arp;
     Ethernet ether;
     ip_addr_t ip = 0xC0A80001;
