@@ -12,7 +12,10 @@ errval_t arp_init(
     arp->ether = ether;
     arp->ip = ip;
     
-    err = hash_init(&arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST);
+    err = hash_init(
+        &arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST,
+        voidptr_key_cmp, voidptr_key_hash
+    );
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");

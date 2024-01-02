@@ -3,6 +3,9 @@
 
 #include <common.h>
 
+/********************  IPv4  ********************
+ ************************************************/
+
 #define IP_RF 0x8000U        /* reserved fragment flag */
 #define IP_DF 0x4000U        /* dont fragment flag */
 #define IP_MF 0x2000U        /* more fragments flag */
@@ -42,6 +45,9 @@ struct ip_hdr {
     ip_addr_t dest;
 } __attribute__((__packed__));
 
+/********************  IPv6  ********************
+ ************************************************/
+
 #define IPv4_ADDRESTRLEN   16
 #define IPv6_ADDRESTRLEN   46
 
@@ -61,15 +67,22 @@ static inline ipv6_addr_t mk_ipv6(uint64_t hi, uint64_t lo) {
 
 // Structure of an IPv6 header
 struct ipv6_hdr {
-    uint32_t  version : 4;  // Version
-    uint32_t  tc : 8;       // Traffic Class
-    uint32_t  fl : 20;      // Flow Label
+    union {
+        struct {
+            uint32_t version : 4;   // Version
+            uint32_t tfclas  : 8;   // Traffic Class
+            uint32_t flabel  : 20;  // Flow Label
+        } vtf;
+        uint32_t vtf_uint32;
+    };
     uint16_t  len;          // Payload Length
     uint8_t   next_header;  // Next Header
     uint8_t   hop_limit;    // Hop Limit
     ipv6_addr_t src;        // Source IPv6 address
     ipv6_addr_t dest;       // Destination IPv6 address
 } __attribute__((__packed__));
+
+static_assert(sizeof(struct ipv6_hdr) == 40, "IPv6 header must be 40 bytes");
 
 typedef struct ipv6_hopbyhop_hdr {
     uint8_t   next_header;  // Next Header
@@ -84,5 +97,40 @@ typedef struct ipv6_routing_hdr {
     uint8_t   segments_left;// Segments Left
     uint8_t   data[];       // Routing Data
 } __attribute__((__packed__)) ipv6_routing_hdr_t;
+
+/*******************  Common  ********************
+ ************************************************/
+
+typedef struct ip_context {
+    bool    is_ipv6;
+    union {
+        ip_addr_t   ipv4;
+        ipv6_addr_t ipv6;
+    };
+} ip_context_t;
+
+enum ip_proto_type {
+    IP_ICMP,
+    IP_UDP,
+    IP_TCP,
+};
+
+static inline uint8_t proto_to_uint8_t(const enum ip_proto_type proto, const bool is_ipv6) {
+    if (is_ipv6) {
+        switch (proto) {
+        case IP_ICMP: return IPv6_PROTO_ICMP;
+        case IP_UDP:  return IPv6_PROTO_UDP;
+        case IP_TCP:  return IPv6_PROTO_TCP;
+        default:      assert(false);
+        }
+    } else {
+        switch (proto) {
+        case IP_ICMP: return IP_PROTO_ICMP;
+        case IP_UDP:  return IP_PROTO_UDP;
+        case IP_TCP:  return IP_PROTO_TCP;
+        default:      assert(false);
+        }
+    }
+}
 
 #endif // _IP_H_

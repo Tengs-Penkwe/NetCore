@@ -139,7 +139,7 @@ errval_t ip_send(
         .ttl     = 0xFF,
         .proto   = proto,
         .chksum  = 0,
-        .src     = htonl(ip->my_ip),
+        .src     = htonl(ip->my_ipv4),
         .dest    = htonl(dst_ip),
     };
     packet->chksum = inet_checksum(packet, sizeof(struct ip_hdr));
@@ -149,7 +149,7 @@ errval_t ip_send(
     DEBUG_FAIL_RETURN(err, "Can't send the IPv4 packet");
 
     IP_VERBOSE("End sending an IP packet with size: %d, offset: %d, no_frag: %d, more_frag: %d, proto: %d, id: %d, src: %0.8X, dst: %0.8X",
-            pkt_size, offset * 8, no_frag, !last_slice, proto, id, ip->my_ip, dst_ip);
+            pkt_size, offset * 8, no_frag, !last_slice, proto, id, ip->my_ipv4, dst_ip);
     return SYS_ERR_OK;
 }
 

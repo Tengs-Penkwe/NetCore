@@ -4,6 +4,7 @@
 #include <netutil/dump.h>
 #include <netstack/ethernet.h>
 #include <netstack/ip.h>
+#include <netstack/ndp.h>
 #include <device/device.h>
 
 errval_t ethernet_init(
@@ -25,26 +26,32 @@ errval_t ethernet_init(
 
     // 2. Set the IP address
     /// TODO: dynamic IP using DHCP
-    ip_addr_t my_ip = 0x0A00020F;
+    ip_addr_t   my_ipv4 = 0x0A00020F;
+    ipv6_addr_t my_ipv6 = mk_ipv6(0xfe80000000000000, 0xe0dd05fffedc6aa7);
+    
+    char ip_str[16]; format_ipv4_addr(my_ipv4, ip_str, sizeof(ip_str));
+    char ipv6_str[39]; format_ipv6_addr(my_ipv6, ipv6_str, sizeof(ipv6_str));
+    ETHER_NOTE("My static IPv4 address is: %s", ip_str);
+    ETHER_NOTE("My static IPv6 address is: %s", ipv6_str);
 
     // 3. Set up the ARP: it contains the lock free hash table, which must be 128-bytes aligned
-    ether->arp = aligned_alloc(ATOMIC_ISOLATION, sizeof(ARP));
+    ether->arp = aligned_alloc(ATOMIC_ISOLATION, sizeof(ARP)); assert(ether->arp);
     memset(ether->arp, 0, sizeof(ARP));
-    if (ether->arp == NULL) {
-        USER_PANIC("Failed to allocate the ARP");
-    }
-    err = arp_init(ether->arp, ether, my_ip);
+    err = arp_init(ether->arp, ether, my_ipv4);
     DEBUG_FAIL_RETURN(err, "Failed to initialize the ARP");
+    
+    // 4. Set up the NDP
+    ether->ndp = aligned_alloc(ATOMIC_ISOLATION, sizeof(NDP)); assert(ether->ndp);
+    memset(ether->ndp, 0, sizeof(NDP));
+    err = ndp_init(ether->ndp, ether, my_ipv6);
+    DEBUG_FAIL_RETURN(err, "Failed to initialize the NDP");
 
-    // 4. Set up the IPv4
-    ether->ip = aligned_alloc(ATOMIC_ISOLATION, sizeof(IP));
-    memset(ether->ip, 0, sizeof(IP));
-    if (ether->ip == NULL) {
-        USER_PANIC("Failed to allocate the IP");
-    }
-    err = ip_init(ether->ip, ether, ether->arp, my_ip);
+    // 5. Set up the IP
+    ether->ip = aligned_alloc(ATOMIC_ISOLATION, sizeof(IP)); assert(ether->ip);
+    memset(ether->ip, 0, sizeof(IP)); 
+    err = ip_init(ether->ip, ether, ether->arp, ether->ndp, my_ipv4, my_ipv6);
     DEBUG_FAIL_RETURN(err, "Failed to initialize the IP");
-
+    
     ETHER_NOTE("Ethernet Moule initialized");
     return SYS_ERR_OK;
 }
@@ -90,9 +97,31 @@ errval_t ethernet_unmarshal(
 
     /// 1. Decide if the packet is for us
     mac_addr dst_mac = ntoh6(packet->dst);
-    if (!(maccmp(ether->my_mac, dst_mac) || maccmp(dst_mac, MAC_BROADCAST))){
-        ETHER_NOTE("Not a message for us, destination MAC is %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->my_mac));
-        return NET_ERR_ETHER_WRONG_MAC;
+    switch(get_mac_type(dst_mac)) {
+    case MAC_TYPE_NULL:
+        ETHER_WARN("Got a NULL message");
+        return NET_ERR_ETHER_NULL_MAC;
+    case MAC_TYPE_MULTICAST:
+        ETHER_VERBOSE("Got a multicast message");
+        if (!mac_is_ndp(dst_mac)) {
+            ETHER_NOTE("An unknown ethernet multicast for MAC %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->my_mac));
+            return NET_ERR_ETHER_WRONG_MAC;
+        } else {
+            ETHER_VERBOSE("An NDP message");
+            err = ndp_unmarshal(ether->ndp, buf);
+            DEBUG_FAIL_RETURN(err, "Error when unmarshalling NDP packet");
+            return err;
+        }
+    case MAC_TYPE_BROADCAST:
+        ETHER_VERBOSE("Got a broadcast message");
+        break;
+    case MAC_TYPE_UNICAST:
+        if (!maccmp(ether->my_mac, dst_mac)) {
+            ETHER_NOTE("Not a message for us, destination MAC is %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->my_mac));
+            return NET_ERR_ETHER_WRONG_MAC;
+        }
+        break;
+    default: USER_PANIC("Unknown MAC type");
     }
 
     /// 2. Remove the Ethernet header and hand it to next layer
@@ -106,14 +135,13 @@ errval_t ethernet_unmarshal(
         err = arp_unmarshal(ether->arp, buf);
         DEBUG_FAIL_RETURN(err, "Error when unmarshalling ARP packet");
         return err;
+    case ETH_TYPE_IPv6:
+        ETHER_VERBOSE("Got an IPv6 packet");
+        [[fallthrough]];
     case ETH_TYPE_IPv4:
-        ETHER_VERBOSE("Got an IP packet");
         err = ip_unmarshal(ether->ip, buf);
         DEBUG_FAIL_RETURN(err, "Error when handling IP packet");
         return err;
-    case ETH_TYPE_IPv6:
-        ETHER_ERR("I don't support IPv6 yet");
-        return SYS_ERR_NOT_IMPLEMENTED;
     default:
         LOG_ERR("Unknown packet type in Enthernet Layer: %x", type);
         return NET_ERR_ETHER_UNKNOWN_TYPE;

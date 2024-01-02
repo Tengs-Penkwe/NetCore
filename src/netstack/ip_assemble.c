@@ -252,7 +252,7 @@ void check_recvd_message(void* message) {
                 .buf    = buf,
             };
             free(recv);
-            err = submit_task(MK_NORM_TASK(event_ip_handle, (void*)handle));
+            err = submit_task(MK_NORM_TASK(event_ipv4_handle, (void*)handle));
             if (err_is_fail(err)) {
                 DEBUG_ERR(err, "We assembled an IP message, but can't submit it as an event, will drop it");
                 free_buffer(buf);
@@ -378,9 +378,14 @@ errval_t ip_assemble(IP_segment* segment)
  * @brief Unmarshals a complete IP message and processes it based on its protocol type.
  * @return Returns error code indicating success or failure.
  */
-errval_t ip_handle(IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf) {
+errval_t ipv4_handle(IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf) {
     errval_t err = SYS_ERR_OK;
     IP_VERBOSE("An IP Message has been assemble, now let's process it");
+
+    const ip_context_t src_ip_context = {
+        .is_ipv6 = false,
+        .ipv4    = src_ip,
+    };
 
     switch (proto) {
     case IP_PROTO_ICMP:
@@ -390,7 +395,7 @@ errval_t ip_handle(IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf) {
         return err;
     case IP_PROTO_UDP:
         IP_VERBOSE("Received a UDP packet");
-        err = udp_unmarshal(ip->udp, src_ip, buf);
+        err = udp_unmarshal(ip->udp, src_ip_context, buf);
         DEBUG_FAIL_RETURN(err, "Error when unmarshalling an UDP message");
         return err;
     case IP_PROTO_IGMP:

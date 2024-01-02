@@ -2,58 +2,30 @@
 #include <netutil/htons.h>
 #include <netutil/dump.h>
 
-#include <netstack/ipv6.h>
+#include <netstack/ip.h>
 #include <netstack/ndp.h>
 #include <netstack/ethernet.h>
 #include <netstack/udp.h>
 #include <netstack/tcp.h>
 
-errval_t ipv6_init(
-    IPv6* ip, ipv6_addr_t my_ip, Ethernet* ether, NDP* ndp, UDP* udp, TCP* tcp
-) {
-    errval_t err = SYS_ERR_NOT_IMPLEMENTED;
-
-    ip->my_ip = my_ip;
-    ip->ether = ether;
-    ip->ndp = ndp;
-    ip->udp = udp;
-    ip->tcp = tcp;
-
-    return err;
-}
-
-void ipv6_destroy(
-    IPv6* ip
-) {
-    if (ip->ether != NULL) {
-        ethernet_destroy(ip->ether);
-    }
-    if (ip->ndp != NULL) {
-        ndp_destroy(ip->ndp);
-    }
-    if (ip->udp != NULL) {
-        udp_destroy(ip->udp);
-    }
-    if (ip->tcp != NULL) {
-        tcp_destroy(ip->tcp);
-    }
-    IP6_NOTE("IPv6 Module Destroyed");
-}
-
 errval_t ipv6_unmarshal(
-    IPv6* ip, Buffer buf
+    IP* ip, Buffer buf
 ) {
     errval_t err = SYS_ERR_OK;
-    assert(ip && buf.data);
+    assert(ip);
 
     struct ipv6_hdr* packet = (struct ipv6_hdr*)buf.data;
     uint8_t next_header = packet->next_header;
     uint16_t payload_len = ntohs(packet->len);
 
-    // 1. Check the version
-    if (packet->version != 6) {
-        IP6_ERR("Invalid IPv6 packet version %d", packet->version);
-        return NET_ERR_IPv6_WRONG_FIELD;
+    // 1. Check the traffic class and flow label
+    if (packet->vtf.tfclas != 0) {
+        IP6_ERR("We Don't Support traffic class %d, but I'll ignore it for now", packet->vtf.tfclas);
+        // return NET_ERR_IPv6_WRONG_FIELD;
+    }
+    if (packet->vtf.flabel != 0) {
+        IP6_ERR("We Don't Support flow label %d, but I'll ignore it for now", packet->vtf.flabel);
+        // return NET_ERR_IPv6_WRONG_FIELD;
     }
 
     // 2. Check the payload length
@@ -69,19 +41,24 @@ errval_t ipv6_unmarshal(
     }
 
     // 4. Check the destination address
-    if (packet->dest != ip->my_ip) {
+    if (packet->dest != ip->my_ipv6) {
         char dest_ip_str[39]; format_ipv6_addr(packet->dest, dest_ip_str, sizeof(dest_ip_str));
-        char my_ip_str[39]; format_ipv6_addr(ip->my_ip, my_ip_str, sizeof(my_ip_str));
+        char my_ip_str[39]; format_ipv6_addr(ip->my_ipv6, my_ip_str, sizeof(my_ip_str));
         IP6_ERR("This IPv6 packet is for %s, not for me %s", dest_ip_str, my_ip_str);
         return NET_ERR_IPv6_WRONG_FIELD;
     }
+
+    const ip_context_t src_ip_context = {
+        .is_ipv6 = true,
+        .ipv6    = packet->src,
+    };
 
     // 6. Check the next header
     switch (next_header) {
         case IPv6_PROTO_UDP:
             IP6_DEBUG("UDP packet received");
-            // err = udp_unmarshal(ip->udp, buf);
-            // DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
+            err = udp_unmarshal(ip->udp, src_ip_context, buf);
+            DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
             break;
         case IPv6_PROTO_TCP:
             IP6_DEBUG("TCP packet received");
@@ -97,6 +74,55 @@ errval_t ipv6_unmarshal(
             IP6_ERR("Invalid IPv6 packet next header %d", next_header);
             return NET_ERR_IPv6_NEXT_HEADER;
     }
+
+    return err;
+}
+
+errval_t ipv6_marshal(
+    IP* ip, ipv6_addr_t dst_ip, uint8_t proto, Buffer buf
+) {
+    errval_t err = SYS_ERR_NOT_IMPLEMENTED;
+    assert(ip);
+
+    // 1. Create the IPv6 header
+    struct ipv6_hdr* packet = (struct ipv6_hdr*)buf.data;
+    *packet = (struct ipv6_hdr) {
+        .vtf        = {
+            .version = 6,
+            .tfclas  = 0,
+            .flabel  = 0,
+        },
+        .len         = htonl((uint32_t)buf.valid_size),
+        .next_header = proto,
+        .hop_limit   = 0xFF,
+        .src         = ip->my_ipv6,
+        .dest        = ip->my_ipv6,
+    };
+    packet->vtf_uint32 = htonl(packet->vtf_uint32);
+    
+    // TODO: Next Header
+
+    // 2. Get the destination MAC
+    mac_addr dst_mac = MAC_NULL;
+    err = ndp_lookup_mac(ip->ndp, dst_ip, &dst_mac);
+    // switch (err_no(err))
+    // {
+    // case NET_ERR_NDP_NO_MAC_ADDRESS: 
+    // {
+    //     submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
+    //     return NET_THROW_SUBMIT_EVENT;
+    // }
+    // case SYS_ERR_OK: { // Continue sending
+    //     assert(!(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST)));
+    //     msg->dst_mac = dst_mac;
+        
+    //     check_send_message((void*)msg);
+    //     return NET_THROW_SUBMIT_EVENT;
+    // }
+    // default: 
+    //     DEBUG_ERR(err, "Can't establish binding for given IP address");
+    //     return err;
+    // }
 
     return err;
 }

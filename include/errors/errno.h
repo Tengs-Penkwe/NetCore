@@ -53,12 +53,14 @@ typedef uintptr_t errval_t;
     X(NET_ERR_ARP_WRONG_FIELD,         "Wrong Field in ARP packet") \
     X(NET_ERR_ARP_WRONG_IP_ADDRESS,    "Wrong Destination IP address for the ARP request") \
     X(NET_ERR_ARP_NO_MAC_ADDRESS,      "Can't find the MAC address of given IPv4 address") \
+    X(NET_ERR_IP_VERSION,              "The IP version of received message is wrong") \
     X(NET_ERR_IPv4_WRONG_FIELD,        "Wrong Field in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_CHECKSUM,     "Wrong checksum in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
     X(NET_ERR_NDP_WRONG_FIELD,         "Wrong Field in NDP packet") \
+    X(NET_ERR_NDP_NO_MAC_ADDRESS,      "Can't find the MAC address of given IPv6 address") \
     X(NET_ERR_IPv6_WRONG_FIELD,        "Wrong Field in IPv6 packet") \
     X(NET_ERR_IPv6_NEXT_HEADER,        "Not Supported next header in IPv6 packet") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \

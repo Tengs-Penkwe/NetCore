@@ -6,6 +6,7 @@
 #include <netutil/ip.h>
 #include "ethernet.h"
 #include "arp.h"
+#include "ndp.h"
 #include "tcp.h"
 #include "icmp.h"
 #include "udp.h"
@@ -25,6 +26,8 @@
 #define IP_RETRY_SEND_US     5000
 /// Time for ARP : 0.5 Second
 #define ARP_WAIT_US          500000
+/// Time for NDP : 0.5 Second
+#define NDP_WAIT_US          500000
 // 32 Seconds
 #define IP_GIVEUP_SEND_US    32000000
 
@@ -120,10 +123,12 @@ typedef struct ip_state {
         IP_assembler       assemblers[IP_ASSEMBLER_NUM];
     size_t                 assembler_num;
 
-    ip_addr_t              my_ip;
+    ip_addr_t              my_ipv4;
     atomic_ushort          seg_count;  ///< Ensure the sent message have unique ID
+    ipv6_addr_t            my_ipv6;
 
     struct ethernet_state *ether;  ///< Global Ethernet state
+    struct ndp_state      *ndp;    ///< Global NDP state
     struct arp_state      *arp;    ///< Global ARP state
     struct icmp_state     *icmp;
     struct udp_state      *udp;
@@ -134,7 +139,7 @@ typedef struct ip_state {
 __BEGIN_DECLS
 
 errval_t ip_init(
-    IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
+    IP* ip, Ethernet* ether, ARP* arp, NDP* ndp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
 );
 
 void ip_destroy(
@@ -145,15 +150,45 @@ errval_t ip_assemble(
     IP_segment* recv
 );
 
-errval_t ip_marshal(    
+errval_t ipv6_marshal(
+    IP* ip, ipv6_addr_t dst_ip, uint8_t proto, Buffer buf
+);
+
+errval_t ipv4_marshal(    
     IP* ip, ip_addr_t dst_ip, uint8_t proto, Buffer buf
 );
 
-errval_t ip_unmarshal(
+static inline errval_t ip_marshal(
+    IP* ip, ip_context_t dst_ip, enum ip_proto_type proto, Buffer buf
+) {
+    uint8_t proto_num = proto_to_uint8_t(proto, dst_ip.is_ipv6);
+    if (dst_ip.is_ipv6) {
+        return ipv6_marshal(ip, dst_ip.ipv6, proto_num, buf);
+    } else {
+        return ipv4_marshal(ip, dst_ip.ipv4, proto_num, buf);
+    }
+}
+
+errval_t ipv6_unmarshal(
     IP* ip, Buffer buf
 );
 
-errval_t ip_handle(
+errval_t ipv4_unmarshal(
+    IP* ip, Buffer buf
+);
+
+static inline errval_t ip_unmarshal(IP* ip, Buffer buf) {
+    uint8_t version =  ((struct ip_hdr*)buf.data)->version;
+    switch (version) {
+    case 4: return ipv4_unmarshal(ip, buf);
+    case 6: return ipv6_unmarshal(ip, buf);
+    default:
+        IP_ERR("Invalid IP packet version %d", version);
+        return NET_ERR_IP_VERSION;
+    }
+}
+
+errval_t ipv4_handle(
     IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf
 );
 

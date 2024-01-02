@@ -55,7 +55,7 @@ errval_t icmp_marshal(
     };
     packet->chksum = inet_checksum(packet, buf.valid_size);
     
-    err = ip_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, buf);
+    err = ipv4_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, buf);
     DEBUG_FAIL_RETURN(err, "Can't send the ICMP through binding");
     return err;
 }

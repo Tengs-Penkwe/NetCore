@@ -1,13 +1,13 @@
 #include <netutil/ndp.h>
 #include <netstack/ndp.h>
-#include <netstack/ipv6.h>
+#include <netstack/ip.h>
 
 errval_t ndp_init(
-    NDP* ndp, ipv6_addr_t my_ip, IPv6* ip
+    NDP* ndp, Ethernet* ether, ipv6_addr_t my_ipv6
 ) {
     errval_t err = SYS_ERR_NOT_IMPLEMENTED;
-    ndp->ip6 = ip;
-    ndp->my_ip = my_ip;
+    ndp->ether   = ether;
+    ndp->my_ipv6 = my_ipv6;
 
     return err;
 }
@@ -18,6 +18,18 @@ void ndp_destroy(
     assert(ndp);
 
     NDP_ERR("Not implemented yet");
+}
+
+errval_t ndp_lookup_mac(
+    NDP* ndp, ipv6_addr_t dst_ip, mac_addr* ret_mac
+) {
+    errval_t err = SYS_ERR_NOT_IMPLEMENTED;
+    assert(ndp && ret_mac);
+    
+    (void)dst_ip;
+
+
+    return err;
 }
 
 __attribute_maybe_unused__

@@ -12,17 +12,21 @@
 #include "ip_slice.h"
 
 errval_t ip_init(
-    IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
+    IP* ip, Ethernet* ether, ARP* arp, NDP* ndp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
 ) {
     errval_t err = SYS_ERR_OK;
     assert(ip && ether && arp);
 
-    ip->my_ip = my_ip;
     ip->ether = ether;
-    ip->arp = arp;
+
+    ip->arp       = arp;
+    ip->my_ipv4   = my_ipv4;
     ip->seg_count = 0;
+
+    ip->my_ipv6 = my_ipv6;
+    ip->ndp     = ndp;
+
     ip->assembler_num  = IP_ASSEMBLER_NUM;
-    
     // 1. Message Queue for single-thread handling of IP segmentation
     for (size_t i = 0; i < ip->assembler_num; i++)
     {
@@ -87,7 +91,7 @@ errval_t handle_ip_segment_assembly(
                                                    
         assert(offset == 0 && more_frag == false);
         
-        err = ip_handle(ip, proto, src_ip, buf);
+        err = ipv4_handle(ip, proto, src_ip, buf);
         DEBUG_FAIL_RETURN(err, "Can't handle this IP message ?");
         return err;
     }
@@ -124,18 +128,14 @@ errval_t handle_ip_segment_assembly(
     }
 }
 
-errval_t ip_unmarshal(
+errval_t ipv4_unmarshal(
     IP* ip, Buffer buf
 ) {
     errval_t err = SYS_ERR_OK;
     assert(ip);
     struct ip_hdr* packet = (struct ip_hdr*)buf.data;
     
-    /// 1. Decide if the packet is correct
-    if (packet->version != 4) {
-        IP_ERR("IP Protocal Version Mismatch");
-        return NET_ERR_IPv4_WRONG_FIELD;
-    }
+    /// 1. Service Type
     if (packet->tos != 0x00) {
         IP_ERR("We Don't Support TOS Field: %p, But I'll Ignore it for Now", packet->tos);
         // return NET_ERR_IPv4_WRONG_FIELD;
@@ -172,8 +172,8 @@ errval_t ip_unmarshal(
 
     // 1.4 Destination IP
     ip_addr_t dst_ip = ntohl(packet->dest);
-    if (dst_ip != ip->my_ip) {
-        LOG_ERR("This IPv4 Pacekt isn't for us %0.8X but for %0.8X", ip->my_ip, dst_ip);
+    if (dst_ip != ip->my_ipv4) {
+        LOG_ERR("This IPv4 Pacekt isn't for us %0.8X but for %0.8X", ip->my_ipv4, dst_ip);
         return NET_ERR_IPv4_WRONG_IP_ADDRESS;
     }
 
@@ -215,7 +215,7 @@ errval_t ip_unmarshal(
     return err;
 }
 
-errval_t ip_marshal(    
+errval_t ipv4_marshal(    
     IP* ip, ip_addr_t dst_ip, uint8_t proto, Buffer buf
 ) {
     errval_t err;

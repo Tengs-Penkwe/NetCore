@@ -112,13 +112,13 @@ void event_ip_assemble(void* recvd_segment) {
     }
 }
 
-void event_ip_handle(void* recv) {
+void event_ipv4_handle(void* recv) {
     errval_t err; assert(recv);
 
     IP_handle handle = *(IP_handle*) recv;
     free(recv);
 
-    err = ip_handle(handle.ip, handle.proto, handle.src_ip, handle.buf);
+    err = ipv4_handle(handle.ip, handle.proto, handle.src_ip, handle.buf);
     switch (err_no(err))
     {
     case NET_THROW_SUBMIT_EVENT:
