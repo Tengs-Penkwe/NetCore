@@ -53,7 +53,7 @@ errval_t icmp_marshal(
         .code   = code,
         .chksum = 0,    /// For ICMP, the checksum is calculated for the full packet
     };
-    packet->chksum = inet_checksum(packet, buf.valid_size);
+    packet->chksum = inet_checksum_in_net_order(packet, buf.valid_size);
     
     err = ipv4_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, buf);
     DEBUG_FAIL_RETURN(err, "Can't send the ICMP through binding");
@@ -70,7 +70,7 @@ errval_t icmp_unmarshal(
     // 1.1 Checksum
     uint16_t packet_checksum = ntohs(packet->chksum);
     packet->chksum = 0;     // Set the it as 0 to calculate
-    uint16_t checksum = inet_checksum((void*)buf.data, buf.valid_size);
+    uint16_t checksum = inet_checksum_in_net_order((void*)buf.data, buf.valid_size);
     if (packet_checksum != ntohs(checksum)) {
         ICMP_ERR("This ICMP Pacekt Has Wrong Checksum %p, Should be %p", checksum, packet_checksum);
         return NET_ERR_ICMP_WRONG_CHECKSUM;

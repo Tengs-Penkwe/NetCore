@@ -164,7 +164,7 @@ errval_t ipv4_unmarshal(
     // 1.3 Checksum
     uint16_t packet_checksum = ntohs(packet->chksum);
     packet->chksum = 0;     // Set the it as 0 to calculate
-    uint16_t checksum = inet_checksum(packet, header_size);
+    uint16_t checksum = inet_checksum_in_net_order(packet, header_size);
     if (packet_checksum != ntohs(checksum)) {
         LOG_ERR("This IPv4 Pacekt Has Wrong Checksum %p, Should be %p", checksum, packet_checksum);
         return NET_ERR_IPv4_WRONG_CHECKSUM;

@@ -6,7 +6,7 @@
 /**
  * Calculate the internet checksum according to RFC1071
  */
-uint16_t inet_checksum(void *dataptr, uint16_t len);
+uint16_t inet_checksum_in_net_order(void *dataptr, uint16_t len);
 
 #include <netutil/ip.h>
 
@@ -42,6 +42,8 @@ uint16_t udp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_hea
  * Calculate the TCP checksum according to RFC1071
  */
 uint16_t tcp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_header_in_net_order pheader);
+
+#include <netutil/htons.h>
 
 #define PSEUDO_HEADER_IPv4(ipv4_src, ipv4_dst, proto, len) \
     (struct pseudo_ip_header_in_net_order) { \

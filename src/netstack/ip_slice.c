@@ -142,7 +142,7 @@ errval_t ip_send(
         .src     = htonl(ip->my_ipv4),
         .dest    = htonl(dst_ip),
     };
-    packet->chksum = inet_checksum(packet, sizeof(struct ip_hdr));
+    packet->chksum = inet_checksum_in_net_order(packet, sizeof(struct ip_hdr));
 
     // 4. Send the packet
     err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, buf);
