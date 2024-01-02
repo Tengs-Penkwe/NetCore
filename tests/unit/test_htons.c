@@ -3,7 +3,7 @@
 
 void test_hton6_sequential(void) {
     struct eth_addr input = {.addr = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06}};
-    struct eth_addr expected = {.addr = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01}};
+    struct eth_addr expected = {.addr = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06}};
     struct eth_addr result = hton6(input);
     TEST_ASSERT_EQUAL_MEMORY(&expected, &result, sizeof(struct eth_addr));
 }
@@ -31,7 +31,7 @@ void test_hton6_min_values(void) {
 
 void test_hton6_mixed_values(void) {
     struct eth_addr input = {.addr = {0x01, 0xFF, 0x00, 0xAB, 0xCD, 0x23}};
-    struct eth_addr expected = {.addr = {0x23, 0xCD, 0xAB, 0x00, 0xFF, 0x01}};
+    struct eth_addr expected = {.addr = {0x01, 0xFF, 0x00, 0xAB, 0xCD, 0x23}};
     struct eth_addr result = hton6(input);
     TEST_ASSERT_EQUAL_MEMORY(&expected, &result, sizeof(struct eth_addr));
 }

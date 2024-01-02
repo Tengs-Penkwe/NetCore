@@ -11,10 +11,8 @@ void tearDown(void) {
 extern void all_hton16_tests(void);
 extern void all_hton6_tests(void);
 
-extern void all_maccmp_tests(void);
-extern void all_tomac_tests(void);
-extern void all_frommac_tests(void);
-extern void all_mem2mac_tests(void);
+extern void all_ether_tests(void);
+
 
 
 int main(void) {
@@ -29,9 +27,7 @@ int main(void) {
     RUN_TEST(all_hton16_tests);
     RUN_TEST(all_hton6_tests);
     
-    RUN_TEST(all_maccmp_tests);
-    RUN_TEST(all_tomac_tests);
-    RUN_TEST(all_frommac_tests);
-    RUN_TEST(all_mem2mac_tests);
+    RUN_TEST(all_ether_tests);
+
     return UNITY_END();
 }

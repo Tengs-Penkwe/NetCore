@@ -63,7 +63,8 @@ static inline bool maccmp(mac_addr m1, mac_addr m2) {
     return memcmp(m1.addr, m2.addr, sizeof(mac_addr)) == 0;
 }
 
-static inline mac_addr tomac(uint64_t mac) {
+static inline mac_addr u64tomac(uint64_t mac) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     return (mac_addr) {
         .addr = {
             (uint8_t)(mac & 0xFF),
@@ -71,26 +72,52 @@ static inline mac_addr tomac(uint64_t mac) {
             (uint8_t)((mac >> 16) & 0xFF),
             (uint8_t)((mac >> 24) & 0xFF),
             (uint8_t)((mac >> 32) & 0xFF),
-            (uint8_t)((mac >> 40) & 0xFF)
+            (uint8_t)((mac >> 40) & 0xFF),
         }
     };
+#else
+    return (mac_addr) {
+        .addr = {
+            (uint8_t)((mac >> 40) & 0xFF),
+            (uint8_t)((mac >> 32) & 0xFF),
+            (uint8_t)((mac >> 24) & 0xFF),
+            (uint8_t)((mac >> 16) & 0xFF),
+            (uint8_t)((mac >> 8) & 0xFF),
+            (uint8_t)(mac & 0xFF),
+        }
+    };
+#endif
 }
 
-static inline uint64_t frommac(mac_addr from) {
-    uint64_t to;
-    memcpy(&to, &from, sizeof(mac_addr));
-    return (to & 0x0000FFFFFFFFFFFF);    // Mask to ensure upper bytes are zero
+static inline uint64_t mactou64(mac_addr from) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return (uint64_t)
+        ((uint64_t)from.addr[0]) |
+        ((uint64_t)from.addr[1] << 8) |
+        ((uint64_t)from.addr[2] << 16) |
+        ((uint64_t)from.addr[3] << 24) |
+        ((uint64_t)from.addr[4] << 32) |
+        ((uint64_t)from.addr[5] << 40) ;
+#else
+    return (uint64_t)
+        ((uint64_t)from.addr[0] << 40) |
+        ((uint64_t)from.addr[1] << 32) |
+        ((uint64_t)from.addr[2] << 24) |
+        ((uint64_t)from.addr[3] << 16) |
+        ((uint64_t)from.addr[4] << 8)  |
+        ((uint64_t)from.addr[5]);
+#endif
 }
 
 static inline mac_addr mem2mac(void* mac) {
     mac_addr result;
-    memcpy(result.addr, mac, 6); // Assuming mac_addr.addr is an array of 6 uint8_t
+    memcpy(result.addr, mac, 6);
     return result;
 }
 
 static inline mac_addr voidptr2mac(void* mac_as_ptr) {
     uint64_t s = (uint64_t)mac_as_ptr;
-    return tomac(s);
+    return u64tomac(s);
 }
 
 static inline bool mac_is_ndp(mac_addr mac) {
@@ -98,11 +125,11 @@ static inline bool mac_is_ndp(mac_addr mac) {
 }
 
 static inline enum mac_type get_mac_type(const mac_addr addr) {
-    if (addr.addr[0] & 0x01) {
-        return MAC_TYPE_MULTICAST;
-    }
     if (memcmp(addr.addr, "\xFF\xFF\xFF\xFF\xFF\xFF", ETH_ADDR_LEN) == 0) {
         return MAC_TYPE_BROADCAST;
+    }
+    if (addr.addr[0] & 0x01) { 
+        return MAC_TYPE_MULTICAST;
     }
     if (memcmp(addr.addr, "\x00\x00\x00\x00\x00\x00", ETH_ADDR_LEN) == 0) {
         return MAC_TYPE_NULL;

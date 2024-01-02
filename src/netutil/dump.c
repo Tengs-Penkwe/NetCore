@@ -4,7 +4,7 @@
 #include <sys/socket.h>  //AF_INET6
 
 int format_mac_address(const mac_addr *addr, char *buffer, size_t max_len) {
-    return snprintf(buffer, max_len, "%02x:%02x:%02x:%02x:%02x:%02x",
+    return snprintf(buffer, max_len, "%02X:%02X:%02X:%02X:%02X:%02X",
                     addr->addr[0], addr->addr[1], addr->addr[2], 
                     addr->addr[3], addr->addr[4], addr->addr[5]);
 }

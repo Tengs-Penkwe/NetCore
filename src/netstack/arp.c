@@ -7,7 +7,7 @@
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     assert(arp && ether);
     arp->ether = ether;
     arp->ip = ip;
@@ -19,7 +19,7 @@ errval_t arp_init(
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");
-    return SYS_ERR_OK;
+    return err;
 }
 
 void arp_destroy(

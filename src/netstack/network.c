@@ -37,6 +37,6 @@ void network_destroy(NetWork* net) {
     format_ipv6_addr(net->my_ipv6, ipv6_str, sizeof(ipv6_str));
     
     LOG_NOTE("Network Module destroyed, IPv4: %s, IPv6: %s, MAC: %0.6lX",
-            ipv4_str, ipv6_str, frommac(net->my_mac));
+            ipv4_str, ipv6_str, mactou64(net->my_mac));
     free(net);
 }

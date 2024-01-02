@@ -20,7 +20,7 @@ typedef struct arp_state {
         HashBucket buckets[ARP_HASH_BUCKETS];
     Ethernet      *ether;
     ip_addr_t      ip;
-} ARP;
+} ARP __attribute__((aligned(ATOMIC_ISOLATION)));
 
 typedef uint64_t ARP_Hash_key;
 #define ARP_HASH_KEY(ip)   (ARP_Hash_key)(ip)

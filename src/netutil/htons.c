@@ -8,7 +8,11 @@
  */
 uint16_t lwip_htons(uint16_t n)
 {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return ((n & 0xff) << 8) | ((n & 0xff00) >> 8);
+#else
+  return n;
+#endif
 }
 
 /**
@@ -30,10 +34,14 @@ uint16_t lwip_ntohs(uint16_t n)
  */
 uint32_t lwip_htonl(uint32_t n)
 {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return ((n & 0xff) << 24) |
     ((n & 0xff00) << 8) |
     ((n & 0xff0000UL) >> 8) |
     ((n & 0xff000000UL) >> 24);
+#else
+  return n;
+#endif
 }
 
 /**
@@ -47,10 +55,9 @@ uint32_t lwip_ntohl(uint32_t n)
   return lwip_htonl(n);
 }
 
+// since mac_addr is a byte array, it's not different between host and network byte order
 struct eth_addr hton6(mac_addr to) {
-  return (struct eth_addr) {
-    .addr = { to.addr[5], to.addr[4], to.addr[3], to.addr[2], to.addr[1], to.addr[0] }
-  };
+  return to;
 }
 
 struct eth_addr ntoh6(mac_addr from) {
@@ -58,6 +65,7 @@ struct eth_addr ntoh6(mac_addr from) {
 }
 
 inline ipv6_addr_t hton16(ipv6_addr_t ip) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return 
   ((ip & (ipv6_addr_t)0x00000000000000FF) << 120)|
   ((ip & (ipv6_addr_t)0x000000000000FF00) << 104)|
@@ -75,6 +83,9 @@ inline ipv6_addr_t hton16(ipv6_addr_t ip) {
   ((ip & (ipv6_addr_t)0x0000FF0000000000 << 64) >> 88  )|
   ((ip & (ipv6_addr_t)0x00FF000000000000 << 64) >> 104 )|
   ((ip & (ipv6_addr_t)0xFF00000000000000 << 64) >> 120 );
+#else
+  return ip;
+#endif
 }
 
 inline ipv6_addr_t ntoh16(ipv6_addr_t ip) {
