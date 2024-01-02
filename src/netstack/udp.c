@@ -10,15 +10,17 @@
 errval_t udp_init(
     UDP* udp, IP* ip
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     assert(udp && ip);
     udp->ip = ip;
 
-    ///@TODO: Change it to fail on exist, we don't want different control flow
-    err = hash_init(&udp->servers, udp->buckets, UDP_DEFAULT_SERVER, HS_FAIL_ON_EXIST);
+    err = hash_init(
+        &udp->servers, udp->buckets, UDP_DEFAULT_SERVER, HS_FAIL_ON_EXIST,
+        voidptr_key_cmp, voidptr_key_hash    
+    );
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of UDP servers");
 
-    return SYS_ERR_OK;
+    return err;
 }
 
 void udp_destroy(
@@ -32,7 +34,7 @@ void udp_destroy(
 }
 
 errval_t udp_marshal(
-    UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
+    UDP* udp, const ip_context_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port,
     Buffer buf
 ) {
     errval_t err;
@@ -41,6 +43,7 @@ errval_t udp_marshal(
     // We left space for the IP header, so we don't need another memcpy in the ip_marshal()
     buffer_add_ptr(&buf, sizeof(struct udp_hdr));
 
+    // 1. Fill the UDP header
     struct udp_hdr* packet = (struct udp_hdr*) buf.data;
     *packet = (struct udp_hdr) {
         .src    = htons(src_port),
@@ -49,13 +52,12 @@ errval_t udp_marshal(
         .chksum = 0,
     };
 
-    struct pseudo_ip_header_in_net_order ip_header = {
-        .src_addr   = htonl(udp->ip->my_ip),
-        .dst_addr   = htonl(dst_ip),
-        .reserved   = 0,
-        .protocol   = IP_PROTO_UDP,
-        .len_no_iph = htons(buf.valid_size),
-    };
+    // 2. Calculate the checksum
+    struct pseudo_ip_header_in_net_order ip_header;
+    if (dst_ip.is_ipv6) 
+        ip_header = PSEUDO_HEADER_IPv6(udp->ip->my_ipv6, dst_ip.ipv6, IPv6_PROTO_UDP, (uint32_t)buf.valid_size);
+    else
+        ip_header = PSEUDO_HEADER_IPv4(udp->ip->my_ipv4, dst_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
     packet->chksum = udp_checksum_in_net_order(buf.data, ip_header);
 
     err = ip_marshal(udp->ip, dst_ip, IP_PROTO_UDP, buf);
@@ -65,7 +67,7 @@ errval_t udp_marshal(
 }
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, Buffer buf
+    UDP* udp, const ip_context_t src_ip, Buffer buf
 ) {
     errval_t err;
     assert(udp);
@@ -84,15 +86,13 @@ errval_t udp_unmarshal(
     // TODO: check server first, then calculate check sum
     // 2. Checksum is optional
     uint16_t pkt_chksum = ntohs(packet->chksum); //TODO: ntohs ?
-    if (pkt_chksum != 0) {
+    struct pseudo_ip_header_in_net_order ip_header;
+    if (src_ip.is_ipv6) 
+        ip_header = PSEUDO_HEADER_IPv6(udp->ip->my_ipv6, src_ip.ipv6, IPv6_PROTO_UDP, (uint32_t)buf.valid_size);
+    else
+        ip_header = PSEUDO_HEADER_IPv4(udp->ip->my_ipv4, src_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
+    if (pkt_chksum != 0 || src_ip.is_ipv6) {   // UDP over IPv4 has optional checksum
         packet->chksum = 0;
-        struct pseudo_ip_header_in_net_order ip_header = {
-            .src_addr   = htonl(src_ip),
-            .dst_addr   = htonl(udp->ip->my_ip),
-            .reserved   = 0,
-            .protocol   = IP_PROTO_UDP,
-            .len_no_iph = htons(buf.valid_size),
-        };
         uint16_t checksum = ntohs(udp_checksum_in_net_order(buf.data, ip_header));
         if (pkt_chksum != checksum) {
             UDP_ERR("This UDP Pacekt Has Wrong Checksum 0x%0.4x, Should be 0x%0.4x", pkt_chksum, checksum);
@@ -107,18 +107,16 @@ errval_t udp_unmarshal(
     switch (err_no(err))
     {
     case SYS_ERR_OK:
-        sem_wait(&server->sema);
-        if (server->is_live == false) 
+        // This operation isn't atomic, but sine the closing of a server is rare,
+        // we sleep for 1 second in the closing process, that's enough for this operation
+        if (server->is_live == false)
         {
-            sem_post(&server->sema);
             UDP_ERR("We received packet for a dead UDP server on this port: %d", dst_port);
             return NET_ERR_UDP_PORT_NOT_REGISTERED;
         } 
         else
         {
-            // TODO: the semaphore is to prevent this situation:
             server->callback(server, buf, src_ip, src_port);
-            sem_post(&server->sema);
             UDP_DEBUG("We handled an UDP packet at port: %d", dst_port);
             return SYS_ERR_OK;
         }

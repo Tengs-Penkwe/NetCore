@@ -10,7 +10,10 @@ errval_t tcp_init(TCP* tcp, IP* ip) {
     tcp->ip = ip;
 
     // 1. Hash table for servers
-    err = hash_init(&tcp->servers, tcp->buckets, TCP_SERVER_BUCKETS, HS_FAIL_ON_EXIST);
+    err = hash_init(
+        &tcp->servers, tcp->buckets, TCP_SERVER_BUCKETS, HS_FAIL_ON_EXIST,
+        voidptr_key_cmp, voidptr_key_hash
+    );
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of tcp servers");
 
     TCP_NOTE("TCP Module Initialized, the hash-table for server has size %d", TCP_SERVER_BUCKETS);
@@ -29,8 +32,8 @@ void tcp_destroy(
     TCP_ERR("Not implemented yet");
 }
 
-errval_t tcp_marshal(
-    TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
+errval_t tcp_send(
+    TCP* tcp, const ip_context_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
     Buffer buf
 ) {
@@ -54,13 +57,11 @@ errval_t tcp_marshal(
         .urgent_ptr  = urg_prt,
     };
 
-    struct pseudo_ip_header_in_net_order ip_header = {
-        .src_addr       = htonl(tcp->ip->my_ip),
-        .dst_addr       = htonl(dst_ip),
-        .reserved       = 0,
-        .protocol       = IP_PROTO_TCP,
-        .len_no_iph     = htonl(buf.valid_size),
-    };
+    struct pseudo_ip_header_in_net_order ip_header;
+    if (dst_ip.is_ipv6) 
+        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, dst_ip.ipv6, IPv6_PROTO_UDP, buf.valid_size);
+    else
+        ip_header = PSEUDO_HEADER_IPv4(tcp->ip->my_ipv4, dst_ip.ipv4, IP_PROTO_UDP, buf.valid_size);
     packet->chksum  = tcp_checksum_in_net_order(buf.data, ip_header);
 
     err = ip_marshal(tcp->ip, dst_ip, IP_PROTO_TCP, buf);
@@ -70,7 +71,7 @@ errval_t tcp_marshal(
 }
 
 errval_t tcp_unmarshal(
-    TCP* tcp, const ip_addr_t src_ip, Buffer buf
+    TCP* tcp, const ip_context_t src_ip, Buffer buf
 ) {
     errval_t err = SYS_ERR_OK;
     assert(tcp);
@@ -93,13 +94,11 @@ errval_t tcp_unmarshal(
     tcp_port_t dst_port = ntohs(packet->dest_port);
     
     // 2. Checksum
-    struct pseudo_ip_header_in_net_order ip_header = {
-        .src_addr       = htons(src_ip),
-        .dst_addr       = htons(tcp->ip->my_ip),
-        .reserved       = 0,
-        .protocol       = IP_PROTO_TCP,
-        .len_no_iph     = htons(buf.valid_size),
-    };
+    struct pseudo_ip_header_in_net_order ip_header;
+    if (src_ip.is_ipv6) 
+        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, src_ip.ipv6, IPv6_PROTO_UDP, (uint32_t)buf.valid_size);
+    else
+        ip_header = PSEUDO_HEADER_IPv4(tcp->ip->my_ipv4, src_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
     uint16_t chksum = ntohs(packet->chksum);
     packet->chksum  = 0;
     uint16_t tcp_chksum = ntohs(tcp_checksum_in_net_order(buf.data, ip_header));
@@ -140,10 +139,8 @@ errval_t tcp_unmarshal(
     case SYS_ERR_OK:
         assert(server);
         USER_PANIC("need to consider the server is deregistered during the process");
-        sem_wait(&server->sema);
         if (server->is_live == false)
         {
-            sem_post(&server->sema);
             free(msg);
             TCP_ERR("A process try to send message a dead TCP server on this port: %d", dst_port);
             return NET_ERR_TCP_PORT_NOT_REGISTERED;
@@ -157,7 +154,6 @@ errval_t tcp_unmarshal(
                 TCP_ERR("The given message queue of TCP message is full, will drop this message in upper level");
                 return err_push(err, NET_ERR_TCP_QUEUE_FULL);
             }
-            sem_post(&server->sema);
             return NET_THROW_TCP_ENQUEUE;
         }
         assert(0);

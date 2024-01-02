@@ -36,6 +36,14 @@ struct tcp_hdr {
 
 typedef uint16_t tcp_port_t;
 
+/// The key of a connection inside the hash table of a server
+typedef struct {
+    ipv6_addr_t ip;     // both for IPv4 and IPv6
+    tcp_port_t  port;
+} __attribute__((__packed__)) tcp_conn_key_t ;
+static_assert(sizeof(tcp_conn_key_t) == 18, "The size of tcp_conn_key_t should be 18 bytes");
+
+
 __BEGIN_DECLS
 
 static inline uint8_t tcp_get_data_offset(const struct tcp_hdr *tcp_header) {

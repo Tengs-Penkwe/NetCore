@@ -3,6 +3,9 @@
 #include "tcp_connect.h"
 #include <event/states.h>
 #include <sys/syscall.h>   //syscall
+#include <netutil/dump.h>  //format_ip_addr
+#include <stdatomic.h>      // atomic_thread_fence
+#include <unistd.h>         // For usleep
                            
 static void* server_thread(void* localstate);
 static void server_destroy(TCP_server* server);
@@ -20,7 +23,7 @@ static void* server_thread(void* localstate) {
     
     while (true) {
         if (debdqueue(&server->msg_queue, NULL, (void**)&msg) == EVENT_DEQUEUE_EMPTY) {
-            sem_wait(&server->sema);
+            sem_wait(&server->worker_sem);
         } else {
             assert(msg);
             server_unmarshal(server, msg);
@@ -41,6 +44,11 @@ static errval_t server_init(TCP_server* server) {
         free(queue_elements);
         TCP_FATAL("Can't Initialize the queues for TCP messages");
         return err;
+    }
+    
+    if (sem_init(&server->worker_sem, 0, server->worker_num) != 0){
+        TCP_ERR("Can't initialize the semaphore of TCP server");
+        return SYS_ERR_INIT_FAIL;
     }
 
     LocalState* local = calloc(server->worker_num, sizeof(LocalState));
@@ -77,6 +85,7 @@ static void server_destroy(TCP_server* server) {
         pthread_cancel(server->worker[i]);
     }
     LOG_FATAL("NYI, server_destroy");
+
 }
 
 errval_t tcp_server_register(
@@ -91,18 +100,12 @@ errval_t tcp_server_register(
     *new_server = (TCP_server) {
         .worker_num = g_states.max_workers_for_single_tcp_server,
         .is_live    = true,
-        .sema       = { { 0 } },
         .tcp        = tcp,
         .rpc        = rpc,
         .port       = port,
         .callback   = callback,
         .max_conn   = 0,        // Need user to set
     };
-
-    if (sem_init(&new_server->sema, 0, new_server->worker_num) != 0){
-        TCP_ERR("Can't initialize the semaphore of TCP server");
-        return SYS_ERR_INIT_FAIL;
-    }
 
     //TODO: reconsider the multithread contention here
     err_get = hash_get_by_key(&tcp->servers, TCP_HASH_KEY(port), (void**)&get_server);
@@ -111,31 +114,15 @@ errval_t tcp_server_register(
     case SYS_ERR_OK:
     {    // We may meet a dead server, since the hash table is add-only, we can't remove it
         assert(get_server);
-        sem_wait(&get_server->sema);
-
         if (get_server->is_live == false)   // Dead Server
         {
-            for (size_t i = 0; i < get_server->worker_num - 1; i++) {
-                sem_wait(&get_server->sema);
-            }   // Wait until all workers' done with this server
-            assert(get_server->tcp  == tcp);
-            assert(get_server->port == port);
-            assert(get_server->worker_num == 8);
-            get_server->rpc      = rpc;
-            get_server->callback = callback;
-            get_server->is_live  = true;
-
-            for (size_t i = 0; i < get_server->worker_num; i++) {
-                sem_post(&get_server->sema);
-            }   // Now the new server is ready
-            assert(sem_destroy(&new_server->sema) == 0);
+            server_destroy(get_server);
+            *get_server = *new_server;
             free(new_server);
             return SYS_ERR_OK;
         }
         else    // Live server
         {
-            sem_post(&get_server->sema);
-            assert(sem_destroy(&new_server->sema) == 0);
             free(new_server);
             return NET_ERR_TCP_PORT_REGISTERED;
         }
@@ -155,7 +142,6 @@ errval_t tcp_server_register(
         TCP_NOTE("We registered a TCP server at port: %d", port);
         break;
     case EVENT_HASH_NOT_EXIST:
-        assert(sem_destroy(&new_server->sema) == 0);
         free(new_server);
         TCP_ERR("Another process also wants to register the TCP port and he/she gets it")
         return NET_ERR_TCP_PORT_REGISTERED;
@@ -178,18 +164,16 @@ errval_t tcp_server_deregister(
     switch (err_no(err))
     {
     case SYS_ERR_OK:
-        sem_wait(&server->sema);
         if (server->is_live == false)
         {
-            sem_post(&server->sema);
             TCP_ERR("A process try to de-register a dead TCP server on this port: %d", port);
             return NET_ERR_TCP_PORT_NOT_REGISTERED;
         }
         else
         {
             server->is_live = false;
-            server_destroy(server);
-            sem_post(&server->sema);
+            atomic_thread_fence(memory_order_seq_cst); // Apply a sequentially-consistent memory barrier
+            usleep(10000); // Sleep for (0.01 seconds) to ensure all the threads have finished their work
             TCP_INFO("We inactivated a TCP server at port: %d", port);
             return SYS_ERR_OK;
         }
@@ -204,8 +188,8 @@ errval_t tcp_server_deregister(
 static errval_t server_find_or_create_connection(
     TCP_server* server, TCP_msg* msg, TCP_conn** conn
 ) {
-    uint64_t key = TCP_CONN_KEY(msg->recv.src_ip, msg->recv.src_port);
-    (void) key;
+    // uint64_t key = TCP_CONN_KEY(msg->recv.src_ip, msg->recv.src_port);
+    // (void) key;
     USER_PANIC("NYI");
 
     // if (collections_hash_size(server->connections) > server->max_conn) {
@@ -249,13 +233,15 @@ errval_t server_listen(
 }
 
 errval_t server_marshal(
-    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, Buffer buf
+    TCP_server* server, ip_context_t dst_ip, tcp_port_t dst_port, Buffer buf
 ) {
     errval_t err;
 
-    uint64_t key = TCP_CONN_KEY(dst_ip, dst_port);
-    (void) key;
-    LOG_ERR("NYI");
+    (void) dst_ip;
+    (void) dst_port;
+    // uint64_t key = TCP_CONN_KEY(dst_ip, dst_port);
+    // (void) key;
+    LOG_FATAL("NYI");
     TCP_conn* conn = NULL; //collections_hash_find(server->connections, key);
     if (conn == NULL) {
         return NET_ERR_TCP_NO_CONNECTION;
@@ -296,7 +282,7 @@ errval_t server_send(
     uint16_t urg_ptr = 0;
     uint8_t flags = flags_compile(msg->flags);
 
-    err = tcp_marshal(
+    err = tcp_send(
         server->tcp, msg->send.dst_ip, server->port, msg->send.dst_port, 
         msg->seqno, msg->ackno, window, urg_ptr, flags, msg->buf
     );
@@ -330,14 +316,10 @@ errval_t server_unmarshal(
 /// Dump functions
 ////////////////////////////////////////////////////////////////////////////
 
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 void dump_tcp_conn(const TCP_conn *conn) {
-    char src_ip_str[INET_ADDRSTRLEN];
-    ip_addr_t src_ip = htonl(conn->src_ip);
-    inet_ntop(AF_INET, &src_ip, src_ip_str, INET_ADDRSTRLEN);
+    char src_ip_str[IPv6_ADDRESTRLEN];
+    format_ip_addr(conn->src_ip, src_ip_str, sizeof(src_ip_str));
 
     printf("TCP Connection:\n");
     printf("   Server Pointer: %p\n", (void *)conn->server);

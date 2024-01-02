@@ -17,7 +17,7 @@ typedef struct udp_server UDP_server;
 typedef void (*udp_server_callback) (
     struct udp_server* server,
     Buffer buf,
-    const ip_addr_t src_ip, const udp_port_t src_port
+    const ip_context_t src_ip, const udp_port_t src_port
 );
 
 typedef struct udp_state {
@@ -39,11 +39,11 @@ void udp_destroy(
 );
 
 errval_t udp_marshal(
-    UDP* udp, const ip_addr_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port, Buffer buf
+    UDP* udp, const ip_context_t dst_ip, const udp_port_t src_port, const udp_port_t dst_port, Buffer buf
 );
 
 errval_t udp_unmarshal(
-    UDP* udp, const ip_addr_t src_ip, Buffer buf
+    UDP* udp, const ip_context_t src_ip, Buffer buf
 );
 
 __END_DECLS
