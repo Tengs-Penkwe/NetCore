@@ -46,8 +46,8 @@ uint16_t tcp_checksum_in_net_order(const void *data_no_iph, struct pseudo_ip_hea
 #define PSEUDO_HEADER_IPv4(ipv4_src, ipv4_dst, proto, len) \
     (struct pseudo_ip_header_in_net_order) { \
         .ipv4 = { \
-            .src_addr    = htons(ipv4_src), \
-            .dst_addr    = htons(ipv4_dst), \
+            .src_addr    = htonl(ipv4_src), \
+            .dst_addr    = htonl(ipv4_dst), \
             .reserved    = 0, \
             .protocol    = proto, \
             .len_no_iph  = htons((uint16_t)len), \

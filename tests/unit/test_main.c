@@ -12,6 +12,7 @@ extern void all_hton16_tests(void);
 extern void all_hton6_tests(void);
 
 extern void all_ether_tests(void);
+extern void all_checksum_tests(void);
 
 
 
@@ -28,6 +29,8 @@ int main(void) {
     RUN_TEST(all_hton6_tests);
     
     RUN_TEST(all_ether_tests);
+
+    RUN_TEST(all_checksum_tests);
 
     return UNITY_END();
 }
