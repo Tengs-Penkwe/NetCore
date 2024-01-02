@@ -51,6 +51,7 @@ struct ip_hdr {
 #define IPv4_ADDRESTRLEN   16
 #define IPv6_ADDRESTRLEN   46
 
+#define IPv6_PROTO_HOPOPT  0
 #define IPv6_PROTO_TCP     6
 #define IPv6_PROTO_UDP     17
 #define IPv6_PROTO_ICMP    58
@@ -60,10 +61,6 @@ struct ip_hdr {
 typedef unsigned __int128 ipv6_addr_t ;
 #pragma GCC diagnostic pop
 static_assert(sizeof(ipv6_addr_t) == 16, "ipv6_addr_t must be 16 bytes");
-
-static inline ipv6_addr_t mk_ipv6(uint64_t hi, uint64_t lo) {
-    return ((ipv6_addr_t)hi << 64) | lo;
-}
 
 // Structure of an IPv6 header
 struct ipv6_hdr {
@@ -90,6 +87,8 @@ typedef struct ipv6_hopbyhop_hdr {
     uint8_t   options[];    // Options
 } __attribute__((__packed__)) ipv6_hopbyhop_hdr_t;
 
+static_assert(sizeof(struct ipv6_hopbyhop_hdr) == 2, "IPv6 Hop-by-Hop header must be 2 bytes");
+
 typedef struct ipv6_routing_hdr {
     uint8_t   next_header;  // Next Header
     uint8_t   length;       // Length
@@ -115,6 +114,16 @@ enum ip_proto_type {
     IP_TCP,
 };
 
+__BEGIN_DECLS
+
+static inline ipv6_addr_t mk_ipv6(uint64_t hi, uint64_t lo) {
+    return ((ipv6_addr_t)hi << 64) | lo;
+}
+
+static inline bool ipv6_is_multicast(ipv6_addr_t addr) {
+    return addr >> 120 == 0xFF;
+}
+
 static inline uint8_t proto_to_uint8_t(const enum ip_proto_type proto, const bool is_ipv6) {
     if (is_ipv6) {
         switch (proto) {
@@ -132,5 +141,7 @@ static inline uint8_t proto_to_uint8_t(const enum ip_proto_type proto, const boo
         }
     }
 }
+
+__END_DECLS
 
 #endif // _IP_H_

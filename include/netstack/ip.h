@@ -182,9 +182,7 @@ static inline errval_t ip_unmarshal(IP* ip, Buffer buf) {
     switch (version) {
     case 4: return ipv4_unmarshal(ip, buf);
     case 6: return ipv6_unmarshal(ip, buf);
-    default:
-        IP_ERR("Invalid IP packet version %d", version);
-        return NET_ERR_IP_VERSION;
+    default: return NET_ERR_IP_VERSION;
     }
 }
 
