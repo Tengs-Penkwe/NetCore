@@ -34,8 +34,9 @@ static inline void pbuf(const void* buffer, size_t length, size_t column) {
 }
 
 int format_mac_address(const mac_addr *addr, char *buffer, size_t max_len);
+int format_ip_addr(ip_context_t ip, char *buffer, size_t max_len);
+int format_ipv4_addr(ip_addr_t ip, char *buffer, size_t max_len);
 int format_ipv6_addr(ipv6_addr_t addr, char *buffer, size_t max_len);
-int format_ip_address(ip_addr_t ip, char *buffer, size_t max_len);
 int format_tcp_flags(uint8_t flags, char *buffer, size_t max_len);
 int format_tcp_header(const struct tcp_hdr *tcp_header, char *buffer, size_t max_len);
 int format_udp_header(const struct udp_hdr *udp_header, char *buffer, size_t max_len);

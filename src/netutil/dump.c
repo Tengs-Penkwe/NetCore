@@ -1,4 +1,5 @@
 #include <netutil/dump.h>
+#include <netutil/ip.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>  //AF_INET6
 
@@ -6,6 +7,14 @@ int format_mac_address(const mac_addr *addr, char *buffer, size_t max_len) {
     return snprintf(buffer, max_len, "%02x:%02x:%02x:%02x:%02x:%02x",
                     addr->addr[0], addr->addr[1], addr->addr[2], 
                     addr->addr[3], addr->addr[4], addr->addr[5]);
+}
+
+int format_ip_addr(ip_context_t ip, char *buffer, size_t max_len) {
+    if (ip.is_ipv6) {
+        return format_ipv6_addr(ip.ipv6, buffer, max_len);
+    } else {
+        return format_ipv4_addr(ip.ipv4, buffer, max_len);
+    }
 }
 
 int format_ipv6_addr(ipv6_addr_t addr, char *buffer, size_t max_len) {
@@ -19,7 +28,7 @@ int format_ipv6_addr(ipv6_addr_t addr, char *buffer, size_t max_len) {
                        blocks[4], blocks[5], blocks[6], blocks[7]);
 }
 
-int format_ip_address(ip_addr_t ip, char *buffer, size_t max_len) {
+int format_ipv4_addr(ip_addr_t ip, char *buffer, size_t max_len) {
     struct in_addr ip_addr;
     ip_addr.s_addr = ip;
     return snprintf(buffer, max_len, "%s", inet_ntoa(ip_addr));
@@ -106,7 +115,7 @@ int format_arp_header(const struct arp_hdr *arp_header, char *buffer, size_t max
 
     char mac_buffer[20], ip_buffer[20];
     format_mac_address(&arp_header->eth_src, mac_buffer, sizeof(mac_buffer));
-    format_ip_address(arp_header->ip_src, ip_buffer, sizeof(ip_buffer));
+    format_ipv4_addr(arp_header->ip_src, ip_buffer, sizeof(ip_buffer));
     len += snprintf(buffer + len, max_len - len,
                  "   Hardware Type: %u\n   Protocol Type: 0x%04x\n"
                  "   Hardware Size: %u\n   Protocol Size: %u\n"
@@ -116,7 +125,7 @@ int format_arp_header(const struct arp_hdr *arp_header, char *buffer, size_t max
                  ntohs(arp_header->opcode), mac_buffer, ip_buffer);
 
     format_mac_address(&arp_header->eth_dst, mac_buffer, sizeof(mac_buffer));
-    format_ip_address(arp_header->ip_dst, ip_buffer, sizeof(ip_buffer));
+    format_ipv4_addr(arp_header->ip_dst, ip_buffer, sizeof(ip_buffer));
     len += snprintf(buffer + len, max_len - len, "   Target MAC: %s\n   Target IP: %s\n", mac_buffer, ip_buffer);
 
     return len;
