@@ -1,35 +1,41 @@
 #include <lock_free/hash_table.h>
 
-errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum hash_policy policy) {
-    
+errval_t hash_init(
+    HashTable* hash, HashBucket* buckets, size_t buck_num, enum hash_policy policy,
+    key_compare_function key_cmp, key_hash_function key_hash
+) {
+    // 1. Verfiy the alignment
     if (((uintptr_t)&hash->hash % ATOMIC_ISOLATION != 0)    ||
-        ((uintptr_t)buckets % ATOMIC_ISOLATION != 0)       || //TODO: not enought, we need to ensure everyone is aligned ?
+        ((uintptr_t)buckets % ATOMIC_ISOLATION != 0)        || //TODO: not enought, we need to ensure everyone is aligned ?
         ((uintptr_t)&hash->freelist % ATOMIC_ISOLATION != 0) 
     ) {
         assert(0);
         return SYS_ERR_BAD_ALIGNMENT;
     }
 
+    // 2. Initialize the hash table
     switch (policy)
     {
     case HS_OVERWRITE_ON_EXIST:
         lfds711_hash_a_init_valid_on_current_logical_core(
             &hash->hash, buckets, buck_num,
-            key_compare_func, key_hash_func, 
+            key_cmp, key_hash,
             LFDS711_HASH_A_EXISTING_KEY_OVERWRITE, NULL);
         break;
     case HS_FAIL_ON_EXIST:
         lfds711_hash_a_init_valid_on_current_logical_core(
             &hash->hash, buckets, buck_num,
-            key_compare_func, key_hash_func, 
+            key_cmp, key_hash,
             LFDS711_HASH_A_EXISTING_KEY_FAIL, NULL);
         break;
     default:
         LOG_FATAL("Unknown policy: %d", policy);
         return SYS_ERR_WRONG_CONFIG;
     }
+    hash->key_cmp = key_cmp;
+    hash->key_hash = key_hash;
 
-    // 2. Initialize the free list
+    // 3. Initialize the free list, which is used to store pre-allocated hash elements
     lfds711_freelist_init_valid_on_current_logical_core(&hash->freelist, NULL, 0, NULL);
     
     struct lfds711_freelist_element* fe = calloc(INIT_FREE, sizeof(struct lfds711_freelist_element));
@@ -39,12 +45,11 @@ errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum h
         LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(fe[i], he);
         lfds711_freelist_push(&hash->freelist, &fe[i], NULL);
     }
-
+    
     hash->policy = policy;
 
     return SYS_ERR_OK;
 }
-
 
 void hash_destroy(HashTable* hash) {
     assert(hash);
@@ -132,7 +137,7 @@ errval_t hash_get_by_key(HashTable* hash, Hash_key key, void** ret_data) {
 
     struct lfds711_hash_a_element *he = NULL;
 
-    if (lfds711_hash_a_get_by_key(&hash->hash, key_compare_func, key_hash_func, (void*)key, &he) == 1) { // Found the element
+    if (lfds711_hash_a_get_by_key(&hash->hash, hash->key_cmp, hash->key_hash, (void*)key, &he) == 1) { // Found the element
         assert(he);
         *ret_data = LFDS711_HASH_A_GET_VALUE_FROM_ELEMENT(*he);
         return SYS_ERR_OK;
