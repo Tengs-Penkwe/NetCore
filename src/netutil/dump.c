@@ -1,7 +1,6 @@
 #include <netutil/dump.h>
 #include <netutil/ip.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>  //AF_INET6
+#include <netutil/htons.h>
 
 int format_mac_address(const mac_addr *addr, char *buffer, size_t max_len) {
     return snprintf(buffer, max_len, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -17,21 +16,28 @@ int format_ip_addr(ip_context_t ip, char *buffer, size_t max_len) {
     }
 }
 
+#include <stdio.h>
+
 int format_ipv6_addr(ipv6_addr_t addr, char *buffer, size_t max_len) {
     // Extracting each 16-bit block from the 128-bit address
+    uint8_t subblocks[16];
     uint16_t blocks[8];
-    for (int i = 0; i < 8; ++i) {
-        blocks[i] = (addr >> (112 - 16 * i)) & 0xFFFF;
+    for (int i = 0; i < 16; ++i) {
+        subblocks[i] = (addr >> (120 - 8 * i)) & 0xFF;
+        if (i % 2 == 1) {
+            blocks[i / 2] = (subblocks[i - 1] << 8) | subblocks[i];
+        }
     }
-    return snprintf(buffer, max_len, "%x:%x:%x:%x:%x:%x:%x:%x",
-                       blocks[0], blocks[1], blocks[2], blocks[3],
-                       blocks[4], blocks[5], blocks[6], blocks[7]);
+    return snprintf(buffer, max_len, "%x:%x:%x:%x:%x:%x:%x:%x", blocks[0], blocks[1], blocks[2],
+                    blocks[3], blocks[4], blocks[5], blocks[6], blocks[7]);
 }
 
 int format_ipv4_addr(ip_addr_t ip, char *buffer, size_t max_len) {
-    struct in_addr ip_addr;
-    ip_addr.s_addr = ip;
-    return snprintf(buffer, max_len, "%s", inet_ntoa(ip_addr));
+    uint8_t blocks[4];
+    for (int i = 0; i < 4; ++i) {
+        blocks[i] = (ip >> (24 - 8 * i)) & 0xFF;
+    }
+    return snprintf(buffer, max_len, "%u.%u.%u.%u", blocks[0], blocks[1], blocks[2], blocks[3]);
 }
 
 int format_tcp_flags(uint8_t flags, char *buffer, size_t max_len) {
@@ -132,10 +138,10 @@ int format_arp_header(const struct arp_hdr *arp_header, char *buffer, size_t max
 }
 
 int format_ipv4_header(const struct ip_hdr *ip_header, char *buffer, size_t max_len) {
-    char ip_src[INET_ADDRSTRLEN];
-    char ip_dest[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &ip_header->src, ip_src, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &ip_header->dest, ip_dest, INET_ADDRSTRLEN);
+    char ip_src[IPv4_ADDRESTRLEN];
+    char ip_dest[IPv4_ADDRESTRLEN];
+    format_ipv4_addr(ip_header->src, ip_src, sizeof(ip_src));
+    format_ipv4_addr(ip_header->dest, ip_dest, sizeof(ip_dest));
 
     int len = snprintf(buffer, max_len,
                        "IPv4 Header:\n"
@@ -173,10 +179,10 @@ int format_ipv4_header(const struct ip_hdr *ip_header, char *buffer, size_t max_
 }
 
 int format_ipv6_header(const struct ipv6_hdr *ipv6_header, char *buffer, size_t max_len) {
-    char src_ip[INET6_ADDRSTRLEN];
-    char dest_ip[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET6, &ipv6_header->src, src_ip, INET6_ADDRSTRLEN);
-    inet_ntop(AF_INET6, &ipv6_header->dest, dest_ip, INET6_ADDRSTRLEN);
+    char src_ip[IPv6_ADDRESTRLEN];
+    char dest_ip[IPv6_ADDRESTRLEN];
+    format_ipv6_addr(ntoh16(ipv6_header->src), src_ip, sizeof(src_ip));
+    format_ipv6_addr(ntoh16(ipv6_header->dest), dest_ip, sizeof(dest_ip));
 
     return snprintf(buffer, max_len,
                        "IPv6 Header:\n"

@@ -297,14 +297,11 @@ errval_t conn_handle_msg(TCP_conn* conn, TCP_msg* msg)
 ////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 // Function to dump the contents of a TCP_msg struct
 void dump_tcp_msg(const TCP_msg *msg) {
-    char src_ip_str[INET6_ADDRSTRLEN];
-    format_ip_addr(msg->recv.src_ip, src_ip_str, INET6_ADDRSTRLEN);
+    char src_ip_str[IPv6_ADDRESTRLEN];
+    format_ip_addr(msg->recv.src_ip, src_ip_str, IPv6_ADDRESTRLEN);
 
     printf("TCP Message:\n");
     printf("   Source IP: %s\n", src_ip_str);

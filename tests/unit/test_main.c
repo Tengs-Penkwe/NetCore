@@ -14,6 +14,7 @@ extern void all_hton6_tests(void);
 extern void all_ether_tests(void);
 extern void all_checksum_tests(void);
 
+extern void all_format_ip_addr_tests(void);
 
 
 int main(void) {
@@ -31,6 +32,8 @@ int main(void) {
     RUN_TEST(all_ether_tests);
 
     RUN_TEST(all_checksum_tests);
+
+    RUN_TEST(all_format_ip_addr_tests);
 
     return UNITY_END();
 }

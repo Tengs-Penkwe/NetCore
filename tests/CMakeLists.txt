@@ -22,6 +22,7 @@ file(GLOB INTEGRATION_TEST_SRCS "integration/*.c")
 set(DISABLE_WARNINGS
     -Wno-attributes -Wno-unused-but-set-variable -Wno-strict-prototypes -Wno-old-style-definition -Wno-missing-prototypes -Wno-implicit-function-declaration
     -Wno-missing-declarations -Wno-uninitialized -Wno-suggest-attribute=noreturn
+    -Wno-error
 )
 
 # Unit tests

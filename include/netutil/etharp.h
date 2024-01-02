@@ -14,6 +14,7 @@
 #define ETH_TYPE_IPv4   0x0800
 #define ETH_TYPE_IPv6   0x86DD
 
+#define MAC_ADDRSTRLEN  18
 typedef struct eth_addr {
     uint8_t addr[6];
 } mac_addr ;
