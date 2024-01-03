@@ -44,6 +44,7 @@ static ko_longopt_t longopts[] = {
     { "log-level", ko_optional_argument,  0  },
     { "log-file",  ko_optional_argument,  0  },
     { "log-ansi",  ko_optional_argument,  0  },
+    { "queue-size",ko_optional_argument,  0  },
     { NULL,        0,                     0  }
 };
 
@@ -57,6 +58,7 @@ int main(int argc, char *argv[]) {
     char *log_file_name = "/var/log/NetCore/output.json";
     int log_level = LOG_LEVEL_VERBOSE; // default log level
     bool ansi_log = false;
+    rlim_t queue_size = 256273;     // The default by ulimit on my machine is 256273, thus we don't need root to run this program 
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
         switch (c) {
@@ -79,6 +81,8 @@ int main(int argc, char *argv[]) {
                 log_file_name = opt.arg;
             } else if (opt.longidx == 7) { // log-ansi
                 ansi_log = true;
+            } else if (opt.longidx == 8) { // size of signal queue
+                queue_size = atoi(opt.arg);
             }
             break;
         case '?': // Unknown option
@@ -123,7 +127,7 @@ int main(int argc, char *argv[]) {
     set_local_state(master);
 
     // 3. Initialize the signal set (the timer thread use the signal to wake up)
-    err = signal_init(false);
+    err = signal_init(queue_size);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the signals");
         return -1;

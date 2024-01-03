@@ -3,7 +3,7 @@
 #include <event/timer.h>
 #include <errno.h>
 
-errval_t signal_init(bool unlimited_queue)
+errval_t signal_init(rlim_t queue_size)
 {
     errval_t err = SYS_ERR_OK;
     // Note: we are in main thread !
@@ -22,9 +22,6 @@ errval_t signal_init(bool unlimited_queue)
         return EVENT_ERR_SIGNAL_INIT;
     }
 
-    // If we don't want to set unlimited queue, we can return now
-    if (!unlimited_queue) return err;
-
     // 2.1 Set the signal queue limits
     struct rlimit rl;
     if (getrlimit(RLIMIT_SIGPENDING, &rl) == -1)
@@ -32,16 +29,23 @@ errval_t signal_init(bool unlimited_queue)
         LOG_FATAL("gettrlimit: %s", strerror(errno));
         return EVENT_ERR_SIGNAL_INIT;
     }
-    LOG_NOTE("Current signal queue limits: soft=%ld; hard=%ld", rl.rlim_cur, rl.rlim_max);
+    LOG_NOTE("Current signal queue limits: soft=%ld; hard=%ld, need=%ld", rl.rlim_cur, rl.rlim_max, queue_size);
 
-    // 2.2 Set a new limit
-    rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_SIGPENDING, &rl) == -1)
-    {
-        LOG_FATAL("settrlimit: %s", strerror(errno));
-        return EVENT_ERR_SIGNAL_INIT;
+    if (rl.rlim_max < queue_size) {
+        rl.rlim_max = queue_size;
     }
-    LOG_NOTE("New limits set - soft: %ld, hard: %ld (-1 means unlimited)", rl.rlim_cur, rl.rlim_max);
+
+    if (rl.rlim_cur < rl.rlim_max) {
+        rl.rlim_cur = rl.rlim_max; // = queue_size;
+
+        // 2.2 Set a new limit
+        if (setrlimit(RLIMIT_SIGPENDING, &rl) == -1)
+        {
+            LOG_FATAL("settrlimit: %s", strerror(errno));
+            return EVENT_ERR_SIGNAL_INIT;
+        }
+        LOG_NOTE("New limits set - soft: %ld, hard: %ld (-1 means unlimited)", rl.rlim_cur, rl.rlim_max);
+    }
 
     return err;
 }

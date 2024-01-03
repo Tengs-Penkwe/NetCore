@@ -7,8 +7,11 @@
 #include <lock_free/queue.h>  // Lock-free structures
 #include <time.h>
 
+// Use real-time signals
 #define SIG_TIGGER_SUBMIT   SIGRTMIN
+// Number of timers
 #define TIMER_NUM           2
+// The SIGRTMIN and SIGRTMAX are functions, not given values at compile time, use dynamic assert in function instead
 // static_assert(TIMER_NUM <= (SIGRTMAX - SIGRTMIN), "Timer number must be less than the number of real-time signals");
 
 typedef uint64_t delayed_us;

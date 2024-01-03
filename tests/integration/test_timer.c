@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <stdatomic.h>
 
-void timer_setup(void) {
+static void timer_setup(void) {
     create_thread_state_key();
 
     g_states.log_file = fopen("log/test_timer_log.json", "w");
@@ -21,7 +21,7 @@ void timer_setup(void) {
     };
     set_local_state(master);
 
-    assert(signal_init(true) == SYS_ERR_OK); 
+    assert(signal_init(RLIM_INFINITY) == SYS_ERR_OK); 
 
     // 1. Initialize the thread pool
     assert(thread_pool_init(4) == SYS_ERR_OK);
@@ -30,19 +30,22 @@ void timer_setup(void) {
     assert(timer_thread_init(g_states.timer) == SYS_ERR_OK);
 }
 
-atomic_size_t g_count = 0;
+static atomic_size_t g_count = 0;
 
-void simple_task(void* args) {
+static void simple_task(void* args) {
     (void) args;
     atomic_fetch_add(&g_count, 1);
 }
 
 void test_timer(void) {
+    clock_t start, end;
+    double cpu_time_used;
 
     timer_setup();
 
     size_t event_count = 1000000;   // 1 Million
 
+    start = clock();
     for (size_t i = 0; i < event_count; i++) {  
         // Random delay between 1ms and 1s
         delayed_us delay = rand() % 1000000 + 1000;
@@ -55,6 +58,10 @@ void test_timer(void) {
         };
         submit_delayed_task(MK_DELAY_TASK(delay, NULL, task));
     }
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Submitted %zu tasks in %f seconds\n", event_count, cpu_time_used);
+
     sleep(3);
 
     size_t all_submitted = 0;

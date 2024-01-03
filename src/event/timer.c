@@ -34,7 +34,7 @@ static void time_to_submit_task(int sig, siginfo_t *info, void *ucontext) {
 
 timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat) {
      // 1. Should be free'd by timer
-    DelayedTask* dtask = malloc(sizeof(DelayedTask));
+    DelayedTask* dtask = malloc(sizeof(DelayedTask)); assert(dtask);
     *dtask = dt;
 
     // Randomly choose a timer thread to send signal
@@ -48,7 +48,9 @@ timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat) {
 
     // 2.1 Create monontic timer (not real time) 
     timer_t timerid;
-    timer_create(CLOCK_MONOTONIC, &sev, &timerid);
+    if (timer_create(CLOCK_MONOTONIC, &sev, &timerid) == -1) {
+        USER_PANIC("Can't create the timer: %s", strerror(errno));
+    }
 
     // 2.2 Set delayed time from micro-second
     struct itimerspec its = {
@@ -62,7 +64,9 @@ timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat) {
         },  
     };
 
-    timer_settime(timerid, 0, &its, NULL);   
+    if(timer_settime(timerid, 0, &its, NULL) == -1) {
+        USER_PANIC("Can't set the timer: %s", strerror(errno));
+    }
 
     g_states.timer[timer_id].count_recvd += 1;
     return timerid;
