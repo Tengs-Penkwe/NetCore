@@ -35,8 +35,7 @@ typedef struct global_states {
     struct timespec start_time;
     
     /// @brief For Timed Event
-    alignas(ATOMIC_ISOLATION) 
-        Timer       timer[TIMER_NUM];
+    Timer           timer[TIMER_NUM];
     uint8_t         timer_count;
     
     /// @brief For Log

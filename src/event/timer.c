@@ -131,19 +131,16 @@ static void* timer_thread (void* states)
     pthread_cleanup_pop(1);
 }
 
-errval_t timer_thread_init(Timer timer[]) {
-    errval_t err;
+errval_t timer_thread_init(Timer timer[])
+{
+    errval_t err = SYS_ERR_OK;
      
-    // 1. Unlimited Queue for submission
-    err = queue_init(&timer->queue);
-    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the lock-free queue for timer");
-    
     assert(TIMER_NUM <= (SIGRTMAX - SIGRTMIN) && "Timer number must be less than the number of real-time signals");
     for (size_t i = 0; i < TIMER_NUM; i++) {
         // 2. Count how many submission has been made
-        g_states.timer[i].count_recvd     = 0;
-        g_states.timer[i].count_submitted = 0;
-        g_states.timer[i].count_failed    = 0;
+        timer[i].count_recvd     = 0;
+        timer[i].count_submitted = 0;
+        timer[i].count_failed    = 0;
 
         char* name = calloc(8, sizeof(char));
         sprintf(name, "Timer%d", (int)i);
@@ -154,19 +151,19 @@ errval_t timer_thread_init(Timer timer[]) {
             .my_name  = name,
             .my_pid   = (pid_t)i,       // Pass the index as pid (timer need this), but after thread creation, it will be replaced with real pid
             .log_file = (g_states.log_file == 0) ? stdout : g_states.log_file,
-            .my_state = &g_states.timer[i],
+            .my_state = &timer[i],
         };
 
         // 4. create the thread
-        if (pthread_create(&timer->thread, NULL, timer_thread, (void*)local) != 0) {
+        if (pthread_create(&timer[i].thread, NULL, timer_thread, (void*)local) != 0) {
             TIMER_FATAL("Can't create the timer thread");
             free(local);
             return EVENT_ERR_THREAD_CREATE;
         }
     }
 
-    TIMER_NOTE("Timer Module initialized");
-    return SYS_ERR_OK;
+    TIMER_NOTE("Timer Module initialized with %d threads", TIMER_NUM);
+    return err;
 }
 
 void timer_thread_destroy(Timer timer[]) {
@@ -180,7 +177,6 @@ void timer_thread_destroy(Timer timer[]) {
         all_failed    += timer[i].count_failed;
 
         assert(pthread_cancel(timer[i].thread) == 0);
-        queue_destroy(&timer[i].queue);
     }
 
     TIMER_NOTE(

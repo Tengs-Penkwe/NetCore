@@ -24,18 +24,16 @@ typedef struct delayed_task {
 } DelayedTask;
 
 typedef struct timer_state {
-    alignas(ATOMIC_ISOLATION)
-        Queue  queue;  
     pthread_t  thread;
     size_t     count_recvd;
     size_t     count_submitted;
     size_t     count_failed;
-} __attribute__((aligned(ATOMIC_ISOLATION))) Timer;
+} Timer;
 
 __BEGIN_DECLS
 
-errval_t timer_thread_init(Timer* timer);
-void timer_thread_destroy(Timer* timer_state);
+errval_t timer_thread_init(Timer timer[]);
+void timer_thread_destroy(Timer timer[]);
 
 timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat);
 timer_t submit_delayed_task(DelayedTask dt);
