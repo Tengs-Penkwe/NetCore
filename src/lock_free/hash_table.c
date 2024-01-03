@@ -70,7 +70,7 @@ void hash_destroy(HashTable* hash) {
     EVENT_NOTE("Hash table destroyed, %d elements in hash, %d elements in freelist", element_count, free_count);
 }
 
-errval_t hash_insert(HashTable* hash, Hash_key key, void* data, bool overwrite) {
+errval_t hash_insert(HashTable* hash, void* key, void* data, bool overwrite) {
     assert(hash && data);
 
     struct lfds711_freelist_element* fe = NULL;
@@ -132,12 +132,12 @@ errval_t hash_insert(HashTable* hash, Hash_key key, void* data, bool overwrite) 
     }
 }
 
-errval_t hash_get_by_key(HashTable* hash, Hash_key key, void** ret_data) {
+errval_t hash_get_by_key(HashTable* hash, void* key, void** ret_data) {
     assert(hash && *ret_data == NULL);
 
     struct lfds711_hash_a_element *he = NULL;
 
-    if (lfds711_hash_a_get_by_key(&hash->hash, hash->key_cmp, hash->key_hash, (void*)key, &he) == 1) { // Found the element
+    if (lfds711_hash_a_get_by_key(&hash->hash, hash->key_cmp, hash->key_hash, key, &he) == 1) { // Found the element
         assert(he);
         *ret_data = LFDS711_HASH_A_GET_VALUE_FROM_ELEMENT(*he);
         return SYS_ERR_OK;

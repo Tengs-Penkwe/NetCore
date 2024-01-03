@@ -3,7 +3,7 @@
 
 #include <netstack/udp.h>
 
-#define UDP_HASH_KEY(port)    (Hash_key)(port)
+#define UDP_HASH_KEY(port)    (void*)(Hash_key)(port)
 
 typedef struct udp_server {
     bool                is_live;  // Since the hash table it inside is addonly, we need to mark if it is live

@@ -18,7 +18,7 @@ typedef void (*tcp_server_callback) (
 );
 
 /// The key of a server inside the hash table 
-#define TCP_HASH_KEY(port)   (Hash_key)(port)
+#define TCP_HASH_KEY(port)   (void*)(Hash_key)(port)
 
 typedef struct tcp_state {
     /// @brief The hash table and buckets of TCP servers
