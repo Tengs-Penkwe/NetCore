@@ -15,6 +15,8 @@ extern void test_ArpDestroy(void);
 extern void test_IcmpInit(void);
 extern void test_IcmpMarshalUnmarshal(void);
 
+extern void test_timer(void);
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_ArpInit);
@@ -23,5 +25,7 @@ int main(void) {
 
     RUN_TEST(test_IcmpInit);
     RUN_TEST(test_IcmpMarshalUnmarshal);
+
+    RUN_TEST(test_timer);
     return UNITY_END();
 }

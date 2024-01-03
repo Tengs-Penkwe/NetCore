@@ -3,18 +3,6 @@ cmake_minimum_required(VERSION 3.10)
 # Unity test framework
 add_subdirectory(Unity)
 
-# # Add Unity source files
-# set(UNITY_SOURCES
-#     Unity/src/unity.c
-#     Unity/extras/fixture/src/unity_fixture.c
-# )
-
-# # Add Unity as a library
-# add_library(Unity ${UNITY_SOURCES})
-
-# # Include directories for Unity
-# target_include_directories(Unity PUBLIC Unity/src Unity/extras/fixture/src)
-
 # Add your test source files here
 file(GLOB UNIT_TEST_SRCS "unit/*.c")
 file(GLOB INTEGRATION_TEST_SRCS "integration/*.c")
@@ -48,6 +36,13 @@ add_custom_command(
     DEPENDS Integration_tests
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Running integration tests"
+)
+
+# Set capabilities (We need unlimited signal queue size)
+add_custom_command(
+    TARGET Integration_tests POST_BUILD
+    COMMAND sudo setcap cap_sys_resource=eip $<TARGET_FILE:Integration_tests>
+    COMMENT "Setting capabilities on NetCore to allow unlimited signal queue size"
 )
 
 # Custom target to run unit tests
