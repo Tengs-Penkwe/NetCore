@@ -10,3 +10,6 @@
 [submodule "tests/Unity"]
 	path = tests/Unity
 	url = https://github.com/ThrowTheSwitch/Unity
+[submodule "lib/ck"]
+	path = lib/ck
+	url = https://github.com/concurrencykit/ck.git
