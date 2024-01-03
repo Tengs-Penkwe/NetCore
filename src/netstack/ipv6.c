@@ -21,11 +21,11 @@ errval_t ipv6_unmarshal(
 
     // 1.1 Check the traffic class and flow label
     if (packet->vtf.tfclas != 0) {
-        IP6_ERR("We Don't Support traffic class %d, but I'll ignore it for now", packet->vtf.tfclas);
+        IP6_WARN("We Don't Support traffic class %d, but I'll ignore it for now", packet->vtf.tfclas);
         // return NET_ERR_IPv6_WRONG_FIELD;
     }
     if (packet->vtf.flabel != 0) {
-        IP6_ERR("We Don't Support flow label %d, but I'll ignore it for now", packet->vtf.flabel);
+        IP6_WARN("We Don't Support flow label %d, but I'll ignore it for now", packet->vtf.flabel);
         // return NET_ERR_IPv6_WRONG_FIELD;
     }
 

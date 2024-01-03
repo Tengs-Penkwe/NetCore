@@ -24,8 +24,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     // Open TAP device
     int tap_fd = open(tap_path, O_RDWR);
     if (tap_fd < 0) {
-        const char *error_msg = strerror(errno);
-        DEVICE_FATAL("Failed to open %s, because %s", tap_path, error_msg);
+        DEVICE_FATAL("Failed to open %s, because %s", tap_path, strerror(errno));
         return NET_ERR_DEVICE_INIT;
     }
 
@@ -37,8 +36,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     strncpy(ifr.ifr_name, tap_name, IFNAMSIZ);
 
     if (ioctl(tap_fd, TUNSETIFF, (void *) &ifr) < 0) {
-        const char *error_msg = strerror(errno);
-        DEVICE_FATAL("ioctl(TUNSETIFF): %s", error_msg);
+        DEVICE_FATAL("ioctl(TUNSETIFF): %s", strerror(errno));
         close(tap_fd);
         return NET_ERR_DEVICE_INIT;
     }
@@ -62,7 +60,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     struct tm *tm_info = localtime(&device->start_time.tv_sec);
     strftime(start_time_str, 64, "%Y-%m-%d %H:%M:%S", tm_info);
 
-    DEVICE_NOTE("Device initialization started at %s", start_time_str);
+    DEVICE_NOTE("Device started at %s", start_time_str);
 
     return SYS_ERR_OK;
 }

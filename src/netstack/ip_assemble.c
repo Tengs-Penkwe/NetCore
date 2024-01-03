@@ -42,7 +42,7 @@ errval_t assemble_init(
 
     // 3.1 Local state for the assemble thread
     char* name = calloc(32, sizeof(char));
-    sprintf(name, "IP Assembler%d", (int)id);
+    sprintf(name, "Assembler%d", (int)id);
 
     LocalState* local = calloc(1, sizeof(LocalState)); 
     *local = (LocalState) {
