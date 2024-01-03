@@ -59,12 +59,14 @@ typedef uintptr_t errval_t;
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
-    X(NET_ERR_NDP_WRONG_FIELD,         "Wrong Field in NDP packet") \
-    X(NET_ERR_NDP_NO_MAC_ADDRESS,      "Can't find the MAC address of given IPv6 address") \
     X(NET_ERR_IPv6_WRONG_FIELD,        "Wrong Field in IPv6 packet") \
     X(NET_ERR_IPv6_NEXT_HEADER,        "Not Supported next header in IPv6 packet") \
+    X(NET_ERR_ICMPv6_WRONG_TYPE,       "Wrong ICMPv6 message type") \
+    X(NET_ERR_ICMPv6_WRONG_CODE,       "Wrong ICMPv6 message code") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
+    X(NET_ERR_NDP_WRONG_DESTINATION,   "The destination address of this NDP message is wrong") \
+    X(NET_ERR_NDP_UNKNOWN_OPTION,      "The NDP message contains an unknown option") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
     X(NET_ERR_UDP_PORT_REGISTERED,     "This UDP Port has already been registered") \
     X(NET_ERR_UDP_PORT_NOT_REGISTERED, "This UDP Port isn't registered") \

@@ -12,7 +12,7 @@
 #include "ip_slice.h"
 
 errval_t ip_init(
-    IP* ip, Ethernet* ether, ARP* arp, NDP* ndp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
+    IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
 ) {
     errval_t err = SYS_ERR_OK;
     assert(ip && ether && arp);
@@ -24,7 +24,6 @@ errval_t ip_init(
     ip->seg_count = 0;
 
     ip->my_ipv6 = my_ipv6;
-    ip->ndp     = ndp;
 
     ip->assembler_num  = IP_ASSEMBLER_NUM;
     // 1. Message Queue for single-thread handling of IP segmentation
@@ -42,8 +41,8 @@ errval_t ip_init(
              ip->assembler_num, IP_ASSEMBLER_QUEUE_SIZE);
 
     // 2. ICMP (Internet Control Message Protocol )
-    ip->icmp = calloc(1, sizeof(ICMP));
-    assert(ip->icmp);
+    ip->icmp = aligned_alloc(ATOMIC_ISOLATION, sizeof(ICMP)); 
+    assert(ip->icmp); memset(ip->icmp, 0x00, sizeof(ICMP));
     err = icmp_init(ip->icmp, ip);
     DEBUG_FAIL_RETURN(err, "Can't initialize global ICMP state");
 
@@ -74,6 +73,8 @@ void ip_destroy(
         assembler_destroy(&ip->assemblers[i], i);
     }
     LOG_ERR("ICMP, UDP, TCP, they need to be destroyed");
+
+    icmp_destroy(ip->icmp);
     
     free(ip);
 }

@@ -10,10 +10,30 @@
 errval_t icmp_init(
     ICMP* icmp, struct ip_state* ip
 ) {
+    errval_t err = SYS_ERR_OK;
     assert(icmp && ip);
     icmp->ip = ip;
 
-    return SYS_ERR_OK;
+    // The IP-MAC mapping table for IPv6
+    err = hash_init(
+        &icmp->hosts, icmp->buckets, NDP_HASH_BUCKETS, HS_FAIL_ON_EXIST,
+        value_key_cmp, value_key_hash
+    );
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
+
+    return err;
+}
+
+void icmp_destroy(
+    ICMP* icmp
+) {
+    assert(icmp);
+
+    ICMP_ERR("NYI: the hash table stores memory address, need to free them");
+    hash_destroy(&icmp->hosts);
+
+    free(icmp);
+    ICMP_NOTE("ICMP module destroyed");
 }
 
 // Assumption: Caller free the buffer

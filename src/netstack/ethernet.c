@@ -21,13 +21,14 @@ errval_t ethernet_init(
     DEBUG_FAIL_RETURN(err, "Can't get the MAC address");
     assert(!maccmp(mac, MAC_NULL));
     ether->my_mac = mac;
-
-    ETHER_NOTE("My MAC address is: %lX", frommac(ether->my_mac));
+    
+    char mac_str[18]; format_mac_address(&mac, mac_str, sizeof(mac_str));
+    ETHER_NOTE("My MAC address is: %s", mac_str);
 
     // 2. Set the IP address
     /// TODO: dynamic IP using DHCP
     ip_addr_t   my_ipv4 = 0x0A00020F;
-    ipv6_addr_t my_ipv6 = mk_ipv6(0xfe80000000000000, 0xe0dd05fffedc6aa7);
+    ipv6_addr_t my_ipv6 = mk_ipv6(0xfe80000000000000, 0xe0dd05fffedc6aa8);
     
     char ip_str[16]; format_ipv4_addr(my_ipv4, ip_str, sizeof(ip_str));
     char ipv6_str[39]; format_ipv6_addr(my_ipv6, ipv6_str, sizeof(ipv6_str));
@@ -40,16 +41,10 @@ errval_t ethernet_init(
     err = arp_init(ether->arp, ether, my_ipv4);
     DEBUG_FAIL_RETURN(err, "Failed to initialize the ARP");
     
-    // 4. Set up the NDP
-    ether->ndp = aligned_alloc(ATOMIC_ISOLATION, sizeof(NDP)); assert(ether->ndp);
-    memset(ether->ndp, 0, sizeof(NDP));
-    err = ndp_init(ether->ndp, ether, my_ipv6);
-    DEBUG_FAIL_RETURN(err, "Failed to initialize the NDP");
-
     // 5. Set up the IP
     ether->ip = aligned_alloc(ATOMIC_ISOLATION, sizeof(IP)); assert(ether->ip);
     memset(ether->ip, 0, sizeof(IP)); 
-    err = ip_init(ether->ip, ether, ether->arp, ether->ndp, my_ipv4, my_ipv6);
+    err = ip_init(ether->ip, ether, ether->arp, my_ipv4, my_ipv6);
     DEBUG_FAIL_RETURN(err, "Failed to initialize the IP");
     
     ETHER_NOTE("Ethernet Moule initialized");
@@ -95,37 +90,48 @@ errval_t ethernet_unmarshal(
     struct eth_hdr *packet = (struct eth_hdr *)buf.data;
     ETHER_VERBOSE("Unmarshalling %d bytes", buf.valid_size);
 
-    /// 1. Decide if the packet is for us
+    /// 1. Remove the Ethernet header and hand it to next layer
+    buffer_add_ptr(&buf, sizeof(struct eth_hdr));
+
+    /// 2. Decide if the packet is for us
     mac_addr dst_mac = ntoh6(packet->dst);
     switch(get_mac_type(dst_mac)) {
     case MAC_TYPE_NULL:
         ETHER_WARN("Got a NULL message");
         return NET_ERR_ETHER_NULL_MAC;
-    case MAC_TYPE_MULTICAST:
+    case MAC_TYPE_MULTICAST: {
         ETHER_VERBOSE("Got a multicast message");
-        if (!mac_is_ndp(dst_mac)) {
-            ETHER_NOTE("An unknown ethernet multicast for MAC %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->my_mac));
+        if (!mac_is_ndp(dst_mac))
+        {
+            char mac_str[18]; format_mac_address(&dst_mac, mac_str, sizeof(mac_str));
+            char my_mac_str[18]; format_mac_address(&ether->my_mac, my_mac_str, sizeof(my_mac_str));
+            ETHER_NOTE("An unknown ethernet multicast for MAC %s, my MAC is %s", mac_str, my_mac_str);
             return NET_ERR_ETHER_WRONG_MAC;
-        } else {
-            ETHER_VERBOSE("An NDP message");
-            err = ndp_unmarshal(ether->ndp, buf);
-            DEBUG_FAIL_RETURN(err, "Error when unmarshalling NDP packet");
-            return err;
         }
+        else
+        {
+            ETHER_VERBOSE("An NDP message");
+            // // err = ndp_unmarshal(ether->ndp, buf);
+            // DEBUG_FAIL_RETURN(err, "Error when unmarshalling NDP packet");
+        }
+    }
+            break;
+        assert(!"unreachable");
     case MAC_TYPE_BROADCAST:
         ETHER_VERBOSE("Got a broadcast message");
         break;
-    case MAC_TYPE_UNICAST:
-        if (!maccmp(ether->my_mac, dst_mac)) {
-            ETHER_NOTE("Not a message for us, destination MAC is %0.6lX, my MAC is %0.6lX", frommac(dst_mac), frommac(ether->my_mac));
+    case MAC_TYPE_UNICAST: {
+        if (!maccmp(ether->my_mac, dst_mac))
+        {
+            char mac_str[18]; format_mac_address(&dst_mac, mac_str, sizeof(mac_str));
+            char my_mac_str[18]; format_mac_address(&ether->my_mac, my_mac_str, sizeof(my_mac_str));
+            ETHER_NOTE("Not a message for us, destination MAC is %s, my MAC is %s", mac_str, my_mac_str);
             return NET_ERR_ETHER_WRONG_MAC;
         }
         break;
+    }
     default: USER_PANIC("Unknown MAC type");
     }
-
-    /// 2. Remove the Ethernet header and hand it to next layer
-    buffer_add_ptr(&buf, sizeof(struct eth_hdr));
 
     /// 3. Judge the packet type
     uint16_t type = ntohs(packet->type);

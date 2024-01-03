@@ -84,10 +84,10 @@ static_assert(sizeof(struct ipv6_hdr) == 40, "IPv6 header must be 40 bytes");
 typedef struct ipv6_hopbyhop_hdr {
     uint8_t   next_header;  // Next Header
     uint8_t   length;       // Length
-    uint8_t   options[];    // Options
+    uint8_t   options[6];    // Options
 } __attribute__((__packed__)) ipv6_hopbyhop_hdr_t;
 
-static_assert(sizeof(struct ipv6_hopbyhop_hdr) == 2, "IPv6 Hop-by-Hop header must be 2 bytes");
+static_assert(sizeof(struct ipv6_hopbyhop_hdr) == 8, "IPv6 Hop-by-Hop header must be 8 bytes");
 
 typedef struct ipv6_routing_hdr {
     uint8_t   next_header;  // Next Header

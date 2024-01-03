@@ -15,10 +15,11 @@ errval_t ipv6_unmarshal(
     assert(ip);
 
     struct ipv6_hdr* packet = (struct ipv6_hdr*)buf.data;
-    uint8_t next_header = packet->next_header;
     uint16_t payload_len = ntohs(packet->len);
+    ipv6_addr_t src_ip = ntoh16(packet->src);
+    ipv6_addr_t dst_ip = ntoh16(packet->dest);
 
-    // 1. Check the traffic class and flow label
+    // 1.1 Check the traffic class and flow label
     if (packet->vtf.tfclas != 0) {
         IP6_ERR("We Don't Support traffic class %d, but I'll ignore it for now", packet->vtf.tfclas);
         // return NET_ERR_IPv6_WRONG_FIELD;
@@ -28,21 +29,15 @@ errval_t ipv6_unmarshal(
         // return NET_ERR_IPv6_WRONG_FIELD;
     }
 
-    // 2. Check the payload length
-    if (payload_len != buf.valid_size) {
-        IP6_ERR("The payload length %d do not match with the buffer size %d", payload_len, buf.valid_size);
-        return NET_ERR_IPv6_WRONG_FIELD;
-    }
-
-    // 3. Check the hop limit
+    // 1.3 Check the hop limit
     if (packet->hop_limit == 0) {
         IP6_ERR("Invalid IPv6 packet hop limit %d", packet->hop_limit);
         return NET_ERR_IPv6_WRONG_FIELD;
     }
 
-    // 4. Check the destination address
-    if (packet->dest != ip->my_ipv6) {
-        char dest_ip_str[39]; format_ipv6_addr(packet->dest, dest_ip_str, sizeof(dest_ip_str));
+    // 1.4 Check the destination address
+    if (dst_ip != ip->my_ipv6 && !ipv6_is_multicast(dst_ip)) {
+        char dest_ip_str[39]; format_ipv6_addr(dst_ip, dest_ip_str, sizeof(dest_ip_str));
         char my_ip_str[39]; format_ipv6_addr(ip->my_ipv6, my_ip_str, sizeof(my_ip_str));
         IP6_ERR("This IPv6 packet is for %s, not for me %s", dest_ip_str, my_ip_str);
         return NET_ERR_IPv6_WRONG_FIELD;
@@ -50,29 +45,55 @@ errval_t ipv6_unmarshal(
 
     const ip_context_t src_ip_context = {
         .is_ipv6 = true,
-        .ipv6    = packet->src,
+        .ipv6    = src_ip,
     };
 
-    // 6. Check the next header
-    switch (next_header) {
-        case IPv6_PROTO_UDP:
-            IP6_DEBUG("UDP packet received");
-            err = udp_unmarshal(ip->udp, src_ip_context, buf);
-            DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
-            break;
-        case IPv6_PROTO_TCP:
-            IP6_DEBUG("TCP packet received");
-            // err = tcp_unmarshal(ip->tcp, buf);
-            // DEBUG_FAIL_RETURN(err, "Can't unmarshal the TCP packet");
-            break;
-        case IPv6_PROTO_ICMP:
-            IP_DEBUG("ICMP packet received");
-            // err = icmp_unmarshal(ip->icmp, buf);
-            // DEBUG_FAIL_RETURN(err, "Can't unmarshal the ICMP packet");
-            break;
-        default:
-            IP6_ERR("Invalid IPv6 packet next header %d", next_header);
-            return NET_ERR_IPv6_NEXT_HEADER;
+    // 2. Check the extension headers
+    uint8_t next_header = packet->next_header;
+    uint8_t ext_length = 0;
+    buffer_add_ptr(&buf, sizeof(struct ipv6_hdr));
+
+    // 1.2 Check the payload length
+    if (payload_len != buf.valid_size) {
+        IP6_ERR("The payload length %d do not match with the buffer size %d", payload_len, buf.valid_size);
+        return NET_ERR_IPv6_WRONG_FIELD;
+    }
+
+jump_next:
+
+    switch (next_header)
+    {
+    case IPv6_PROTO_HOPOPT: 
+        struct ipv6_hopbyhop_hdr *hop_hdr = (struct ipv6_hopbyhop_hdr *)buf.data;
+
+        next_header = hop_hdr->next_header;
+        ext_length  = hop_hdr->length;
+
+        NDP_WARN("Hopbyhop options Not Implemented Yet");
+
+        // TODO: this is not correct if multiple extension headers are present
+        uint8_t hdr_with_padding = ROUND_UP(sizeof(struct ipv6_hopbyhop_hdr) + ext_length, 8);
+        buffer_add_ptr(&buf, hdr_with_padding); 
+        goto jump_next;
+    case IPv6_PROTO_UDP:
+        IP6_DEBUG("UDP packet received");
+        err = udp_unmarshal(ip->udp, src_ip_context, buf);
+        DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
+        break;
+    case IPv6_PROTO_TCP:
+        IP6_DEBUG("TCP packet received");
+        // err = tcp_unmarshal(ip->tcp, buf);
+        // DEBUG_FAIL_RETURN(err, "Can't unmarshal the TCP packet");
+        break;
+    case IPv6_PROTO_ICMP:
+        IP6_DEBUG("ICMP packet received");
+        // the destination address may be a multicast address, like 'ff02::1:ffdc:6aa7'
+        err = icmpv6_unmarshal(ip->icmp, src_ip, dst_ip, buf);
+        DEBUG_FAIL_RETURN(err, "Can't unmarshal the ICMP packet");
+        break;
+    default:
+        IP6_ERR("Invalid IPv6 packet next header %d", next_header);
+        return NET_ERR_IPv6_NEXT_HEADER;
     }
 
     return err;
@@ -104,7 +125,7 @@ errval_t ipv6_marshal(
 
     // 2. Get the destination MAC
     mac_addr dst_mac = MAC_NULL;
-    err = ndp_lookup_mac(ip->ndp, dst_ip, &dst_mac);
+    err = ndp_lookup_mac(ip->icmp, dst_ip, &dst_mac);
     // switch (err_no(err))
     // {
     // case NET_ERR_NDP_NO_MAC_ADDRESS: 

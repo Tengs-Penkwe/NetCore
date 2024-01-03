@@ -128,7 +128,6 @@ typedef struct ip_state {
     ipv6_addr_t            my_ipv6;
 
     struct ethernet_state *ether;  ///< Global Ethernet state
-    struct ndp_state      *ndp;    ///< Global NDP state
     struct arp_state      *arp;    ///< Global ARP state
     struct icmp_state     *icmp;
     struct udp_state      *udp;
@@ -139,7 +138,7 @@ typedef struct ip_state {
 __BEGIN_DECLS
 
 errval_t ip_init(
-    IP* ip, Ethernet* ether, ARP* arp, NDP* ndp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
+    IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
 );
 
 void ip_destroy(

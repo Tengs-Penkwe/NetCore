@@ -2,34 +2,24 @@
 #define __NDP_H__
 
 #include <stdint.h>
-#include "ip.h"
-
-/* NDP message types */
-#define NDP_ROUTER_SOLICITATION       133
-#define NDP_ROUTER_ADVERTISEMENT      134
-#define NDP_NEIGHBOR_SOLICITATION     135
-#define NDP_NEIGHBOR_ADVERTISEMENT    136
-#define NDP_REDIRECT                  137
+#include "ip.h"         // for ipv6_addr_t
 
 /* NDP option types */
-#define NDP_OPTION_SOURCE_LINK_LAYER_ADDRESS     1
-#define NDP_OPTION_TARGET_LINK_LAYER_ADDRESS     2
-#define NDP_OPTION_PREFIX_INFORMATION            3
-#define NDP_OPTION_REDIRECTED_HEADER             4
-#define NDP_OPTION_MTU                           5
-
-/* Common NDP header format */
-struct ndp_hdr {
-    uint8_t  type;       /* Message type */
-    uint8_t  code;       /* Message code */
-    uint16_t checksum;   /* Checksum */
-} __attribute__((__packed__));
+enum ndp_option_type {
+    NDP_OPTION_SOURCE_LINK_LAYER_ADDRESS     = 1,
+    NDP_OPTION_TARGET_LINK_LAYER_ADDRESS     = 2,
+    NDP_OPTION_PREFIX_INFORMATION            = 3,
+    NDP_OPTION_REDIRECTED_HEADER             = 4,
+    NDP_OPTION_MTU                           = 5,
+};
 
 /* NDP Router Solicitation */
 struct ndp_router_solicitation {
     uint32_t reserved;
     // Options follow...
-};
+} __attribute__((__packed__));
+
+static_assert(sizeof(struct ndp_router_solicitation) == 4, "Invalid size");
 
 /* NDP Router Advertisement */
 struct ndp_router_advertisement {
@@ -39,21 +29,26 @@ struct ndp_router_advertisement {
     uint32_t reachable_time;
     uint32_t retrans_timer;
     // Options follow...
-};
+} __attribute__((__packed__));
+
+static_assert(sizeof(struct ndp_router_advertisement) == 12, "Invalid size");
 
 /* NDP Neighbor Solicitation */
 struct ndp_neighbor_solicitation {
-    uint32_t reserved;
+    uint32_t    reserved;
     ipv6_addr_t to_addr;
-    // Options follow...
-};
+} __attribute__((__packed__));
+
+static_assert(sizeof(struct ndp_neighbor_solicitation) == 20, "Invalid size");
 
 /* NDP Neighbor Advertisement */
 struct ndp_neighbor_advertisement {
     uint32_t    flags;
     ipv6_addr_t to_addr;
     // Options follow...
-};
+} __attribute__((__packed__));
+
+static_assert(sizeof(struct ndp_neighbor_advertisement) == 20, "Invalid size");
 
 /* NDP Redirect */
 struct ndp_redirect {
@@ -61,26 +56,21 @@ struct ndp_redirect {
     ipv6_addr_t to_addr;
     ipv6_addr_t from_addr;
     // Options follow...
-};
+} __attribute__((__packed__));
+
+static_assert(sizeof(struct ndp_redirect) == 36, "Invalid size");
 
 /* NDP Option format */
 struct ndp_option {
     uint8_t type;   /* Type of the option */
     uint8_t length; /* Length of the option in units of 8 octets */
-    // Option Data follows...
-};
+    uint8_t data[]; /* Option data */
+} __attribute__((__packed__));
 
-typedef struct ndp_data {
-    union {
-        struct ndp_router_solicitation    router_solicitation;
-        struct ndp_router_advertisement   router_advertisement;
-        struct ndp_neighbor_solicitation  neighbor_solicitation;
-        struct ndp_neighbor_advertisement neighbor_advertisement;
-        struct ndp_redirect               redirect;
-    };
-} NDP_data;
+static_assert(sizeof(struct ndp_option) == 2, "Invalid size");
 
-/* Function declarations */
-// Functions to parse and process NDP messages would be defined here.
+__BEGIN_DECLS
+
+__END_DECLS 
 
 #endif // __NDP_H__

@@ -2,29 +2,17 @@
 #define __NETSTACK_NDP_H
 
 #include <event/buffer.h> 
-#include <netutil/ndp.h>
+#include <netutil/icmpv6.h>
 #include <netutil/ip.h>
+#include <lock_free/hash_table.h>
 
-typedef struct ndp_state {
-    struct ethernet_state *ether;
-    ipv6_addr_t            my_ipv6;
-
-} NDP ;
-
-errval_t ndp_init(
-    NDP* ndp, struct ethernet_state* ether, ipv6_addr_t my_ipv6
-);
-
-void ndp_destroy(
-    NDP* ndp
+typedef struct icmp_state ICMP;
+void ndp_register(
+    ICMP* icmp, ipv6_addr_t ip, mac_addr mac
 );
 
 errval_t ndp_lookup_mac(
-    NDP* ndp, ipv6_addr_t dst_ip, mac_addr* ret_mac
-);
-
-errval_t ndp_unmarshal(
-    NDP* ndp, Buffer buf
+    ICMP* ndp, ipv6_addr_t dst_ip, mac_addr* ret_mac
 );
 
 #endif  //__NETSTACK_NDP_H__
