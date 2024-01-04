@@ -184,14 +184,44 @@ int format_ipv6_header(const struct ipv6_hdr *ipv6_header, char *buffer, size_t 
     format_ipv6_addr(ntoh16(ipv6_header->src), src_ip, sizeof(src_ip));
     format_ipv6_addr(ntoh16(ipv6_header->dest), dest_ip, sizeof(dest_ip));
 
-    return snprintf(buffer, max_len,
+    // Extract version, traffic class, and flow label from the first 4 bytes
+    uint32_t vtc_flow = ntohl(ipv6_header->vtc_flow);
+    uint8_t version = (vtc_flow >> 28) & 0x0F;
+    uint8_t traffic_class = (vtc_flow >> 20) & 0xFF;
+    uint32_t flow_label = vtc_flow & 0xFFFFF;
+
+    int len = snprintf(buffer, max_len,
                        "IPv6 Header:\n"
-                       "   Source IP: %s\n"
-                       "   Destination IP: %s\n"
+                       "   Version: %u\n"
+                       "   Traffic Class: %u\n"
+                       "   Flow Label: %u\n"
+                       "   Payload Length: %u\n"
                        "   Next Header: %u\n"
-                       "   Hop Limit: %u\n",
-                       src_ip, dest_ip, ipv6_header->next_header, ipv6_header->hop_limit);
+                       "   Hop Limit: %u\n"
+                       "   Source IP: %s\n"
+                       "   Destination IP: %s\n",
+                       version, traffic_class, flow_label,
+                       ntohs(ipv6_header->len),
+                       ipv6_header->next_header, ipv6_header->hop_limit,
+                       src_ip, dest_ip);
+
+    // Handle the next header (extension headers if any)
+    // const uint8_t *next_header = (const uint8_t *)(ipv6_header + 1); // pointer to next header
+    // uint8_t next_header_type = ipv6_header->next_header;
+    // size_t remaining_len = max_len - len;
+
+    // Loop to process extension headers
+    // while (is_extension_header(next_header_type)) {
+    //     // Use a function that processes the specific extension header
+    //     // This function should return the type of the next header
+    //     // Example: next_header_type = process_extension_header(next_header, buffer + len, &remaining_len);
+    //     // Update the next_header pointer and length accordingly
+    //     // Example: next_header = update_next_header_pointer(next_header, next_header_type);
+    // }
+
+    return len;
 }
+
 
 int format_packet_info(const void *packet_start, char *buffer, size_t max_len) {
     int len = 0;
