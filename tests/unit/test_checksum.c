@@ -24,12 +24,12 @@ void test_tcp_checksum_in_net_order_ipv4(void) {
 void test_tcp_checksum_in_net_order_ipv6(void) {
     char data[128] = "Hello World";
 
-    struct pseudo_ip_header_in_net_order pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IPv6_PROTO_TCP, 0);
+    struct pseudo_ip_header_in_net_order pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IP_PROTO_TCP, 0);
     uint16_t checksum = tcp_checksum_in_net_order(NULL, pheader);
     uint16_t expected_checksum = ~ntohs(0x3339); 
     TEST_ASSERT_EQUAL_UINT16(expected_checksum, checksum);
 
-    pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IPv6_PROTO_TCP, sizeof(data));
+    pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IP_PROTO_TCP, sizeof(data));
     checksum = tcp_checksum_in_net_order(data, pheader);
     expected_checksum = 0x787A;
     TEST_ASSERT_EQUAL_UINT16(expected_checksum, checksum);
@@ -67,12 +67,12 @@ void test_udp_checksum_in_net_order_ipv4(void) {
 void test_udp_checksum_in_net_order_ipv6(void) {
     char data[128] = "Hello World";
 
-    struct pseudo_ip_header_in_net_order pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IPv6_PROTO_UDP, 0);
+    struct pseudo_ip_header_in_net_order pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IP_PROTO_UDP, 0);
     uint16_t checksum = udp_checksum_in_net_order(NULL, pheader);
     uint16_t expected_checksum = 0xBBCC; //0xEEFF; 
     TEST_ASSERT_EQUAL_UINT16(expected_checksum, checksum);
 
-    pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IPv6_PROTO_UDP, sizeof(data));
+    pheader = PSEUDO_HEADER_IPv6(0x12345678, 0x87654321, IP_PROTO_UDP, sizeof(data));
     checksum = udp_checksum_in_net_order(data, pheader);
     expected_checksum = 0x6D7A;
     TEST_ASSERT_EQUAL_UINT16(expected_checksum, checksum);

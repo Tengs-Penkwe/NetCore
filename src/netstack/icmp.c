@@ -8,16 +8,17 @@
 #include <event/event.h>
 
 errval_t icmp_init(
-    ICMP* icmp, struct ip_state* ip
+    ICMP* icmp, struct ip_state* ip, mac_addr my_mac
 ) {
     errval_t err = SYS_ERR_OK;
     assert(icmp && ip);
     icmp->ip = ip;
-
-    // The IP-MAC mapping table for IPv6
+    icmp->my_mac = my_mac;
+    
     err = hash_init(
-        &icmp->hosts, icmp->buckets, NDP_HASH_BUCKETS, HS_FAIL_ON_EXIST,
-        value_key_cmp, value_key_hash
+        &icmp->hosts, icmp->buckets, NDP_HASH_BUCKETS,
+        HS_OVERWRITE_ON_EXIST,          // RFC 4861 requires that the address is updatable
+        ipv6_key_cmp, ipv6_key_hash     // The key is ipv6_addr_t, more than 64 bits (void*), but the value can be stored in 64 bits 
     );
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
@@ -74,8 +75,12 @@ errval_t icmp_marshal(
         .chksum = 0,    /// For ICMP, the checksum is calculated for the full packet
     };
     packet->chksum = inet_checksum_in_net_order(packet, buf.valid_size);
-    
-    err = ipv4_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, buf);
+
+    const ip_context_t dst_ip_context = {
+        .ipv4    = dst_ip,
+        .is_ipv6 = false,
+    };
+    err = ip_marshal(icmp->ip, dst_ip_context, IP_PROTO_ICMP, buf);
     DEBUG_FAIL_RETURN(err, "Can't send the ICMP through binding");
     return err;
 }

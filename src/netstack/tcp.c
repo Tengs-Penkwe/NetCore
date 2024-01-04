@@ -59,7 +59,7 @@ errval_t tcp_send(
 
     struct pseudo_ip_header_in_net_order ip_header;
     if (dst_ip.is_ipv6) 
-        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, dst_ip.ipv6, IPv6_PROTO_UDP, buf.valid_size);
+        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, dst_ip.ipv6, IP_PROTO_UDP, buf.valid_size);
     else
         ip_header = PSEUDO_HEADER_IPv4(tcp->ip->my_ipv4, dst_ip.ipv4, IP_PROTO_UDP, buf.valid_size);
     packet->chksum  = tcp_checksum_in_net_order(buf.data, ip_header);
@@ -96,7 +96,7 @@ errval_t tcp_unmarshal(
     // 2. Checksum
     struct pseudo_ip_header_in_net_order ip_header;
     if (src_ip.is_ipv6) 
-        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, src_ip.ipv6, IPv6_PROTO_UDP, (uint32_t)buf.valid_size);
+        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, src_ip.ipv6, IP_PROTO_UDP, (uint32_t)buf.valid_size);
     else
         ip_header = PSEUDO_HEADER_IPv4(tcp->ip->my_ipv4, src_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
     uint16_t chksum = ntohs(packet->chksum);

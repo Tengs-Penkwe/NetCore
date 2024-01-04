@@ -35,7 +35,7 @@ void arp_destroy(
     ARP* arp
 );
 
-#define ARP_RESERVE_SIZE  sizeof(struct eth_hdr)
+#define ARP_HEADER_RESERVE     sizeof(struct eth_hdr)
 errval_t arp_marshal(
     ARP* arp, uint16_t opration,
     ip_addr_t dst_ip, mac_addr dst_mac, Buffer buf

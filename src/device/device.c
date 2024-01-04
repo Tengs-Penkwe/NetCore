@@ -127,9 +127,6 @@ errval_t device_send(NetDevice* device, Buffer buf) {
     assert((size_t)written == buf.valid_size);
     device->sent += 1;
 
-    // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-    // printf("Written %zd bytes to TAP device\n", written);
-    // dump_packet_info(buf.data);
     return SYS_ERR_OK;
 }
 
@@ -173,10 +170,6 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
         assert(frame->buf.valid_size == MEMPOOL_BYTES - DEVICE_HEADER_RESERVE);
         frame->buf.valid_size = nbytes;
         device->recvd += 1;
-
-        // printf("========================================\n");
-        // printf("Read %d bytes from TAP device\n", frame->buf.valid_size);
-        // dump_packet_info(frame->buf.data);
 
         err = submit_task(MK_NORM_TASK(event_ether_unmarshal, frame));
         if (err_is_fail(err)) {

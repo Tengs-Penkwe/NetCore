@@ -86,7 +86,9 @@ errval_t pool_alloc(MemPool* pool, size_t need_size, Buffer *ret_buf) {
     assert(ret_addr);
     
     //TODO: have multiple sized memory pool !
-    assert(need_size == MEMPOOL_BYTES);
+    if (need_size != MEMPOOL_BYTES) {
+        EVENT_ERR("We need %d bytes, but we only have %d bytes", need_size, MEMPOOL_BYTES);
+    }
     *ret_buf = buffer_create(
         ret_addr,
         0,

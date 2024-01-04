@@ -55,7 +55,7 @@ errval_t udp_marshal(
     // 2. Calculate the checksum
     struct pseudo_ip_header_in_net_order ip_header;
     if (dst_ip.is_ipv6) 
-        ip_header = PSEUDO_HEADER_IPv6(udp->ip->my_ipv6, dst_ip.ipv6, IPv6_PROTO_UDP, (uint32_t)buf.valid_size);
+        ip_header = PSEUDO_HEADER_IPv6(udp->ip->my_ipv6, dst_ip.ipv6, IP_PROTO_UDP, (uint32_t)buf.valid_size);
     else
         ip_header = PSEUDO_HEADER_IPv4(udp->ip->my_ipv4, dst_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
     packet->chksum = udp_checksum_in_net_order(buf.data, ip_header);
@@ -88,7 +88,7 @@ errval_t udp_unmarshal(
     uint16_t pkt_chksum = ntohs(packet->chksum); //TODO: ntohs ?
     struct pseudo_ip_header_in_net_order ip_header;
     if (src_ip.is_ipv6) 
-        ip_header = PSEUDO_HEADER_IPv6(udp->ip->my_ipv6, src_ip.ipv6, IPv6_PROTO_UDP, (uint32_t)buf.valid_size);
+        ip_header = PSEUDO_HEADER_IPv6(udp->ip->my_ipv6, src_ip.ipv6, IP_PROTO_UDP, (uint32_t)buf.valid_size);
     else
         ip_header = PSEUDO_HEADER_IPv4(udp->ip->my_ipv4, src_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
     if (pkt_chksum != 0 || src_ip.is_ipv6) {   // UDP over IPv4 has optional checksum

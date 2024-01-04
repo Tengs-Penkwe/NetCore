@@ -70,7 +70,7 @@ void hash_destroy(HashTable* hash) {
     EVENT_NOTE("Hash table destroyed, %d elements in hash, %d elements in freelist", element_count, free_count);
 }
 
-errval_t hash_insert(HashTable* hash, void* key, void* data, bool overwrite) {
+errval_t hash_insert(HashTable* hash, void* key, void* data) {
     assert(hash && data);
 
     struct lfds711_freelist_element* fe = NULL;
@@ -97,33 +97,19 @@ errval_t hash_insert(HashTable* hash, void* key, void* data, bool overwrite) {
     }
     case LFDS711_HASH_A_PUT_RESULT_SUCCESS_OVERWRITE:
     {
-        USER_PANIC("Disabled for now");
+        // TODO: This assumes the only the value in old hash element is replaced, not the element itself
         assert(hash->policy == HS_OVERWRITE_ON_EXIST);
-        assert(dup_he);
+        assert(dup_he == NULL);
 
-        if (!overwrite) 
-        { // We DONT want to overwrite
-            struct lfds711_hash_a_element* origin_he = NULL;
-
-            // Wtite it back
-            result = lfds711_hash_a_insert(&hash->hash, dup_he, &origin_he);
-            assert(result == LFDS711_HASH_A_PUT_RESULT_SUCCESS_OVERWRITE);
-            assert(origin_he == he);
-            // If the assertion isn't fulfilled, it means other processes are also trying to overwrite.
-            // It's fine, we could remove the assertion,
-            
-            LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(*fe, he);
-        } 
-        else  // We truely want to overwite
-        {
-            LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(*fe, dup_he);
-        }
+        LFDS711_FREELIST_SET_VALUE_IN_ELEMENT(*fe, he);
         lfds711_freelist_push(&hash->freelist, fe, NULL);
+
         return EVENT_HASH_OVERWRITE_ON_INSERT;
     }
     case LFDS711_HASH_A_PUT_RESULT_FAILURE_EXISTING_KEY:
     {
         assert(hash->policy == HS_FAIL_ON_EXIST);
+        assert(dup_he);
         lfds711_freelist_push(&hash->freelist, fe, NULL);
         return EVENT_HASH_EXIST_ON_INSERT;
     }

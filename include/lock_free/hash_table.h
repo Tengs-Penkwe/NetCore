@@ -76,7 +76,7 @@ static inline void value_key_hash(void const *key, lfds711_pal_uint_t *hash)
 
 errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum hash_policy policy, key_compare_function key_cmp, key_hash_function key_hash);
 void hash_destroy(HashTable* hash);
-errval_t hash_insert(HashTable* hash, void* key, void* data, bool overwrite);
+errval_t hash_insert(HashTable* hash, void* key, void* data);
 errval_t hash_get_by_key(HashTable* hash, void* key, void** ret_data);
 
 __END_DECLS

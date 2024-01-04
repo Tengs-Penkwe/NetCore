@@ -47,7 +47,7 @@ errval_t udp_server_register(
 
     assert(err_no(err_get) == EVENT_HASH_NOT_EXIST);
 
-    err_insert = hash_insert(&udp->servers, UDP_HASH_KEY(port), get_server, false);
+    err_insert = hash_insert(&udp->servers, UDP_HASH_KEY(port), get_server);
     switch (err_no(err_insert)) 
     {
     case SYS_ERR_OK:

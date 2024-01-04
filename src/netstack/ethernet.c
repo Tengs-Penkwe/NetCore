@@ -66,7 +66,7 @@ errval_t ethernet_marshal(
     Ethernet* ether, mac_addr dst_mac, uint16_t type, Buffer buf
 ) {
     errval_t err;
-    assert(ether && (type == ETH_TYPE_ARP || type == ETH_TYPE_IPv4)); 
+    assert(ether && (type == ETH_TYPE_ARP || type == ETH_TYPE_IPv4 || type == ETH_TYPE_IPv6)); 
     
     buffer_sub_ptr(&buf, sizeof(struct eth_hdr));
 
