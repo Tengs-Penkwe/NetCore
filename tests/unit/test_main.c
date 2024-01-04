@@ -16,6 +16,8 @@ extern void all_checksum_tests(void);
 
 extern void all_format_ip_addr_tests(void);
 
+extern void all_buffer_tests(void);
+
 
 int main(void) {
     UNITY_BEGIN();
@@ -34,6 +36,8 @@ int main(void) {
     RUN_TEST(all_checksum_tests);
 
     RUN_TEST(all_format_ip_addr_tests);
+
+    RUN_TEST(all_buffer_tests);
 
     return UNITY_END();
 }
