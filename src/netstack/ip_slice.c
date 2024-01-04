@@ -118,7 +118,6 @@ void check_send_message(void* send) {
     else
     {
         err = ipv4_slice(msg);
-
         if (err_is_fail(err)) {
             msg->retry_interval *= 2;
             DEBUG_ERR(err, "Failed sending an IPv6 packet, will try in %d milliseconds !",
@@ -167,30 +166,33 @@ errval_t ipv4_send(
     // More Fragment Field should be 0 for last fragementation
     if (last_slice) OFFSET_MF_SET(flag_offset, 0);    
     else            OFFSET_MF_SET(flag_offset, 1);
+
+    Buffer send_buf = buffer_add(buf, send_from);
+    send_buf.whole_size = size_to_send;
     
     // 2. Prepare the send buffer
-    buffer_sub_ptr(&buf, sizeof(struct ip_hdr));
+    buffer_sub_ptr(&send_buf, sizeof(struct ip_hdr));
     /// ALARM: This will destroy the segement before, but since we have sent them, it's ok
 
     // 3. Fill the header
-    struct ip_hdr *packet = (struct ip_hdr*)buf.data;
+    struct ip_hdr *packet = (struct ip_hdr*)send_buf.data;
     *packet = (struct ip_hdr) {
-        .ihl     = 0x5,
-        .version = 0x4,
-        .tos     = 0x00,
-        .len     = htons(pkt_size),
-        .id      = htons(id),
-        .offset  = htons(flag_offset),
-        .ttl     = 0xFF,
-        .proto   = proto,
-        .chksum  = 0,
-        .src     = htonl(ip->my_ipv4),
-        .dest    = htonl(dst_ip),
+        .ihl       = 0x5 ,
+        .version   = 0x4,
+        .tos       = 0x00,
+        .total_len = htons(pkt_size),
+        .id        = htons(id),
+        .offset    = htons(flag_offset),
+        .ttl       = 0xFF,
+        .proto     = proto,
+        .chksum    = 0,
+        .src       = htonl(ip->my_ipv4),
+        .dest      = htonl(dst_ip),
     };
     packet->chksum = inet_checksum_in_net_order(packet, sizeof(struct ip_hdr));
 
     // 4. Send the packet
-    err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, buf);
+    err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv4, send_buf);
     DEBUG_FAIL_RETURN(err, "Can't send the IPv4 packet");
 
     IP_VERBOSE("End sending an IP packet with size: %d, offset: %d, no_frag: %d, more_frag: %d, proto: %d, id: %d, src: %0.8X, dst: %0.8X",
