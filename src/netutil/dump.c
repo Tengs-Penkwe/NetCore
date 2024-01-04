@@ -157,7 +157,7 @@ int format_ipv4_header(const struct ip_hdr *ip_header, char *buffer, size_t max_
                        "   Checksum: 0x%04x\n"
                        "   Source IP: %s\n"
                        "   Destination IP: %s\n",
-                       IPH_V(ip_header), IPH_HL(ip_header), ip_header->tos, ntohs(ip_header->len), 
+                       IPH_V(ip_header), IPH_HL(ip_header), ip_header->tos, ntohs(ip_header->total_len), 
                        ntohs(ip_header->id), ntohs(ip_header->offset) >> 13, ntohs(ip_header->offset) & IP_OFFMASK,
                        ip_header->ttl, ip_header->proto, ntohs(ip_header->chksum), ip_src, ip_dest);
 
@@ -201,7 +201,7 @@ int format_ipv6_header(const struct ipv6_hdr *ipv6_header, char *buffer, size_t 
                        "   Source IP: %s\n"
                        "   Destination IP: %s\n",
                        version, traffic_class, flow_label,
-                       ntohs(ipv6_header->len),
+                       ntohs(ipv6_header->payload_len),
                        ipv6_header->next_header, ipv6_header->hop_limit,
                        src_ip, dest_ip);
 

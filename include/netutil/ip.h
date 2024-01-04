@@ -29,11 +29,11 @@ typedef uint32_t ip_addr_t;
 struct ip_hdr {
     uint8_t   ihl     : 4; /* header length */
     uint8_t   version : 4;
-    uint8_t   tos;    /* type of service */
-    uint16_t  len;    /* total length */
-    uint16_t  id;     /* identification */
-    uint16_t  offset; /* fragment offset field */
-    uint8_t   ttl;    /* time to live */
+    uint8_t   tos;       /* type of service */
+    uint16_t  total_len; /* total length */
+    uint16_t  id;        /* identification */
+    uint16_t  offset;    /* fragment offset field */
+    uint8_t   ttl;       /* time to live */
     uint8_t   proto;
     uint16_t  chksum;
     ip_addr_t src;
@@ -58,7 +58,7 @@ struct ipv6_hdr {
     // uint32_t    tfclas  : 8;   // Traffic Class
     // uint32_t    flabel  : 20;  // Flow Label
     uint32_t    vtc_flow;
-    uint16_t    len;          // Payload Length
+    uint16_t    payload_len;  // Payload Length
     uint8_t     next_header;  // Next Header
     uint8_t     hop_limit;    // Hop Limit
     ipv6_addr_t src;          // Source IPv6 address

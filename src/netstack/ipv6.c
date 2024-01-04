@@ -17,7 +17,7 @@ errval_t ipv6_unmarshal(
     assert(ip);
 
     struct ipv6_hdr* packet = (struct ipv6_hdr*)buf.data;
-    uint16_t payload_len = ntohs(packet->len);
+    uint16_t payload_len = ntohs(packet->payload_len);
     ipv6_addr_t src_ip = ntoh16(packet->src);
     ipv6_addr_t dst_ip = ntoh16(packet->dest);
 
@@ -114,7 +114,7 @@ errval_t ipv6_send(
     struct ipv6_hdr* packet = (struct ipv6_hdr*)buf.data;
     *packet = (struct ipv6_hdr) {
         .vtc_flow    = htonl(IP6H_VTCFLOW(6, 0, 0)),
-        .len         = htons(buf.valid_size - sizeof(struct ipv6_hdr)),
+        .payload_len         = htons(buf.valid_size - sizeof(struct ipv6_hdr)),
         .next_header = proto,
         .hop_limit   = 0xFF,
         .src         = hton16(ip->my_ipv6),

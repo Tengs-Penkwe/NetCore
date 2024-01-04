@@ -82,10 +82,10 @@ struct icmp_timestamp {
 
 typedef struct icmp_data {
     union {
-        struct icmp_echo echo;
-        struct icmp_qench qench;
-        struct icmp_redirect redirect;
-        struct icmp_timeex timeex;
+        struct icmp_echo      echo;
+        struct icmp_qench     qench;
+        struct icmp_redirect  redirect;
+        struct icmp_timeex    timeex;
         struct icmp_timestamp timestamp;
     };
 } ICMP_data;

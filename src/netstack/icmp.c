@@ -38,6 +38,7 @@ void icmp_destroy(
 }
 
 // Assumption: Caller free the buffer
+// Assumption: Buf contains the data that needs to be sent
 errval_t icmp_marshal(
     ICMP* icmp, ip_addr_t dst_ip, uint8_t type, uint8_t code, ICMP_data field, Buffer buf
 ) {
@@ -113,7 +114,7 @@ errval_t icmp_unmarshal(
         buffer_add_ptr(&buf, sizeof(struct icmp_echo));
         field = (ICMP_data) {
             .echo = {
-                .id    = ICMPH_ECHO_ID(packet),
+                .id    = ICMPH_ECHO_ID(packet),     // Directly from net order, no need to convert
                 .seqno = ICMPH_ECHO_SEQ(packet),
             },
         };

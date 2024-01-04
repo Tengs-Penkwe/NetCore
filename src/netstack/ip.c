@@ -153,8 +153,8 @@ errval_t ipv4_unmarshal(
     }
 
     // 1.2 Packet Size check
-    if (ntohs(packet->len) != buf.valid_size) {
-        LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), buf.valid_size);
+    if (ntohs(packet->total_len) != buf.valid_size) {
+        LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->total_len), buf.valid_size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
     if (buf.valid_size < IP_LEN_MIN) {
