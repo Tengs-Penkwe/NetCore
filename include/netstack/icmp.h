@@ -4,6 +4,7 @@
 #include "ip.h"
 #include <event/buffer.h>
 #include <netutil/icmp.h>
+#include <netutil/etharp.h>
 
 #define  NDP_HASH_BUCKETS     128
 
@@ -14,14 +15,15 @@ typedef struct icmp_state {
     alignas(ATOMIC_ISOLATION) 
         HashBucket buckets[NDP_HASH_BUCKETS];
 
-    struct ip_state* ip;
+    mac_addr         my_mac;
+    struct ip_state *ip;
 
 } ICMP;
  
 __BEGIN_DECLS
 
 errval_t icmp_init(
-    ICMP* icmp, struct ip_state* ip
+    ICMP* icmp, struct ip_state* ip, mac_addr my_mac
 );
 
 void icmp_destroy(
@@ -29,7 +31,7 @@ void icmp_destroy(
 );
 
 errval_t icmpv6_marshal(
-    ICMP* icmp, ip_addr_t dst_ip, uint8_t type, uint8_t code, ICMP_data field, Buffer buf
+    ICMP* icmp, ipv6_addr_t dst_ip, uint8_t type, uint8_t code, Buffer buf
 );
 
 errval_t icmp_marshal(

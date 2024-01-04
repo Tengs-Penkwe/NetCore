@@ -24,10 +24,8 @@
 /// Time for Sending
 // 5 Milli-Second: increases by 2
 #define IP_RETRY_SEND_US     5000
-/// Time for ARP : 0.5 Second
-#define ARP_WAIT_US          500000
-/// Time for NDP : 0.5 Second
-#define NDP_WAIT_US          500000
+/// Time for ARP and  : 0.5 Second
+#define GET_MAC_WAIT_US      500000
 // 32 Seconds
 #define IP_GIVEUP_SEND_US    32000000
 
@@ -149,22 +147,17 @@ errval_t ip_assemble(
     IP_segment* recv
 );
 
-errval_t ipv6_marshal(
-    IP* ip, ipv6_addr_t dst_ip, uint8_t proto, Buffer buf
+errval_t ip_marshal(    
+    IP* ip, ip_context_t dst_ip, uint8_t proto, Buffer buf
 );
 
-errval_t ipv4_marshal(    
-    IP* ip, ip_addr_t dst_ip, uint8_t proto, Buffer buf
-);
-
-static inline errval_t ip_marshal(
-    IP* ip, ip_context_t dst_ip, enum ip_proto_type proto, Buffer buf
+static inline errval_t lookup_mac(
+    IP* ip, ip_context_t dst_ip, mac_addr* ret_mac
 ) {
-    uint8_t proto_num = proto_to_uint8_t(proto, dst_ip.is_ipv6);
     if (dst_ip.is_ipv6) {
-        return ipv6_marshal(ip, dst_ip.ipv6, proto_num, buf);
+        return ndp_lookup_mac(ip->icmp, dst_ip.ipv6, ret_mac);
     } else {
-        return ipv4_marshal(ip, dst_ip.ipv4, proto_num, buf);
+        return arp_lookup_mac(ip->arp, dst_ip.ipv4, ret_mac);
     }
 }
 

@@ -133,3 +133,22 @@ void event_ipv4_handle(void* recv) {
         USER_PANIC_ERR(err, "Unknown error");
     }
 }
+
+void event_ndp_marshal(void* send) {
+    errval_t err; assert(send);
+
+    NDP_marshal marshal = *(NDP_marshal*) send;
+    free(send);
+
+    err = ndp_marshal(marshal.icmp, marshal.dst_ip, marshal.type, marshal.code, marshal.buf);
+    switch (err_no(err))
+    {
+    case NET_THROW_SUBMIT_EVENT:
+        break;
+    case SYS_ERR_OK:
+        free_buffer(marshal.buf);
+        break;
+    default:
+        USER_PANIC_ERR(err, "Unknown error");
+    }
+}

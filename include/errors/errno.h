@@ -52,7 +52,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_ETHER_UNKNOWN_TYPE,      "Unknown Ethernet type other than ARP or IP") \
     X(NET_ERR_ARP_WRONG_FIELD,         "Wrong Field in ARP packet") \
     X(NET_ERR_ARP_WRONG_IP_ADDRESS,    "Wrong Destination IP address for the ARP request") \
-    X(NET_ERR_ARP_NO_MAC_ADDRESS,      "Can't find the MAC address of given IPv4 address") \
+    X(NET_ERR_NO_MAC_ADDRESS,          "Can't find the MAC address of given IPv6 or IPv4 address") \
     X(NET_ERR_IP_VERSION,              "The IP version of received message is wrong") \
     X(NET_ERR_IPv4_WRONG_FIELD,        "Wrong Field in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_CHECKSUM,     "Wrong checksum in IPv4 packet") \
@@ -66,7 +66,7 @@ typedef uintptr_t errval_t;
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
     X(NET_ERR_NDP_WRONG_DESTINATION,   "The destination address of this NDP message is wrong") \
-    X(NET_ERR_NDP_UNKNOWN_OPTION,      "The NDP message contains an unknown option") \
+    X(NET_ERR_NDP_INVALID_OPTION,      "The NDP message contains an invalid option") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
     X(NET_ERR_UDP_PORT_REGISTERED,     "This UDP Port has already been registered") \
     X(NET_ERR_UDP_PORT_NOT_REGISTERED, "This UDP Port isn't registered") \

@@ -43,7 +43,7 @@ errval_t ip_init(
     // 2. ICMP (Internet Control Message Protocol )
     ip->icmp = aligned_alloc(ATOMIC_ISOLATION, sizeof(ICMP)); 
     assert(ip->icmp); memset(ip->icmp, 0x00, sizeof(ICMP));
-    err = icmp_init(ip->icmp, ip);
+    err = icmp_init(ip->icmp, ip, ether->my_mac);
     DEBUG_FAIL_RETURN(err, "Can't initialize global ICMP state");
 
     // 3. UDP (User Datagram Protocol)
@@ -197,7 +197,7 @@ errval_t ipv4_unmarshal(
     ip_addr_t src_ip = ntohl(packet->src);
     mac_addr src_mac = MAC_NULL;
     err = arp_lookup_mac(ip->arp, src_ip, &src_mac);
-    if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
+    if (err_no(err) == NET_ERR_NO_MAC_ADDRESS) {
         USER_PANIC_ERR(err, "You received an IP message, but you don't know the IP-MAC pair ?");
     } else
         DEBUG_FAIL_RETURN(err, "Can't find binding for given IP address");
@@ -216,49 +216,40 @@ errval_t ipv4_unmarshal(
     return err;
 }
 
-errval_t ipv4_marshal(    
-    IP* ip, ip_addr_t dst_ip, uint8_t proto, Buffer buf
+errval_t ip_marshal(    
+    IP* ip, ip_context_t dst_ip, uint8_t proto, Buffer buf
 ) {
-    errval_t err;
-    IP_DEBUG("Sending a message, dst_ip: 0x%0.8X", dst_ip);
-    assert(ip);
+    assert(ip); errval_t err = SYS_ERR_OK;
+    IP_send *msg = malloc(sizeof(IP_send)); assert(msg);
 
-    // 1. Assign ID
-    uint16_t id = (uint16_t) atomic_fetch_add(&ip->seg_count, 1);
-
-    // 2. Create the message
-    IP_send *msg = calloc(1, sizeof(IP_send)); assert(msg);
+    // 1. Create the message
     *msg = (IP_send) {
         .ip             = ip,
         .dst_ip         = dst_ip,
-        .dst_mac        = MAC_NULL,
         .proto          = proto,
-        .id             = id,
+        .id             = dst_ip.is_ipv6 ? 0 : (uint16_t)atomic_fetch_add(&ip->seg_count, 1),
+        .sent_size      = 0,    // IPv4 only
+        .dst_mac        = MAC_NULL,
         .buf            = buf,
-        .sent_size      = 0,
         .retry_interval = IP_RETRY_SEND_US,
     };
 
     // 3. Get destination MAC
-    mac_addr dst_mac =  MAC_NULL;
-    err = arp_lookup_mac(ip->arp, dst_ip, &dst_mac);
+    err = lookup_mac(ip, dst_ip, &msg->dst_mac);
     switch (err_no(err))
     {
-    case NET_ERR_ARP_NO_MAC_ADDRESS:   // Get Address first
+    case NET_ERR_NO_MAC_ADDRESS:   // Get Address first
     {
-        msg->retry_interval = ARP_WAIT_US;
+        msg->retry_interval = GET_MAC_WAIT_US;
         submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
         return NET_THROW_SUBMIT_EVENT;
     }
     case SYS_ERR_OK: { // Continue sending
-        assert(!(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST)));
-        msg->dst_mac = dst_mac;
-        
+        assert(!(maccmp(msg->dst_mac, MAC_NULL) || maccmp(msg->dst_mac, MAC_BROADCAST)));
         check_send_message((void*)msg);
         return NET_THROW_SUBMIT_EVENT;
     }
-    default: 
-        DEBUG_ERR(err, "Can't establish binding for given IP address");
+    default: USER_PANIC_ERR(err, "Can't establish binding for given IP address");
         return err;
     }
 }

@@ -8,6 +8,8 @@
 #include <netstack/udp.h>
 #include <netstack/tcp.h>
 
+#include "ip_slice.h"   // IP_send
+
 errval_t ipv6_unmarshal(
     IP* ip, Buffer buf
 ) {
@@ -20,12 +22,12 @@ errval_t ipv6_unmarshal(
     ipv6_addr_t dst_ip = ntoh16(packet->dest);
 
     // 1.1 Check the traffic class and flow label
-    if (packet->vtf.tfclas != 0) {
-        IP6_WARN("We Don't Support traffic class %d, but I'll ignore it for now", packet->vtf.tfclas);
+    if (IP6H_TC(packet) != 0) {
+        IP6_WARN("We Don't Support traffic class %d, but I'll ignore it for now", IP6H_TC(packet));
         // return NET_ERR_IPv6_WRONG_FIELD;
     }
-    if (packet->vtf.flabel != 0) {
-        IP6_WARN("We Don't Support flow label %d, but I'll ignore it for now", packet->vtf.flabel);
+    if (IP6H_FL(packet) != 0) {
+        IP6_WARN("We Don't Support flow label %d, but I'll ignore it for now", IP6H_FL(packet));
         // return NET_ERR_IPv6_WRONG_FIELD;
     }
 
@@ -63,7 +65,7 @@ jump_next:
 
     switch (next_header)
     {
-    case IPv6_PROTO_HOPOPT: 
+    case IP_PROTO_HOPOPT: 
         struct ipv6_hopbyhop_hdr *hop_hdr = (struct ipv6_hopbyhop_hdr *)buf.data;
 
         next_header = hop_hdr->next_header;
@@ -75,17 +77,17 @@ jump_next:
         uint8_t hdr_with_padding = ROUND_UP(sizeof(struct ipv6_hopbyhop_hdr) + ext_length, 8);
         buffer_add_ptr(&buf, hdr_with_padding); 
         goto jump_next;
-    case IPv6_PROTO_UDP:
+    case IP_PROTO_UDP:
         IP6_DEBUG("UDP packet received");
         err = udp_unmarshal(ip->udp, src_ip_context, buf);
         DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
         break;
-    case IPv6_PROTO_TCP:
+    case IP_PROTO_TCP:
         IP6_DEBUG("TCP packet received");
         // err = tcp_unmarshal(ip->tcp, buf);
         // DEBUG_FAIL_RETURN(err, "Can't unmarshal the TCP packet");
         break;
-    case IPv6_PROTO_ICMP:
+    case IP_PROTO_ICMPv6:
         IP6_DEBUG("ICMP packet received");
         // the destination address may be a multicast address, like 'ff02::1:ffdc:6aa7'
         err = icmpv6_unmarshal(ip->icmp, src_ip, dst_ip, buf);
@@ -99,51 +101,30 @@ jump_next:
     return err;
 }
 
-errval_t ipv6_marshal(
-    IP* ip, ipv6_addr_t dst_ip, uint8_t proto, Buffer buf
+errval_t ipv6_send(
+    IP* ip, const ipv6_addr_t dst_ip, const mac_addr dst_mac,
+    const uint8_t proto, Buffer buf
 ) {
-    errval_t err = SYS_ERR_NOT_IMPLEMENTED;
-    assert(ip);
+    assert(ip); errval_t err = SYS_ERR_OK;
+    
+    // 1. Prepare the send buffer
+    buffer_sub_ptr(&buf, sizeof(struct ipv6_hdr));
 
-    // 1. Create the IPv6 header
+    // 2. Fill the header
     struct ipv6_hdr* packet = (struct ipv6_hdr*)buf.data;
     *packet = (struct ipv6_hdr) {
-        .vtf        = {
-            .version = 6,
-            .tfclas  = 0,
-            .flabel  = 0,
-        },
-        .len         = htonl((uint32_t)buf.valid_size),
+        .vtc_flow    = htonl(IP6H_VTCFLOW(6, 0, 0)),
+        .len         = htons(buf.valid_size - sizeof(struct ipv6_hdr)),
         .next_header = proto,
         .hop_limit   = 0xFF,
-        .src         = ip->my_ipv6,
-        .dest        = ip->my_ipv6,
+        .src         = hton16(ip->my_ipv6),
+        .dest        = hton16(dst_ip),
     };
-    packet->vtf_uint32 = htonl(packet->vtf_uint32);
-    
-    // TODO: Next Header
 
-    // 2. Get the destination MAC
-    mac_addr dst_mac = MAC_NULL;
-    err = ndp_lookup_mac(ip->icmp, dst_ip, &dst_mac);
-    // switch (err_no(err))
-    // {
-    // case NET_ERR_NDP_NO_MAC_ADDRESS: 
-    // {
-    //     submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
-    //     return NET_THROW_SUBMIT_EVENT;
-    // }
-    // case SYS_ERR_OK: { // Continue sending
-    //     assert(!(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST)));
-    //     msg->dst_mac = dst_mac;
-        
-    //     check_send_message((void*)msg);
-    //     return NET_THROW_SUBMIT_EVENT;
-    // }
-    // default: 
-    //     DEBUG_ERR(err, "Can't establish binding for given IP address");
-    //     return err;
-    // }
+    // 3. Send the packet
+    err = ethernet_marshal(ip->ether, dst_mac, ETH_TYPE_IPv6, buf);
+    DEBUG_FAIL_RETURN(err, "Can't send the IPv4 packet");
 
+    IP_VERBOSE("End sending an IPv6 packet with size: %d, proto: %d", buf.valid_size, proto);
     return err;
 }
