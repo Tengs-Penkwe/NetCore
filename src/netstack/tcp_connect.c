@@ -50,6 +50,8 @@ static errval_t server_handshake_open(
                 .flags = TCP_FLAG_SYN_ACK,
                 .seqno = conn->sendno,
                 .ackno = conn->recvno + 1,
+                .window = 65535,
+                .urg_ptr = 0,
                 .buf   = NULL_BUFFER,
             };
 
@@ -112,6 +114,8 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
             .flags = TCP_FLAG_ACK,
             .seqno = conn->sendno,
             .ackno = conn->recvno,
+            .window = 65535,
+            .urg_ptr = 0,
             .buf   = NULL_BUFFER,
         };
 
@@ -142,6 +146,8 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
             .flags = TCP_FLAG_ACK,
             .seqno = conn->sendno,
             .ackno = conn->recvno,
+            .window = 65535,
+            .urg_ptr = 0,
             .buf   = NULL_BUFFER,
         };
 
@@ -158,6 +164,8 @@ static errval_t recv_data(TCP_conn* conn, TCP_msg* msg)
             .flags = TCP_FLAG_FIN,
             .seqno = conn->sendno,
             .ackno = conn->recvno,
+            .window = 65535,
+            .urg_ptr = 0,
             .buf   = NULL_BUFFER,
         };
 
@@ -220,14 +228,16 @@ static void conn_abrupt_close(TCP_conn* conn)
 {
     assert(conn);
     TCP_msg rst_msg = {
-        .send = {
+        .send    = {
             .dst_ip   = conn->src_ip,
             .dst_port = conn->src_port,
         },
-        .flags = TCP_FLAG_RST,
-        .seqno = conn->sendno,
-        .ackno = conn->recvno,
-        .buf   = NULL_BUFFER,
+        .flags   = TCP_FLAG_RST,
+        .seqno   = conn->sendno,
+        .ackno   = conn->recvno,
+        .window  = 65535,
+        .urg_ptr = 0,
+        .buf     = NULL_BUFFER,
     };
     errval_t err = server_send(conn->server, &rst_msg);
     if (err_is_fail(err)) {

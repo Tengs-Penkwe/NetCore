@@ -3,25 +3,26 @@
 
 #include <netutil/ip.h>
 
-#define TCP_HLEN(packet)     (((packet->data_offset & 0xF0) >> 4) * 4)
-#define TCP_RSVR(packet)     ((packet->data_offset) & 0x0F)
 #define TCP_HLEN_MIN         20
 #define TCP_HLEN_MAX         60
-#define TCPH_SET_LEN(offset) (uint8_t)(((offset / 4) << 4) & 0xF0)
 
-/**
- * TCP header
- */
+#define TCP_HLEN(hdr)        ((hdr)->data_offset * 4)
+
+/* TCP header */
 struct tcp_hdr {
-    uint16_t src_port;   /* Source TCP port */
-    uint16_t dest_port;  /* Destination TCP port */
-    uint32_t seqno;      /* Sequence number */
-    uint32_t ackno;      /* Acknowledgment number */
-    uint8_t data_offset; /* Data offset (upper 4 bits) and Reserved (lower 4 bits) */
-    uint8_t flags;       /* TCP flags */
-    uint16_t window;     /* Window size */
-    uint16_t chksum;     /* Checksum */
-    uint16_t urgent_ptr; /* Urgent pointer */
+    uint16_t src_port;        /* Source TCP port */
+    uint16_t dest_port;       /* Destination TCP port */
+    uint32_t seqno;           /* Sequence number */
+    uint32_t ackno;           /* Acknowledgment number */
+
+    // it's "little-endian", so the reserved field go first
+    uint8_t  reserved    : 4; /* Reserved (0) */
+    uint8_t  data_offset : 4; /* Data offset (upper 4 bits) and Reserved (lower 4 bits) */
+
+    uint8_t  flags;           /* TCP flags */
+    uint16_t window;          /* Window size */
+    uint16_t chksum;          /* Checksum */
+    uint16_t urgent_ptr;      /* Urgent pointer */
 } __attribute__((__packed__));
 
 /* TCP Flags */

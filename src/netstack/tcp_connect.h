@@ -47,6 +47,8 @@ typedef struct tcp_message {
     Flags        flags;
     uint32_t     seqno;
     uint32_t     ackno;
+    uint32_t     window;
+    uint16_t     urg_ptr;
     Buffer       buf;
 } TCP_msg ;    
 

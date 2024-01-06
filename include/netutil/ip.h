@@ -23,12 +23,13 @@ typedef uint32_t ip_addr_t;
 #define IPH_LEN_MIN  20
 #define IPH_LEN_MAX  60
 
-#define IPH_V(hdr)  ((hdr)->version)
 #define IPH_HL(hdr) ((hdr)->ihl * 4)
 
 struct ip_hdr {
+    // BEWARE: The order is "little-endian"
     uint8_t   ihl     : 4; /* header length */
     uint8_t   version : 4;
+
     uint8_t   tos;       /* type of service */
     uint16_t  total_len; /* total length */
     uint16_t  id;        /* identification */

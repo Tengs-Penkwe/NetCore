@@ -26,15 +26,16 @@ void tcp_destroy(
     assert(tcp);
 
     // 1. Destroy the hash table for servers
-    // err = hash_destroy(&tcp->servers);
-    // DEBUG_FAIL_RETURN(err, "Can't destroy the hash table of tcp servers");
+    hash_destroy(&tcp->servers);
+    memset(tcp, 0x00, sizeof(TCP));
+    free(tcp);
 
     TCP_ERR("Not implemented yet");
 }
 
 errval_t tcp_send(
     TCP* tcp, const ip_context_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
-    uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
+    uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_ptr, uint8_t flags,
     Buffer buf
 ) {
     errval_t err = SYS_ERR_OK;
@@ -42,19 +43,18 @@ errval_t tcp_send(
 
     buffer_sub_ptr(&buf, sizeof(struct tcp_hdr));
 
-    uint8_t data_offset = TCPH_SET_LEN(sizeof(struct tcp_hdr));
-
     struct tcp_hdr* packet = (struct tcp_hdr*)buf.data;
     *packet = (struct tcp_hdr) {
         .src_port    = htons(src_port),
         .dest_port   = htons(dst_port),
         .seqno       = htonl(seqno),
         .ackno       = htonl(ackno),
-        .data_offset = data_offset,
+        .data_offset = sizeof(struct tcp_hdr) / 4,
+        .reserved    = 0,
         .flags       = flags,
         .window      = htons(window),
         .chksum      = 0,
-        .urgent_ptr  = urg_prt,
+        .urgent_ptr  = urg_ptr,
     };
 
     struct pseudo_ip_header_in_net_order ip_header;
@@ -78,9 +78,8 @@ errval_t tcp_unmarshal(
     struct tcp_hdr* packet = (struct tcp_hdr*)buf.data;
 
     // 0. Check Validity
-    uint8_t reserved = TCP_RSVR(packet);
-    if (reserved != 0x00) {
-        TCP_ERR("The TCP reserved field 0x%02x should be 0 !", reserved);
+    if (packet->reserved != 0x00) {
+        TCP_ERR("The TCP reserved field 0x%02x should be 0 !", packet->reserved);
         return NET_ERR_TCP_WRONG_FIELD;
     }
     uint8_t offset = TCP_HLEN(packet);
@@ -107,27 +106,21 @@ errval_t tcp_unmarshal(
         return NET_ERR_TCP_WRONG_FIELD;
     }
 
-    // 2. Create the Message
-    uint32_t seqno = ntohl(packet->seqno);
-    uint32_t ackno = ntohl(packet->ackno);
-
-    // We ignore it for now
-    uint32_t window = ntohs(packet->window);
-    (void) window;
-
     // 3. Create the Message
     uint8_t flags = packet->flags;
     TCP_msg* msg = calloc(1, sizeof(TCP_msg));
     assert(msg);
     *msg = (TCP_msg) {
-        .seqno    = seqno,
-        .ackno    = ackno,
-        .buf      = buffer_add(buf, offset),
-        .flags    = get_tcp_flags(flags),
         .recv     = {
             .src_ip   = src_ip,
             .src_port = src_port,
         },
+        .flags    = get_tcp_flags(flags),
+        .seqno    = ntohl(packet->seqno),
+        .ackno    = ntohl(packet->ackno),
+        .window   = ntohs(packet->window),
+        .urg_ptr  = ntohs(packet->urgent_ptr),
+        .buf      = buffer_add(buf, offset),
     };
     
     // 4. Find the Server

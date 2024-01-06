@@ -248,14 +248,16 @@ errval_t server_marshal(
     }
 
     TCP_msg send_msg = {
-        .send = {
+        .send    = {
             .dst_ip   = conn->src_ip,
             .dst_port = conn->src_port,
         },
-        .flags = TCP_FLAG_ACK,
-        .seqno = conn->sendno,
-        .ackno = conn->recvno,
-        .buf   = buf,
+        .flags   = TCP_FLAG_ACK,
+        .seqno   = conn->sendno,
+        .ackno   = conn->recvno,
+        .window  = 65535,
+        .urg_ptr = 0,
+        .buf     = buf,
     };
     conn->sendno += buf.valid_size;
 
@@ -277,14 +279,11 @@ errval_t server_send(
     }
     assert(server);
 
-    LOG_ERR("Decide window and urg_ptr!");
-    uint16_t window = 65535;
-    uint16_t urg_ptr = 0;
-    uint8_t flags = flags_compile(msg->flags);
+    TCP_ERR("Decide window and urg_ptr!");
 
     err = tcp_send(
         server->tcp, msg->send.dst_ip, server->port, msg->send.dst_port, 
-        msg->seqno, msg->ackno, window, urg_ptr, flags, msg->buf
+        msg->seqno, msg->ackno, msg->window, msg->urg_ptr, flags_compile(msg->flags), msg->buf
     );
     DEBUG_FAIL_RETURN(err, "Can't marshal this tcp message !");
 

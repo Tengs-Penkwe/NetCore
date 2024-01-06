@@ -157,7 +157,7 @@ int format_ipv4_header(const struct ip_hdr *ip_header, char *buffer, size_t max_
                        "   Checksum: 0x%04x\n"
                        "   Source IP: %s\n"
                        "   Destination IP: %s\n",
-                       IPH_V(ip_header), IPH_HL(ip_header), ip_header->tos, ntohs(ip_header->total_len), 
+                       ip_header->version, IPH_HL(ip_header), ip_header->tos, ntohs(ip_header->total_len), 
                        ntohs(ip_header->id), ntohs(ip_header->offset) >> 13, ntohs(ip_header->offset) & IP_OFFMASK,
                        ip_header->ttl, ip_header->proto, ntohs(ip_header->chksum), ip_src, ip_dest);
 
