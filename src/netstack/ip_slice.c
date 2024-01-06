@@ -168,7 +168,7 @@ errval_t ipv4_send(
     else            OFFSET_MF_SET(flag_offset, 1);
 
     Buffer send_buf = buffer_add(buf, send_from);
-    send_buf.whole_size = size_to_send;
+    send_buf.valid_size = size_to_send;
     
     // 2. Prepare the send buffer
     buffer_sub_ptr(&send_buf, sizeof(struct ip_hdr));
