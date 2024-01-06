@@ -19,6 +19,7 @@ typedef struct ethernet_state {
     struct net_device *device;
     struct arp_state  *arp;
     struct ip_state   *ip;
+    struct ndp_state  *ndp;
 } Ethernet;
 
 errval_t ethernet_init(

@@ -8,15 +8,37 @@
 #include <event/event.h>
 
 errval_t icmp_init(
-    ICMP* icmp, struct ip_state* ip
+    ICMP* icmp, struct ip_state* ip, mac_addr my_mac
 ) {
+    errval_t err = SYS_ERR_OK;
     assert(icmp && ip);
     icmp->ip = ip;
+    icmp->my_mac = my_mac;
+    
+    err = hash_init(
+        &icmp->hosts, icmp->buckets, NDP_HASH_BUCKETS,
+        HS_OVERWRITE_ON_EXIST,          // RFC 4861 requires that the address is updatable
+        ipv6_key_cmp, ipv6_key_hash     // The key is ipv6_addr_t, more than 64 bits (void*), but the value can be stored in 64 bits 
+    );
+    DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
-    return SYS_ERR_OK;
+    return err;
+}
+
+void icmp_destroy(
+    ICMP* icmp
+) {
+    assert(icmp);
+
+    ICMP_ERR("NYI: the hash table stores memory address, need to free them");
+    hash_destroy(&icmp->hosts);
+
+    free(icmp);
+    ICMP_NOTE("ICMP module destroyed");
 }
 
 // Assumption: Caller free the buffer
+// Assumption: Buf contains the data that needs to be sent
 errval_t icmp_marshal(
     ICMP* icmp, ip_addr_t dst_ip, uint8_t type, uint8_t code, ICMP_data field, Buffer buf
 ) {
@@ -53,9 +75,13 @@ errval_t icmp_marshal(
         .code   = code,
         .chksum = 0,    /// For ICMP, the checksum is calculated for the full packet
     };
-    packet->chksum = inet_checksum(packet, buf.valid_size);
-    
-    err = ip_marshal(icmp->ip, dst_ip, IP_PROTO_ICMP, buf);
+    packet->chksum = inet_checksum_in_net_order(packet, buf.valid_size);
+
+    const ip_context_t dst_ip_context = {
+        .ipv4    = dst_ip,
+        .is_ipv6 = false,
+    };
+    err = ip_marshal(icmp->ip, dst_ip_context, IP_PROTO_ICMP, buf);
     DEBUG_FAIL_RETURN(err, "Can't send the ICMP through binding");
     return err;
 }
@@ -70,7 +96,7 @@ errval_t icmp_unmarshal(
     // 1.1 Checksum
     uint16_t packet_checksum = ntohs(packet->chksum);
     packet->chksum = 0;     // Set the it as 0 to calculate
-    uint16_t checksum = inet_checksum((void*)buf.data, buf.valid_size);
+    uint16_t checksum = inet_checksum_in_net_order((void*)buf.data, buf.valid_size);
     if (packet_checksum != ntohs(checksum)) {
         ICMP_ERR("This ICMP Pacekt Has Wrong Checksum %p, Should be %p", checksum, packet_checksum);
         return NET_ERR_ICMP_WRONG_CHECKSUM;
@@ -82,16 +108,17 @@ errval_t icmp_unmarshal(
     uint8_t ret_type = 0xFF;
     uint8_t ret_code = 0xFF;
     ICMP_data field;
-    uint8_t type = ICMPH_TYPE(packet);
+    uint8_t type = packet->type;
     switch (type) {
     case ICMP_ECHO:
-        buffer_add_ptr(&buf, sizeof(struct icmp_echo));
+        struct icmp_echo* echo = (struct icmp_echo*) buf.data;
         field = (ICMP_data) {
             .echo = {
-                .id    = ICMPH_ECHO_ID(packet),
-                .seqno = ICMPH_ECHO_SEQ(packet),
+                .id    = echo->id,     // Directly from net order, no need to convert
+                .seqno = echo->seqno,
             },
         };
+        buffer_add_ptr(&buf, sizeof(struct icmp_echo));
         ret_type = ICMP_ER;
         ret_code = 0;
         ICMP_VERBOSE("An ICMP echo request id: %d, seqno: %d !", ntohs(field.echo.id), ntohs(field.echo.seqno));
@@ -129,7 +156,7 @@ errval_t icmp_unmarshal(
     if (err_is_fail(err))
     {
         free(marshal);
-        assert(0);
+        assert(0 && "disable for now");
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
         // If the Queue if full, directly send 
         errval_t error = icmp_marshal(icmp, src_ip, ret_type, ret_code, field, buf);

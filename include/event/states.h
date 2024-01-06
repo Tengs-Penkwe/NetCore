@@ -35,7 +35,8 @@ typedef struct global_states {
     struct timespec start_time;
     
     /// @brief For Timed Event
-    Timer          *timer;
+    Timer           timer[TIMER_NUM];
+    uint8_t         timer_count;
     
     /// @brief For Log
     FILE           *log_file;

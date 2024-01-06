@@ -7,7 +7,12 @@
 #include <lock_free/queue.h>  // Lock-free structures
 #include <time.h>
 
+// Use real-time signals
 #define SIG_TIGGER_SUBMIT   SIGRTMIN
+// Number of timers
+#define TIMER_NUM           2
+// The SIGRTMIN and SIGRTMAX are functions, not given values at compile time, use dynamic assert in function instead
+// static_assert(TIMER_NUM <= (SIGRTMAX - SIGRTMIN), "Timer number must be less than the number of real-time signals");
 
 typedef uint64_t delayed_us;
 
@@ -22,24 +27,20 @@ typedef struct delayed_task {
 } DelayedTask;
 
 typedef struct timer_state {
-    alignas(ATOMIC_ISOLATION)
-        Queue  queue;  
     pthread_t  thread;
     size_t     count_recvd;
     size_t     count_submitted;
     size_t     count_failed;
-} __attribute__((aligned(ATOMIC_ISOLATION))) Timer;
+} Timer;
 
 __BEGIN_DECLS
 
-errval_t timer_thread_init(Timer* timer);
-void timer_thread_destroy(Timer* timer_state);
+errval_t timer_thread_init(Timer timer[]);
+void timer_thread_destroy(Timer timer[]);
 
 timer_t submit_periodic_task(DelayedTask dt, delayed_us repeat);
 timer_t submit_delayed_task(DelayedTask dt);
 void cancel_timer_task(timer_t timerid);
-
-extern Timer g_timer;
 
 __END_DECLS
 

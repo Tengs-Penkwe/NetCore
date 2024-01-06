@@ -36,11 +36,11 @@ typedef enum flags {
 typedef struct tcp_message {
     union {
         struct {
-            ip_addr_t    dst_ip;
+            ip_context_t dst_ip;
             tcp_port_t   dst_port;
         } send;
         struct {
-            ip_addr_t    src_ip;
+            ip_context_t src_ip;
             tcp_port_t   src_port;
         } recv;
     };

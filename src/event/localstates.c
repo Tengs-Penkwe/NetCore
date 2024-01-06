@@ -14,11 +14,14 @@ static void free_state(void* local) {
     int len = sprintf(last_msg, "Thread %s with pid %d is going to end\n", state->my_name, state->my_pid);
     write(STDOUT_FILENO, last_msg, len);
     
-    free((void*)state->my_name);
+    // Some names are static, don't free them
+    // free((void*)state->my_name);
 
+    // TODO: why it causes double free ?
+    // free(state);
+    
     // Don't close file because there will be race condition if multiple threads use the same log file, let the OS close it
     // fclose(state->log_file);
-    free(state);
 }
 
 void create_thread_state_key() {

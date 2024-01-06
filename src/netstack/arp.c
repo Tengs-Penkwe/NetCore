@@ -7,16 +7,19 @@
 errval_t arp_init(
     ARP* arp, Ethernet* ether, ip_addr_t ip
 ) {
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
     assert(arp && ether);
     arp->ether = ether;
     arp->ip = ip;
     
-    err = hash_init(&arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST);
+    err = hash_init(
+        &arp->hosts, arp->buckets, ARP_HASH_BUCKETS, HS_FAIL_ON_EXIST,
+        voidptr_key_cmp, voidptr_key_hash
+    );
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't initialize the hash table of ARP");
 
     ARP_INFO("ARP Module initialized");
-    return SYS_ERR_OK;
+    return err;
 }
 
 void arp_destroy(
@@ -38,7 +41,7 @@ errval_t arp_marshal(
 
     uint16_t send_size  = sizeof(struct arp_hdr);
     
-    assert(buf.from_hdr >= ARP_RESERVE_SIZE);
+    assert(buf.from_hdr >= ARP_HEADER_RESERVE);
     assert(buf.valid_size >= send_size);
     buf.valid_size = send_size;
 
@@ -72,7 +75,7 @@ void arp_register(
     void* macaddr_as_pointer = NULL;
     memcpy(&macaddr_as_pointer, &mac, sizeof(mac_addr));
 
-    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer, false);
+    errval_t err = hash_insert(&arp->hosts, ARP_HASH_KEY(ip), macaddr_as_pointer);
     if (err_no(err) == EVENT_HASH_EXIST_ON_INSERT) {
         ARP_INFO("The IP-MAC pair already exists");
     } else if (err_is_fail(err)) {
@@ -96,7 +99,7 @@ errval_t arp_lookup_mac(
 
     void* macaddr_as_pointer = NULL;
     err = hash_get_by_key(&arp->hosts, ARP_HASH_KEY(ip), &macaddr_as_pointer);
-    DEBUG_FAIL_RETURN(err, "Can't find the MAC address of given IPv4 address");
+    DEBUG_FAIL_PUSH(err, NET_ERR_NO_MAC_ADDRESS, "Can't find the MAC address of given IPv4 address");
 
     assert(macaddr_as_pointer);
     *ret_mac = voidptr2mac(macaddr_as_pointer);

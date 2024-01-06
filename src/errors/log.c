@@ -16,14 +16,14 @@ enum log_level log_matrix[LOG_MODULE_COUNT] = {
 // Utility function to convert log level enum to string
 static const char* level_to_string(enum log_level level) {
     switch (level) {
-        case LOG_LEVEL_VERBOSE: return "VERBS";
-        case LOG_LEVEL_INFO:    return "INFO ";
-        case LOG_LEVEL_DEBUG:   return "DEBUG";
-        case LOG_LEVEL_NOTE:    return "NOTE ";
-        case LOG_LEVEL_WARN:    return "WARN ";
-        case LOG_LEVEL_ERROR:   return "ERROR";
-        case LOG_LEVEL_FATAL:   return "FATAL";
-        case LOG_LEVEL_PANIC:   return "PANIC";
+        case LOG_LEVEL_VERBOSE: return "VRBS";
+        case LOG_LEVEL_INFO:    return "INFO";
+        case LOG_LEVEL_DEBUG:   return "DEBG";
+        case LOG_LEVEL_NOTE:    return "NOTE";
+        case LOG_LEVEL_WARN:    return "WARN";
+        case LOG_LEVEL_ERROR:   return "ERR ";
+        case LOG_LEVEL_FATAL:   return "FATL";
+        case LOG_LEVEL_PANIC:   return "PANC";
         default:                return "UNKNOWN";
     }
 }
@@ -49,6 +49,8 @@ static const char* module_to_string(enum log_module module) {
         case MODULE_ETHER:     return "ETHR";
         case MODULE_ARP:       return "ARP ";
         case MODULE_IP:        return "IP  ";
+        case MODULE_IPv6:      return "IPv6";
+        case MODULE_NDP :      return "NDP ";
         case MODULE_ICMP:      return "ICMP";
         case MODULE_UDP:       return "UDP ";
         case MODULE_TCP:       return "TCP ";
@@ -101,36 +103,42 @@ void log_close(FILE* log) {
     // fclose(log);
 }
 
+static_assert(sizeof(((struct timespec *)0)->tv_nsec) == sizeof(uint64_t), "if we want to return the nanosecond using uint64_t, we need to make sure that the size of tv_nsec is 8 bytes");
+
+static inline uint64_t get_time_str(char* time_str, uint16_t max_len) {
+    struct timespec ts;
+    struct tm local_tm;
+
+    clock_gettime(CLOCK_REALTIME_COARSE, &ts);  // Get the current time with high precision
+    localtime_r(&ts.tv_sec, &local_tm);         // Convert timespec to tm structure for formatted output
+
+    strftime(time_str, max_len, "%b-%d %H:%M:%S", &local_tm);
+    return ts.tv_nsec;
+}
+
 static int error_ansi(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
     const char *name  = local->my_name;
 
-    time_t now; struct tm local_tm;
-    time(&now); localtime_r(&now, &local_tm);
-
     char time_str[64];
-    strftime(time_str, sizeof(time_str), "%b-%d %H:%M:%S", &local_tm);
+    uint64_t nanosecond = get_time_str(time_str, sizeof(time_str));
     
     int len = 0;
     if (msg != NULL) {
-        len = snprintf(buf_after_leader, max_len, "<%s>{%s}", name, time_str);
+        len = snprintf(buf_after_leader, max_len, "<%s>{%s.%09ld}", name, time_str, nanosecond);
         len += vsnprintf(buf_after_leader + len, max_len - len, msg, args);
     }
     return len;
 }
 
 static int error_json(char* buf_after_leader, const size_t max_len, LocalState * local, const char* msg, va_list args) {
-    
     const char *name  = local->my_name;
-    
-    time_t now; struct tm local_tm;
-    time(&now); localtime_r(&now, &local_tm);
 
     char time_str[64];
-    strftime(time_str, sizeof(time_str), "%b-%d %H:%M:%S", &local_tm);
+    uint64_t nanosecond = get_time_str(time_str, sizeof(time_str));
     
     int len = 0;
     if (msg != NULL) {
-        len = snprintf(buf_after_leader, max_len, "\"thread\": \"%s\", \"time\": \"%s\", \"message\": \"", name, time_str);
+        len = snprintf(buf_after_leader, max_len, "\"thread\": \"%s\", \"time\": \"%s.%09ld\", \"message\": \"", name, time_str, nanosecond);
         len += vsnprintf(buf_after_leader + len, max_len - len, msg, args);
         len += snprintf(buf_after_leader + len, max_len - len, "\"");
     }
@@ -175,7 +183,7 @@ void log_ansi(enum log_module module, enum log_level level, int line, const char
 
 void log_json(enum log_module module, enum log_level level, int line, const char* func, const char* file, const char *msg, ...)
 {
-    char buffer[512]; 
+    char buffer[368]; 
 
     LocalState *local = get_local_state();
     FILE       *log   = local->log_file;
@@ -234,7 +242,7 @@ void log_json(enum log_module module, enum log_level level, int line, const char
  * @note: do not use this function directly. Rather use the DEBUG_ERR macro
  */
 void debug_err(const char *file, const char *func, int line, errval_t err, const char *msg, ...) {
-    char buffer[512];
+    char buffer[256];
     LocalState *local = get_local_state();
     
     int len_leader = 0;
@@ -285,7 +293,7 @@ void debug_err(const char *file, const char *func, int line, errval_t err, const
  * Use the PANIC macros instead of calling this function directly.
  */
 void user_panic_fn(const char *file, const char *func, int line, const char *msg, ...) {
-    char buffer[128];
+    char buffer[256];
     LocalState *local = get_local_state();
     
     const char *leader = "\x1B[1;35mPANIC ";

@@ -12,17 +12,20 @@
 #include "ip_slice.h"
 
 errval_t ip_init(
-    IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ip
+    IP* ip, Ethernet* ether, ARP* arp, ip_addr_t my_ipv4, ipv6_addr_t my_ipv6
 ) {
     errval_t err = SYS_ERR_OK;
     assert(ip && ether && arp);
 
-    ip->my_ip = my_ip;
     ip->ether = ether;
-    ip->arp = arp;
+
+    ip->arp       = arp;
+    ip->my_ipv4   = my_ipv4;
     ip->seg_count = 0;
+
+    ip->my_ipv6 = my_ipv6;
+
     ip->assembler_num  = IP_ASSEMBLER_NUM;
-    
     // 1. Message Queue for single-thread handling of IP segmentation
     for (size_t i = 0; i < ip->assembler_num; i++)
     {
@@ -38,9 +41,9 @@ errval_t ip_init(
              ip->assembler_num, IP_ASSEMBLER_QUEUE_SIZE);
 
     // 2. ICMP (Internet Control Message Protocol )
-    ip->icmp = calloc(1, sizeof(ICMP));
-    assert(ip->icmp);
-    err = icmp_init(ip->icmp, ip);
+    ip->icmp = aligned_alloc(ATOMIC_ISOLATION, sizeof(ICMP)); 
+    assert(ip->icmp); memset(ip->icmp, 0x00, sizeof(ICMP));
+    err = icmp_init(ip->icmp, ip, ether->my_mac);
     DEBUG_FAIL_RETURN(err, "Can't initialize global ICMP state");
 
     // 3. UDP (User Datagram Protocol)
@@ -69,6 +72,9 @@ void ip_destroy(
     {
         assembler_destroy(&ip->assemblers[i], i);
     }
+    LOG_ERR("ICMP, UDP, TCP, they need to be destroyed");
+
+    icmp_destroy(ip->icmp);
     
     free(ip);
 }
@@ -86,7 +92,7 @@ errval_t handle_ip_segment_assembly(
                                                    
         assert(offset == 0 && more_frag == false);
         
-        err = ip_handle(ip, proto, src_ip, buf);
+        err = ipv4_handle(ip, proto, src_ip, buf);
         DEBUG_FAIL_RETURN(err, "Can't handle this IP message ?");
         return err;
     }
@@ -123,18 +129,14 @@ errval_t handle_ip_segment_assembly(
     }
 }
 
-errval_t ip_unmarshal(
+errval_t ipv4_unmarshal(
     IP* ip, Buffer buf
 ) {
     errval_t err = SYS_ERR_OK;
     assert(ip);
     struct ip_hdr* packet = (struct ip_hdr*)buf.data;
     
-    /// 1. Decide if the packet is correct
-    if (packet->version != 4) {
-        IP_ERR("IP Protocal Version Mismatch");
-        return NET_ERR_IPv4_WRONG_FIELD;
-    }
+    /// 1. Service Type
     if (packet->tos != 0x00) {
         IP_ERR("We Don't Support TOS Field: %p, But I'll Ignore it for Now", packet->tos);
         // return NET_ERR_IPv4_WRONG_FIELD;
@@ -151,8 +153,8 @@ errval_t ip_unmarshal(
     }
 
     // 1.2 Packet Size check
-    if (ntohs(packet->len) != buf.valid_size) {
-        LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->len), buf.valid_size);
+    if (ntohs(packet->total_len) != buf.valid_size) {
+        LOG_ERR("IP Packet Size Unmatch %p v.s. %p", ntohs(packet->total_len), buf.valid_size);
         return NET_ERR_IPv4_WRONG_FIELD;
     }
     if (buf.valid_size < IP_LEN_MIN) {
@@ -163,7 +165,7 @@ errval_t ip_unmarshal(
     // 1.3 Checksum
     uint16_t packet_checksum = ntohs(packet->chksum);
     packet->chksum = 0;     // Set the it as 0 to calculate
-    uint16_t checksum = inet_checksum(packet, header_size);
+    uint16_t checksum = inet_checksum_in_net_order(packet, header_size);
     if (packet_checksum != ntohs(checksum)) {
         LOG_ERR("This IPv4 Pacekt Has Wrong Checksum %p, Should be %p", checksum, packet_checksum);
         return NET_ERR_IPv4_WRONG_CHECKSUM;
@@ -171,8 +173,8 @@ errval_t ip_unmarshal(
 
     // 1.4 Destination IP
     ip_addr_t dst_ip = ntohl(packet->dest);
-    if (dst_ip != ip->my_ip) {
-        LOG_ERR("This IPv4 Pacekt isn't for us %0.8X but for %0.8X", ip->my_ip, dst_ip);
+    if (dst_ip != ip->my_ipv4) {
+        LOG_ERR("This IPv4 Pacekt isn't for us %0.8X but for %0.8X", ip->my_ipv4, dst_ip);
         return NET_ERR_IPv4_WRONG_IP_ADDRESS;
     }
 
@@ -195,7 +197,7 @@ errval_t ip_unmarshal(
     ip_addr_t src_ip = ntohl(packet->src);
     mac_addr src_mac = MAC_NULL;
     err = arp_lookup_mac(ip->arp, src_ip, &src_mac);
-    if (err_no(err) == NET_ERR_ARP_NO_MAC_ADDRESS) {
+    if (err_no(err) == NET_ERR_NO_MAC_ADDRESS) {
         USER_PANIC_ERR(err, "You received an IP message, but you don't know the IP-MAC pair ?");
     } else
         DEBUG_FAIL_RETURN(err, "Can't find binding for given IP address");
@@ -215,48 +217,39 @@ errval_t ip_unmarshal(
 }
 
 errval_t ip_marshal(    
-    IP* ip, ip_addr_t dst_ip, uint8_t proto, Buffer buf
+    IP* ip, ip_context_t dst_ip, uint8_t proto, Buffer buf
 ) {
-    errval_t err;
-    IP_DEBUG("Sending a message, dst_ip: 0x%0.8X", dst_ip);
-    assert(ip);
+    assert(ip); errval_t err = SYS_ERR_OK;
+    IP_send *msg = malloc(sizeof(IP_send)); assert(msg);
 
-    // 1. Assign ID
-    uint16_t id = (uint16_t) atomic_fetch_add(&ip->seg_count, 1);
-
-    // 2. Create the message
-    IP_send *msg = calloc(1, sizeof(IP_send)); assert(msg);
+    // 1. Create the message
     *msg = (IP_send) {
         .ip             = ip,
         .dst_ip         = dst_ip,
-        .dst_mac        = MAC_NULL,
         .proto          = proto,
-        .id             = id,
+        .id             = dst_ip.is_ipv6 ? 0 : (uint16_t)atomic_fetch_add(&ip->seg_count, 1),
+        .sent_size      = 0,    // IPv4 only
+        .dst_mac        = MAC_NULL,
         .buf            = buf,
-        .sent_size      = 0,
         .retry_interval = IP_RETRY_SEND_US,
     };
 
     // 3. Get destination MAC
-    mac_addr dst_mac =  MAC_NULL;
-    err = arp_lookup_mac(ip->arp, dst_ip, &dst_mac);
+    err = lookup_mac(ip, dst_ip, &msg->dst_mac);
     switch (err_no(err))
     {
-    case NET_ERR_ARP_NO_MAC_ADDRESS:   // Get Address first
+    case NET_ERR_NO_MAC_ADDRESS:   // Get Address first
     {
-        msg->retry_interval = ARP_WAIT_US;
+        msg->retry_interval = GET_MAC_WAIT_US;
         submit_delayed_task(MK_DELAY_TASK(msg->retry_interval, close_sending_message, MK_NORM_TASK(check_get_mac, (void*)msg)));
         return NET_THROW_SUBMIT_EVENT;
     }
     case SYS_ERR_OK: { // Continue sending
-        assert(!(maccmp(dst_mac, MAC_NULL) || maccmp(dst_mac, MAC_BROADCAST)));
-        msg->dst_mac = dst_mac;
-        
+        assert(!(maccmp(msg->dst_mac, MAC_NULL) || maccmp(msg->dst_mac, MAC_BROADCAST)));
         check_send_message((void*)msg);
         return NET_THROW_SUBMIT_EVENT;
     }
-    default: 
-        DEBUG_ERR(err, "Can't establish binding for given IP address");
+    default: USER_PANIC_ERR(err, "Can't establish binding for given IP address");
         return err;
     }
 }

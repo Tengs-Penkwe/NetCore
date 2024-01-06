@@ -60,4 +60,8 @@ uint32_t lwip_ntohl(uint32_t x);
 struct eth_addr hton6(mac_addr mac);
 struct eth_addr ntoh6(mac_addr mac);
 
+#include <netutil/ip.h>
+ipv6_addr_t hton16(ipv6_addr_t ip);
+ipv6_addr_t ntoh16(ipv6_addr_t ip);
+
 #endif //_HTONS_H_

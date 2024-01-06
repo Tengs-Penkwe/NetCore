@@ -16,7 +16,7 @@ typedef struct lfds711_queue_bmm_element BQelem;
 __BEGIN_DECLS
 
 errval_t bdqueue_init(BdQueue* queue, BQelem *element_array, size_t number_elems);
-void bdqueue_destroy(BdQueue* queue);
+void bdqueue_destroy(BdQueue* queue, bool element_on_heap);
 errval_t enbdqueue(BdQueue* queue, void* key, void* data);
 errval_t debdqueue(BdQueue* queue, void** ret_key, void**ret_data);
 

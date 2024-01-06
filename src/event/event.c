@@ -112,13 +112,13 @@ void event_ip_assemble(void* recvd_segment) {
     }
 }
 
-void event_ip_handle(void* recv) {
+void event_ipv4_handle(void* recv) {
     errval_t err; assert(recv);
 
     IP_handle handle = *(IP_handle*) recv;
     free(recv);
 
-    err = ip_handle(handle.ip, handle.proto, handle.src_ip, handle.buf);
+    err = ipv4_handle(handle.ip, handle.proto, handle.src_ip, handle.buf);
     switch (err_no(err))
     {
     case NET_THROW_SUBMIT_EVENT:
@@ -128,6 +128,25 @@ void event_ip_handle(void* recv) {
     }
     case SYS_ERR_OK:
         free_buffer(handle.buf); 
+        break;
+    default:
+        USER_PANIC_ERR(err, "Unknown error");
+    }
+}
+
+void event_ndp_marshal(void* send) {
+    errval_t err; assert(send);
+
+    NDP_marshal marshal = *(NDP_marshal*) send;
+    free(send);
+
+    err = ndp_marshal(marshal.icmp, marshal.dst_ip, marshal.type, marshal.code, marshal.buf);
+    switch (err_no(err))
+    {
+    case NET_THROW_SUBMIT_EVENT:
+        break;
+    case SYS_ERR_OK:
+        free_buffer(marshal.buf);
         break;
     default:
         USER_PANIC_ERR(err, "Unknown error");

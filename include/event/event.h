@@ -53,6 +53,15 @@ typedef struct {
 
 } ICMP_marshal;
 
+#include <netstack/ndp.h>
+
+typedef struct {
+    ICMP       *icmp;
+    ipv6_addr_t dst_ip;
+    uint8_t     type;
+    uint8_t     code;
+    Buffer      buf;
+} NDP_marshal;
 
 __BEGIN_DECLS
 
@@ -81,7 +90,8 @@ void event_ether_unmarshal(void* unmarshal);
 void event_arp_marshal(void* marshal);
 void event_icmp_marshal(void* marshal);
 void event_ip_assemble(void* assemble);
-void event_ip_handle(void* handle);
+void event_ipv4_handle(void* handle);
+void event_ndp_marshal(void* marshal);
 
 __END_DECLS
 

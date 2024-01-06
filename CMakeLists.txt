@@ -72,7 +72,7 @@ if (CMAKE_C_COMPILER_ID MATCHES "Clang")
         -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-binary-literal -Wno-c++98-compat -Wno-pre-c2x-compat
         -Wno-covered-switch-default -Wno-switch-enum -Wno-disabled-macro-expansion
         -Wno-used-but-marked-unused
-        -Wno-cast-align
+        -Wno-cast-align -Wno-packed
     )
 endif()
 
@@ -157,6 +157,13 @@ add_custom_command(
     DEPENDS User
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Running USER executable"
+)
+
+# Set capabilities (We need unlimited signal queue size)
+add_custom_command(
+    TARGET NetCore POST_BUILD
+    COMMAND sudo setcap cap_sys_resource=eip $<TARGET_FILE:NetCore>
+    COMMENT "Setting capabilities on NetCore to allow unlimited signal queue size"
 )
 
 # Custom target to run both executables

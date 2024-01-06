@@ -24,8 +24,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     // Open TAP device
     int tap_fd = open(tap_path, O_RDWR);
     if (tap_fd < 0) {
-        const char *error_msg = strerror(errno);
-        DEVICE_FATAL("Failed to open %s, because %s", tap_path, error_msg);
+        DEVICE_FATAL("Failed to open %s, because %s", tap_path, strerror(errno));
         return NET_ERR_DEVICE_INIT;
     }
 
@@ -37,8 +36,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     strncpy(ifr.ifr_name, tap_name, IFNAMSIZ);
 
     if (ioctl(tap_fd, TUNSETIFF, (void *) &ifr) < 0) {
-        const char *error_msg = strerror(errno);
-        DEVICE_FATAL("ioctl(TUNSETIFF): %s", error_msg);
+        DEVICE_FATAL("ioctl(TUNSETIFF): %s", strerror(errno));
         close(tap_fd);
         return NET_ERR_DEVICE_INIT;
     }
@@ -62,7 +60,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
     struct tm *tm_info = localtime(&device->start_time.tv_sec);
     strftime(start_time_str, 64, "%Y-%m-%d %H:%M:%S", tm_info);
 
-    DEVICE_NOTE("Device initialization started at %s", start_time_str);
+    DEVICE_NOTE("Device started at %s", start_time_str);
 
     return SYS_ERR_OK;
 }
@@ -129,9 +127,6 @@ errval_t device_send(NetDevice* device, Buffer buf) {
     assert((size_t)written == buf.valid_size);
     device->sent += 1;
 
-    // printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
-    // printf("Written %zd bytes to TAP device\n", written);
-    // dump_packet_info(buf.data);
     return SYS_ERR_OK;
 }
 
@@ -144,7 +139,7 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
         DEVICE_ERR("ioctl(SIOCGIFHWADDR): %s", error_msg);
         return NET_ERR_DEVICE_GET_MAC;
     }
-    *ret_mac = ntoh6(mem2mac(device->ifr.ifr_hwaddr.sa_data));
+    *ret_mac = (mem2mac(device->ifr.ifr_hwaddr.sa_data));
 
     return SYS_ERR_OK;
 }
@@ -175,10 +170,6 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
         assert(frame->buf.valid_size == MEMPOOL_BYTES - DEVICE_HEADER_RESERVE);
         frame->buf.valid_size = nbytes;
         device->recvd += 1;
-
-        // printf("========================================\n");
-        // printf("Read %d bytes from TAP device\n", frame->buf.valid_size);
-        // dump_packet_info(frame->buf.data);
 
         err = submit_task(MK_NORM_TASK(event_ether_unmarshal, frame));
         if (err_is_fail(err)) {

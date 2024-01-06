@@ -6,26 +6,14 @@
 #include <event/timer.h>
 #include <event/memorypool.h>
 #include <event/states.h>
+#include <event/signal.h>
 
 #include <sys/syscall.h>   //syscall
 #include <errno.h>         //strerror
                            
 static void driver_exit(int signum) __attribute__((noreturn));
 
-static errval_t signal_init(void) {
-    // Initialize the signal set
-    sigset_t set;
-    sigemptyset(&set);
-    // sigaddset(&set, SIG_TELL_TIMER);
-    sigaddset(&set, SIG_TIGGER_SUBMIT);
-
-    // Block The signal for timer
-    // Note: we are in main thread !
-    if (sigprocmask(SIG_BLOCK, &set, NULL) != 0) {
-        const char *error_msg = strerror(errno);
-        LOG_FATAL("sigprocmask: %s", error_msg);
-        return EVENT_ERR_SIGNAL_INIT;
-    }
+static errval_t signal_set_handler(void) {
 
     // Setup SIGINT handler
     if (signal(SIGINT, driver_exit) == SIG_ERR) {
@@ -41,7 +29,7 @@ static errval_t signal_init(void) {
         return EVENT_ERR_SIGNAL_INIT;
     }
 
-    EVENT_NOTE("Signals set");
+    EVENT_NOTE("The handler for SIGINT and SIGTERM is set to driver_exit");
     return SYS_ERR_OK;
 }
 
@@ -56,6 +44,7 @@ static ko_longopt_t longopts[] = {
     { "log-level", ko_optional_argument,  0  },
     { "log-file",  ko_optional_argument,  0  },
     { "log-ansi",  ko_optional_argument,  0  },
+    { "queue-size",ko_optional_argument,  0  },
     { NULL,        0,                     0  }
 };
 
@@ -69,6 +58,7 @@ int main(int argc, char *argv[]) {
     char *log_file_name = "/var/log/NetCore/output.json";
     int log_level = LOG_LEVEL_VERBOSE; // default log level
     bool ansi_log = false;
+    rlim_t queue_size = 256273;     // The default by ulimit on my machine is 256273, thus we don't need root to run this program 
 
     while ((c = ketopt(&opt, argc, argv, 1, "ho:v", longopts)) >= 0) {
         switch (c) {
@@ -91,6 +81,8 @@ int main(int argc, char *argv[]) {
                 log_file_name = opt.arg;
             } else if (opt.longidx == 7) { // log-ansi
                 ansi_log = true;
+            } else if (opt.longidx == 8) { // size of signal queue
+                queue_size = atoi(opt.arg);
             }
             break;
         case '?': // Unknown option
@@ -135,9 +127,15 @@ int main(int argc, char *argv[]) {
     set_local_state(master);
 
     // 3. Initialize the signal set (the timer thread use the signal to wake up)
-    err = signal_init();
+    err = signal_init(queue_size);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the signals");
+        return -1;
+    }
+
+    err = signal_set_handler();
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't Set the signal handler");
         return -1;
     }
 
@@ -184,12 +182,12 @@ int main(int argc, char *argv[]) {
     g_states.threadpool = &g_threadpool;
 
     // 8. Initialize the timer thread (timed event)
-    err = timer_thread_init(&g_timer);
+    err = timer_thread_init(g_states.timer);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize the Timer");
         return -1;
     }
-    g_states.timer = &g_timer;
+    g_states.timer_count = TIMER_NUM;
 
     err = device_loop(device, net, mempool);
     if (err_is_fail(err)) {
@@ -200,7 +198,7 @@ int main(int argc, char *argv[]) {
     driver_exit(0);
 }
 
-static void driver_exit(int signum) {
+void driver_exit(int signum) {
     (void) signum;
 
     network_destroy(g_states.network);

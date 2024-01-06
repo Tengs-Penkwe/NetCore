@@ -10,14 +10,15 @@
 #include "tcp.h"
 
 typedef struct net_work {
-    NetDevice *device;
-    Ethernet  *ether;
-    ARP       *arp;
-    IP        *ip;
-    ICMP      *icmp;
-    UDP       *udp;
-    TCP       *tcp;
-    ip_addr_t  my_ip;
+    NetDevice  *device;
+    Ethernet   *ether;
+    ARP        *arp;
+    IP         *ip;
+    ICMP       *icmp;
+    UDP        *udp;
+    TCP        *tcp;
+    ip_addr_t   my_ipv4;
+    ipv6_addr_t my_ipv6;
     mac_addr   my_mac;
 } NetWork;
 

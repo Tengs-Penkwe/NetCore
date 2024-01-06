@@ -8,6 +8,7 @@
 #include <semaphore.h>
 #include <lock_free/bdqueue.h>
 #include <pthread.h>
+#include <netutil/ip.h>
 
 typedef struct tcp_state  TCP;
 typedef struct tcp_server TCP_server;
@@ -22,11 +23,11 @@ typedef struct tcp_server {
     size_t              queue_size;
 
     pthread_t          *worker;
-    size_t              worker_num;
+    sem_t               worker_sem;
+    uint8_t             worker_num;
 
     // For the closing of the server
     bool                is_live;
-    sem_t               sema;
 
     struct tcp_state   *tcp;
     tcp_port_t          port;
@@ -42,7 +43,7 @@ typedef struct tcp_server {
 typedef struct tcp_connection {
     struct tcp_server    *server;
     // Who send it
-    ip_addr_t             src_ip;
+    ip_context_t          src_ip;
     tcp_port_t            src_port;
     // Expect message
     uint32_t              sendno;
@@ -53,9 +54,6 @@ typedef struct tcp_connection {
     // State
     TCP_st                state;
 } TCP_conn;
-
-/// The key of a connection inside the hash table of a server
-#define TCP_CONN_KEY(ip, port) ( ((uint64_t)ip << 16) |  ((uint64_t)port) )
 
 errval_t tcp_server_register(
     TCP* tcp, struct rpc* rpc, const tcp_port_t port, const tcp_server_callback callback
@@ -70,7 +68,7 @@ errval_t server_listen(
 );
 
 errval_t server_marshal(
-    TCP_server* server, ip_addr_t dst_ip, tcp_port_t dst_port, Buffer buf
+    TCP_server* server, ip_context_t dst_ip, tcp_port_t dst_port, Buffer buf
 );
 
 errval_t server_send(

@@ -14,11 +14,11 @@ typedef struct tcp_server TCP_server;
 typedef void (*tcp_server_callback) (
     struct tcp_server* server,
     Buffer buf,
-    const ip_addr_t src_ip, const tcp_port_t src_port
+    const ip_context_t src_ip, const tcp_port_t src_port
 );
 
 /// The key of a server inside the hash table 
-#define TCP_HASH_KEY(port)   (Hash_key)(port)
+#define TCP_HASH_KEY(port)   (void*)(Hash_key)(port)
 
 typedef struct tcp_state {
     /// @brief The hash table and buckets of TCP servers
@@ -34,14 +34,18 @@ errval_t tcp_init(
     TCP* tcp, struct ip_state* ip
 );
 
-errval_t tcp_marshal(
-    TCP* tcp, const ip_addr_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
+void tcp_destroy(
+    TCP* tcp
+);
+
+errval_t tcp_send(
+    TCP* tcp, const ip_context_t dst_ip, const tcp_port_t src_port, const tcp_port_t dst_port,
     uint32_t seqno, uint32_t ackno, uint32_t window, uint16_t urg_prt, uint8_t flags,
     Buffer buf
 );
 
 errval_t tcp_unmarshal(
-    TCP* tcp, const ip_addr_t src_ip, Buffer buf
+    TCP* tcp, const ip_context_t src_ip, Buffer buf
 );
 
 __END_DECLS

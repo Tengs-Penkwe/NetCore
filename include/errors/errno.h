@@ -1,5 +1,5 @@
-#ifndef __ERRNO_H__
-#define __ERRNO_H__
+#ifndef __NETCORE_ERRNO_H__
+#define __NETCORE_ERRNO_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -45,20 +45,28 @@ typedef uintptr_t errval_t;
     X(NET_ERR_DEVICE_SEND,             "Can't send raw packet by network device") \
     X(NET_ERR_DEVICE_FAIL_POLL,        "Can't poll on the device !") \
     X(NET_ERR_DEVICE_GET_MAC,          "Can't get MAC address of my network device") \
+    X(NET_ERR_ETHER_NULL_MAC,          "Destination MAC address of received message is a NULL MAC") \
     X(NET_ERR_ETHER_WRONG_MAC,         "Destination MAC address of received message doesn't meet with our MAC") \
     X(NET_ERR_ETHER_NO_MAC,            "Can't get MAC address of my ethernet") \
     X(NET_ERR_ETHER_NO_IP_ADDRESS,     "We don't have IP address associated with given MAC address") \
     X(NET_ERR_ETHER_UNKNOWN_TYPE,      "Unknown Ethernet type other than ARP or IP") \
     X(NET_ERR_ARP_WRONG_FIELD,         "Wrong Field in ARP packet") \
     X(NET_ERR_ARP_WRONG_IP_ADDRESS,    "Wrong Destination IP address for the ARP request") \
-    X(NET_ERR_ARP_NO_MAC_ADDRESS,      "Can't find the MAC address of given IPv4 address") \
+    X(NET_ERR_NO_MAC_ADDRESS,          "Can't find the MAC address of given IPv6 or IPv4 address") \
+    X(NET_ERR_IP_VERSION,              "The IP version of received message is wrong") \
     X(NET_ERR_IPv4_WRONG_FIELD,        "Wrong Field in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_CHECKSUM,     "Wrong checksum in IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_IP_ADDRESS,   "Wrong Destination IP address for the IPv4 packet") \
     X(NET_ERR_IPv4_WRONG_PROTOCOL,     "Wrong Protocol type in the IPv4 packet") \
     X(NET_ERR_IPv4_DUPLITCATE_SEG,     "We received a same IP packet segmentation twice") \
+    X(NET_ERR_IPv6_WRONG_FIELD,        "Wrong Field in IPv6 packet") \
+    X(NET_ERR_IPv6_NEXT_HEADER,        "Not Supported next header in IPv6 packet") \
+    X(NET_ERR_ICMPv6_WRONG_TYPE,       "Wrong ICMPv6 message type") \
+    X(NET_ERR_ICMPv6_WRONG_CODE,       "Wrong ICMPv6 message code") \
     X(NET_ERR_ICMP_WRONG_CHECKSUM,     "Wrong checksum in ICMP packet") \
     X(NET_ERR_ICMP_WRONG_TYPE,         "Wrong ICMP message type") \
+    X(NET_ERR_NDP_WRONG_DESTINATION,   "The destination address of this NDP message is wrong") \
+    X(NET_ERR_NDP_INVALID_OPTION,      "The NDP message contains an invalid option") \
     X(NET_ERR_UDP_WRONG_FIELD,         "Wrong Field in UDP packet") \
     X(NET_ERR_UDP_PORT_REGISTERED,     "This UDP Port has already been registered") \
     X(NET_ERR_UDP_PORT_NOT_REGISTERED, "This UDP Port isn't registered") \
