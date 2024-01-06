@@ -108,16 +108,17 @@ errval_t icmp_unmarshal(
     uint8_t ret_type = 0xFF;
     uint8_t ret_code = 0xFF;
     ICMP_data field;
-    uint8_t type = ICMPH_TYPE(packet);
+    uint8_t type = packet->type;
     switch (type) {
     case ICMP_ECHO:
-        buffer_add_ptr(&buf, sizeof(struct icmp_echo));
+        struct icmp_echo* echo = (struct icmp_echo*) buf.data;
         field = (ICMP_data) {
             .echo = {
-                .id    = ICMPH_ECHO_ID(packet),     // Directly from net order, no need to convert
-                .seqno = ICMPH_ECHO_SEQ(packet),
+                .id    = echo->id,     // Directly from net order, no need to convert
+                .seqno = echo->seqno,
             },
         };
+        buffer_add_ptr(&buf, sizeof(struct icmp_echo));
         ret_type = ICMP_ER;
         ret_code = 0;
         ICMP_VERBOSE("An ICMP echo request id: %d, seqno: %d !", ntohs(field.echo.id), ntohs(field.echo.seqno));
@@ -155,7 +156,7 @@ errval_t icmp_unmarshal(
     if (err_is_fail(err))
     {
         free(marshal);
-        assert(0);
+        assert(0 && "disable for now");
         assert(err_no(err) == EVENT_ENQUEUE_FULL);
         // If the Queue if full, directly send 
         errval_t error = icmp_marshal(icmp, src_ip, ret_type, ret_code, field, buf);

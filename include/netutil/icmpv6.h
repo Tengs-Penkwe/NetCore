@@ -8,14 +8,6 @@
 //////////////////////////////////// ICMPv6 ////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// As same as ICMPv4
-struct icmpv6_hdr {
-    uint8_t  type;
-    uint8_t  code;
-    uint16_t chksum;
-} __attribute__((__packed__));
-
-static_assert(sizeof(struct icmpv6_hdr) == 4, "Invalid size");
 #define ICMPv6_DUR   1   /* destination unreachable */
 enum icmpv6_dur_type {
     ICMPv6_DUR_NO_ROUTE      = 0, /* no route to destination */

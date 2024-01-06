@@ -66,20 +66,6 @@ struct icmp_timestamp {
     uint32_t transmit;
 } __attribute__((__packed__));
 
-#define ICMPH_TYPE(hdr) ((hdr)->type)
-#define ICMPH_CODE(hdr) ((hdr)->code)
-
-/** Combines type and code to an u16_t */
-#define ICMPH_TYPE_SET(hdr, t) ((hdr)->type = (t))
-#define ICMPH_CODE_SET(hdr, c) ((hdr)->code = (c))
-
-/// ECHO
-#define ICMPH_ECHO_ID(hdr)  (*(uint16_t *)((uint8_t *)(hdr) + 4))
-#define ICMPH_ECHO_SEQ(hdr) (*(uint16_t *)((uint8_t *)(hdr) + 6))
-
-#define ICMPH_ECHO_ID_SET(hdr, id)   (*(uint16_t *)((uint8_t *)(hdr) + 4) = (id))
-#define ICMPH_ECHO_SEQ_SET(hdr, seq) (*(uint16_t *)((uint8_t *)(hdr) + 6) = (seq))
-
 typedef struct icmp_data {
     union {
         struct icmp_echo      echo;

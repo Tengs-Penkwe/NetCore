@@ -10,17 +10,25 @@ errval_t icmpv6_marshal(
 ) {
     assert(icmp); errval_t err = SYS_ERR_NOT_IMPLEMENTED;
 
-    buffer_sub_ptr(&buf, sizeof(struct icmpv6_hdr));
-    struct icmpv6_hdr* packet = (struct icmpv6_hdr*) buf.data;
+    buffer_sub_ptr(&buf, sizeof(struct icmp_hdr));
+    struct icmp_hdr* packet = (struct icmp_hdr*) buf.data;
 
     switch (type) {
     case ICMPv6_NSA:
-        *packet = (struct icmpv6_hdr) {
+        *packet = (struct icmp_hdr) {
             .type   = type,
             .code   = code,
             .chksum = 0,    
         };
         err = SYS_ERR_OK;
+        break;
+    case ICMPv6_ER:
+        *packet = (struct icmp_hdr) {
+            .type   = type,
+            .code   = code,
+            .chksum = 0,    
+        };
+        assert(code == 0);
         break;
     default:
         ICMP_ERR("WRONG ICMP type :%d!", type);
@@ -45,7 +53,7 @@ errval_t icmpv6_unmarshal(
 ) {
     assert(icmp); errval_t err = SYS_ERR_NOT_IMPLEMENTED;
 
-    struct icmpv6_hdr *packet = (struct icmpv6_hdr*)buf.data;
+    struct icmp_hdr *packet = (struct icmp_hdr*)buf.data;
 
     // 1. Check the checksum
     struct pseudo_ip_header_in_net_order ip_header = PSEUDO_HEADER_IPv6(src_ip, dst_ip, IP_PROTO_ICMPv6, buf.valid_size);
@@ -54,7 +62,7 @@ errval_t icmpv6_unmarshal(
     }
 
     // Move the buffer pointer forward to next header
-    buffer_add_ptr(&buf, sizeof(struct icmpv6_hdr));
+    buffer_add_ptr(&buf, sizeof(struct icmp_hdr));
 
     uint8_t type = packet->type;
     uint8_t code = packet->code;
@@ -81,6 +89,11 @@ errval_t icmpv6_unmarshal(
         break;
     case ICMPv6_NSL:
         return ndp_neighbor_solicitation(icmp, src_ip, code, buf);
+    case ICMPv6_ECHO:
+        return icmpv6_marshal(icmp, src_ip, ICMPv6_ER, 0, buf);
+    case ICMPv6_ER:
+        ICMP_ERR("Not Implemented ICMP type :%d!", type);
+        break;
     default:
         pbuf(buf.data, buf.valid_size + 4, 8);
         return NET_ERR_ICMPv6_WRONG_TYPE;
