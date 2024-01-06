@@ -26,10 +26,9 @@ errval_t ipv6_unmarshal(
         IP6_WARN("We Don't Support traffic class %d, but I'll ignore it for now", IP6H_TC(packet));
         // return NET_ERR_IPv6_WRONG_FIELD;
     }
-    if (IP6H_FL(packet) != 0) {
-        IP6_WARN("We Don't Support flow label %d, but I'll ignore it for now", IP6H_FL(packet));
-        // return NET_ERR_IPv6_WRONG_FIELD;
-    }
+
+    // TODO: use the flow label to identify the flow
+    (void) IP6H_FL(packet);
 
     // 1.3 Check the hop limit
     if (packet->hop_limit == 0) {
@@ -78,21 +77,24 @@ jump_next:
         buffer_add_ptr(&buf, hdr_with_padding); 
         goto jump_next;
     case IP_PROTO_UDP:
-        IP6_DEBUG("UDP packet received");
+        IP6_VERBOSE("UDP packet received");
         err = udp_unmarshal(ip->udp, src_ip_context, buf);
         DEBUG_FAIL_RETURN(err, "Can't unmarshal the UDP packet");
         break;
     case IP_PROTO_TCP:
-        IP6_DEBUG("TCP packet received");
-        // err = tcp_unmarshal(ip->tcp, buf);
-        // DEBUG_FAIL_RETURN(err, "Can't unmarshal the TCP packet");
+        IP6_VERBOSE("TCP packet received");
+        err = tcp_unmarshal(ip->tcp, src_ip_context, buf);
+        DEBUG_FAIL_RETURN(err, "Can't unmarshal the TCP packet");
         break;
     case IP_PROTO_ICMPv6:
-        IP6_DEBUG("ICMP packet received");
+        IP6_VERBOSE("ICMP packet received");
         // the destination address may be a multicast address, like 'ff02::1:ffdc:6aa7'
         err = icmpv6_unmarshal(ip->icmp, src_ip, dst_ip, buf);
         DEBUG_FAIL_RETURN(err, "Can't unmarshal the ICMP packet");
         break;
+    case IP_PROTO_IPv6_FRAG:
+        IP6_FATAL("IPv6 Fragmentation Not Implemented Yet");
+        [[fallthrough]];
     default:
         IP6_ERR("Invalid IPv6 packet next header %d", next_header);
         return NET_ERR_IPv6_NEXT_HEADER;
