@@ -6,7 +6,7 @@
 	url = https://github.com/srdja/Collections-C.git
 [submodule "lib/liblfds"]
 	path = lib/liblfds
-	url = git@github.com:Tengs-Penkwe/liblfds.git
+	url = https://github.com/Tengs-Penkwe/liblfds.git
 [submodule "tests/Unity"]
 	path = tests/Unity
 	url = https://github.com/ThrowTheSwitch/Unity
