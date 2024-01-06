@@ -69,9 +69,9 @@ errval_t ndp_marshal(
         buffer_sub_ptr(&buf, sizeof(struct ndp_neighbor_advertisement));
         struct ndp_neighbor_advertisement *nsl = (struct ndp_neighbor_advertisement *)buf.data;
         *nsl = (struct ndp_neighbor_advertisement) {
-            .flags_reserved = htonl(NDP_NSA_RSO(0, 1, 0)),
+            .flags_reserved   = htonl(NDP_NSA_RSO(false, true, false)),
             // TODO: When need us to override the MAC address ?
-            .to_addr     = hton16(dst_ip),
+            .from_addr        = hton16(icmp->ip->my_ipv6),
         };
 
         err = icmpv6_marshal(icmp, dst_ip, ICMPv6_NSA, code, buf);  
