@@ -89,13 +89,14 @@ typedef struct ipv6_routing_hdr {
 
 /*******************  Common  ********************
  ************************************************/
-#define IP_PROTO_HOPOPT  0
-#define IP_PROTO_ICMP    1
-#define IP_PROTO_IGMP    2
-#define IP_PROTO_TCP     6
-#define IP_PROTO_UDP     17
-#define IP_PROTO_UDPLITE 136
-#define IP_PROTO_ICMPv6  58
+#define IP_PROTO_HOPOPT    0
+#define IP_PROTO_ICMP      1
+#define IP_PROTO_IGMP      2
+#define IP_PROTO_TCP       6
+#define IP_PROTO_UDP       0x11     // 17: UDP
+#define IP_PROTO_IPv6_FRAG 0x2c     // 43: IPv6 Fragmentation Header
+#define IP_PROTO_UDPLITE   0x88     // 136: UDP-Lite (RFC 3828)
+#define IP_PROTO_ICMPv6    0x3A     // 58: ICMPv6
 
 typedef struct ip_context {
     bool    is_ipv6;
