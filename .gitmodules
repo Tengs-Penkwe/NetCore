@@ -13,3 +13,12 @@
 [submodule "lib/ck"]
 	path = lib/ck
 	url = https://github.com/concurrencykit/ck.git
+[submodule "lib/junction"]
+	path = lib/junction
+	url = https://github.com/preshing/junction.git
+[submodule "lib/turf"]
+	path = lib/turf
+	url = https://github.com/preshing/turf.git
+[submodule "lib/libcuckoo"]
+	path = lib/libcuckoo
+	url = https://github.com/efficient/libcuckoo.git
