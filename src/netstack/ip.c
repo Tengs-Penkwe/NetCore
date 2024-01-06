@@ -245,6 +245,7 @@ errval_t ip_marshal(
         return NET_THROW_SUBMIT_EVENT;
     }
     case SYS_ERR_OK: { // Continue sending
+        // TODO: check multicast
         assert(!(maccmp(msg->dst_mac, MAC_NULL) || maccmp(msg->dst_mac, MAC_BROADCAST)));
         check_send_message((void*)msg);
         return NET_THROW_SUBMIT_EVENT;
