@@ -44,8 +44,29 @@ typedef struct {
 } __attribute__((__packed__)) tcp_conn_key_t ;
 static_assert(sizeof(tcp_conn_key_t) == 18, "The size of tcp_conn_key_t should be 18 bytes");
 
-
 __BEGIN_DECLS
+
+static inline tcp_conn_key_t ipv4_tcp_conn_key(ip_addr_t ip, tcp_port_t port) {
+    return (tcp_conn_key_t) {
+        .ip   = ipv4_to_ipv6(ip),
+        .port = port,
+    };
+}
+
+static inline tcp_conn_key_t ipv6_tcp_conn_key(ipv6_addr_t ip, tcp_port_t port) {
+    return (tcp_conn_key_t) {
+        .ip   = ip,
+        .port = port,
+    };
+}
+
+static inline tcp_conn_key_t tcp_conn_key_struct(ip_context_t ip, tcp_port_t port) {
+    if (ip.is_ipv6) {
+        return ipv6_tcp_conn_key(ip.ipv6, port);
+    } else {
+        return ipv4_tcp_conn_key(ip.ipv4, port);
+    }
+}
 
 static inline uint8_t tcp_get_data_offset(const struct tcp_hdr *tcp_header) {
     return (tcp_header->data_offset >> 4) * 4;  // Data offset field is in 32-bit words

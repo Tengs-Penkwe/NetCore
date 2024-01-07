@@ -186,9 +186,11 @@ static void conn_delete(TCP_conn* conn)
         dump_tcp_conn(conn);
     }
 
-    // uint64_t key = TCP_CONN_KEY(conn->src_ip, conn->src_port);
-    // (void) key;
-    // collections_hash_delete(conn->server->connections, key);
+    
+    tcp_conn_key_t conn_key_struct = tcp_conn_key_struct(conn->src_ip, conn->src_port);
+    assert(tcp_conn_table_erase(conn->server->conn_table, &conn_key_struct));
+
+    free(conn);
 }
 
 static errval_t conn_normal_close(TCP_conn* conn, TCP_msg* msg)

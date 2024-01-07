@@ -2,28 +2,30 @@
 #include "tcp_server.h"
 #include "tcp_connect.h"
 #include <event/states.h>
-#include <sys/syscall.h>   //syscall
-#include <netutil/dump.h>  //format_ip_addr
-#include <stdatomic.h>      // atomic_thread_fence
-#include <unistd.h>         // For usleep
-                           
-static void* server_thread(void* localstate);
+#include <sys/syscall.h>   // syscall
+#include <netutil/dump.h>  // format_ip_addr
+#include <stdatomic.h>     // atomic_thread_fence
+#include <unistd.h>        // For usleep
+
+static void* worker_thread(void* localstate);
 static void server_destroy(TCP_server* server);
 
-static void* server_thread(void* localstate) {
+static void* worker_thread(void* localstate) {
     assert(localstate);
     LocalState* local = (LocalState*)localstate;
     local->my_pid = syscall(SYS_gettid);
+    TCP_worker* worker = local->my_state;
+    TCP_server* server = worker->server;
+
+    TCP_NOTE("%s is running on thread %d", local->my_name, (int)local->my_pid);
     
     CORES_SYNC_BARRIER;
-
-    TCP_server* server = local->my_state;
     
     TCP_msg* msg = NULL;
     
     while (true) {
-        if (debdqueue(&server->msg_queue, NULL, (void**)&msg) == EVENT_DEQUEUE_EMPTY) {
-            sem_wait(&server->worker_sem);
+        if (debdqueue(&worker->msg_queue, NULL, (void**)&msg) == EVENT_DEQUEUE_EMPTY) {
+            sem_wait(&worker->sem);
         } else {
             assert(msg);
             server_unmarshal(server, msg);
@@ -33,63 +35,101 @@ static void* server_thread(void* localstate) {
     }
 }
 
+static errval_t worker_init(TCP_worker* worker, TCP_server* server, size_t queue_size, size_t worker_id) {
+    assert(worker && server); errval_t err = SYS_ERR_OK;
+
+    worker->server = server;
+
+    worker->queue_size = queue_size;
+    BQelem * queue_elements = calloc(worker->queue_size, sizeof(BQelem));
+    err = bdqueue_init(&worker->msg_queue, queue_elements, worker->queue_size);
+    if (err_is_fail(err)) {
+        TCP_FATAL("Can't Initialize the queues of TCP messages for worker");
+        goto clean_queue_init;
+    }
+    
+    if (sem_init(&worker->sem, 0, 0) != 0){
+        TCP_FATAL("Can't initialize the semaphore of TCP Worker");
+        goto clean_sem_init;
+    }
+
+    LocalState* local = calloc(1, sizeof(LocalState));
+    // Now we have a new server, we need to start a new thread(s) for it
+    char* name = calloc(32, sizeof(char));
+    sprintf(name, "TCP(%d)Server%d", server->port, (int)worker_id);
+
+    *local = (LocalState) {
+        .my_name  = name,
+        .my_pid   = (pid_t)-1,   // Don't know yet
+        .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
+        .my_state = worker,
+    };
+
+    if (pthread_create(&worker->self, NULL, worker_thread, (void*)local) != 0) {
+        TCP_FATAL("Can't create worker thread");
+        goto clean_thread_create;
+    }
+    return err;
+
+clean_thread_create:
+    err = err_push(err, NET_ERR_TCP_CREATE_WORKER);
+    free(local);
+clean_sem_init:
+    bool queue_elements_from_heap = true;
+    bdqueue_destroy(&worker->msg_queue, queue_elements_from_heap);
+clean_queue_init:
+    free(queue_elements);
+    return err_push(err, SYS_ERR_INIT_FAIL);
+}
+
+static void worker_destroy(TCP_worker* worker) {
+    assert(worker);
+    bool queue_elements_from_heap = true;
+    bdqueue_destroy(&worker->msg_queue, queue_elements_from_heap);
+    sem_destroy(&worker->sem);
+    pthread_cancel(worker->self);
+    TCP_ERR("Free the name of worker");
+    free(worker);
+}
+
 static errval_t server_init(TCP_server* server) {
     errval_t err = SYS_ERR_OK;
-    
-    // 1. Message Queue for single-thread handling of TCP
-    server->queue_size = TCP_SERVER_QUEUE_SIZE;
-    BQelem * queue_elements = calloc(server->queue_size, sizeof(BQelem));
-    err = bdqueue_init(&server->msg_queue, queue_elements, server->queue_size);
-    if (err_is_fail(err)) {
-        free(queue_elements);
-        TCP_FATAL("Can't Initialize the queues for TCP messages");
-        return err;
-    }
-    
-    if (sem_init(&server->worker_sem, 0, server->worker_num) != 0){
-        TCP_ERR("Can't initialize the semaphore of TCP server");
-        return SYS_ERR_INIT_FAIL;
-    }
 
-    LocalState* local = calloc(server->worker_num, sizeof(LocalState));
-    // Now we have a new server, we need to start a new thread(s) for it
-    for (size_t i = 0; i < server->worker_num; i++) {
-        char* name = calloc(16, sizeof(char));
-        sprintf(name, "TCP Server %d", (int)i);
+    server->conn_table = tcp_conn_table_init(TCP_SERVER_DEFAULT_CONN);
 
-        local[i] = (LocalState) {
-            .my_name  = name,
-            .my_pid   = (pid_t)-1,      // Don't know yet
-            .log_file = (g_states.log_file == NULL) ? stdout : g_states.log_file,
-            .my_state = server,     // Provide message queue
-        };
+    int i = 0;
+    for (; i < server->worker_num; i++) {
+        TCP_worker* worker = aligned_alloc(ATOMIC_ISOLATION, sizeof(TCP_worker));
+        memset(worker, 0x00, sizeof(TCP_worker));
 
-        if (pthread_create(&server->worker[i], NULL, server_thread, (void*)&local[i]) != 0) {
-            TCP_FATAL("Can't create worker thread");
-            bool queue_elements_from_heap = true;
-            bdqueue_destroy(&server->msg_queue, queue_elements_from_heap);    
-            free(local);
-            free(server);
-            return NET_ERR_TCP_CREATE_WORKER;
+        err = worker_init(worker, server, TCP_SERVER_QUEUE_SIZE, (size_t)i);
+        if (err_is_fail(err)) {
+            TCP_FATAL("Can't initialize the worker for TCP server");
+            goto clean_worker_init;
         }
     }
     return err;
+
+clean_worker_init:
+    for (i-- ; i >= 0; i--) {
+        worker_destroy(&server->workers[i]);
+    }
+    return err_push(err, SYS_ERR_INIT_FAIL);
 }
 
 static void server_destroy(TCP_server* server) {
     assert(server->is_live == false);
-    bool queue_elements_from_heap = true;
-    bdqueue_destroy(&server->msg_queue, queue_elements_from_heap);
 
     for(size_t i = 0; i < server->worker_num; i++) {
-        pthread_cancel(server->worker[i]);
+        worker_destroy(&server->workers[i]);
     }
-    LOG_FATAL("NYI, server_destroy");
+    // Can't free the server, since we may have a dead server in the hash table
 
+    TCP_FATAL("NYI, server_destroy");
 }
 
 errval_t tcp_server_register(
-    TCP* tcp, rpc_t* rpc, const tcp_port_t port, const tcp_server_callback callback
+    TCP* tcp, rpc_t* rpc, const tcp_port_t port, const tcp_server_callback callback, size_t worker_num
 ) {
     assert(tcp);
     errval_t err_get, err_insert, err_create;
@@ -98,13 +138,13 @@ errval_t tcp_server_register(
     TCP_server *new_server = aligned_alloc(ATOMIC_ISOLATION, sizeof(TCP_server));
     memset(new_server, 0x00, sizeof(TCP_server));
     *new_server = (TCP_server) {
-        .worker_num = g_states.max_workers_for_single_tcp_server,
+        .worker_num = worker_num, 
         .is_live    = true,
         .tcp        = tcp,
         .rpc        = rpc,
         .port       = port,
         .callback   = callback,
-        .max_conn   = 0,        // Need user to set
+        .max_conn   = 0,       // Need user to set
     };
 
     //TODO: reconsider the multithread contention here
@@ -116,7 +156,6 @@ errval_t tcp_server_register(
         assert(get_server);
         if (get_server->is_live == false)   // Dead Server
         {
-            server_destroy(get_server);
             *get_server = *new_server;
             free(new_server);
             return SYS_ERR_OK;
@@ -141,7 +180,7 @@ errval_t tcp_server_register(
     case SYS_ERR_OK:
         TCP_NOTE("We registered a TCP server at port: %d", port);
         break;
-    case EVENT_HASH_NOT_EXIST:
+    case EVENT_HASH_EXIST_ON_INSERT:
         free(new_server);
         TCP_ERR("Another process also wants to register the TCP port and he/she gets it")
         return NET_ERR_TCP_PORT_REGISTERED;
@@ -172,8 +211,9 @@ errval_t tcp_server_deregister(
         else
         {
             server->is_live = false;
-            atomic_thread_fence(memory_order_seq_cst); // Apply a sequentially-consistent memory barrier
-            usleep(10000); // Sleep for (0.01 seconds) to ensure all the threads have finished their work
+            atomic_thread_fence(memory_order_release); 
+            usleep(10000); // This is unsafe, we should use something like Hazard Pointer
+            server_destroy(server);
             TCP_INFO("We inactivated a TCP server at port: %d", port);
             return SYS_ERR_OK;
         }
@@ -185,21 +225,25 @@ errval_t tcp_server_deregister(
     }
 }
 
-static errval_t server_find_or_create_connection(
+// TODO: Change it back to TCP_server, we use TCP_worker here since we don't have deletable hash table yet
+static errval_t find_or_create_connection(
     TCP_server* server, TCP_msg* msg, TCP_conn** conn
 ) {
-    // uint64_t key = TCP_CONN_KEY(msg->recv.src_ip, msg->recv.src_port);
-    // (void) key;
-    USER_PANIC("NYI");
+    assert(server && msg && conn);
+    errval_t err = SYS_ERR_OK;
 
-    // if (collections_hash_size(server->connections) > server->max_conn) {
-    //     return NET_ERR_TCP_MAX_CONNECTION;
-    // }
+    // // if (collections_hash_size(server->connections) > server->max_conn) {
+    // //     return NET_ERR_TCP_MAX_CONNECTION;
+    // // }
 
-    // (*conn) = collections_hash_find(server->connections, key);
-    if ((*conn) == NULL) {
-        (*conn) = calloc(1, sizeof(TCP_conn));
-        assert((*conn));
+    tcp_conn_key_t conn_key_struct = tcp_conn_key_struct(msg->recv.src_ip, msg->recv.src_port);
+    if (tcp_conn_table_find(server->conn_table, &conn_key_struct, *conn)) 
+    {
+        assert(*conn);
+    }
+    else
+    {
+        (*conn) = calloc(1, sizeof(TCP_conn)); assert(*conn);
         if (msg->flags != TCP_FLAG_SYN) {
             return NET_ERR_TCP_NO_CONNECTION;
         }
@@ -211,15 +255,14 @@ static errval_t server_find_or_create_connection(
             .recvno    = msg->ackno,
             .state     = LISTEN,
         };
-        // collections_hash_insert(server->connections, key, (*conn));
-    } 
-    assert(*conn);
-    return SYS_ERR_OK;
+        assert(tcp_conn_table_insert(server->conn_table, &conn_key_struct, *conn));
+    }
+    return err;
 }
 
 // static void free_connection(void* connection) {
 //     TCP_conn* conn = connection;
-//     LOG_ERR("TODO: cancel deferred event?");
+//     TCP_ERR("TODO: cancel deferred event?");
 //     free(conn);
 //     connection = NULL;
 // }
@@ -241,7 +284,7 @@ errval_t server_marshal(
     (void) dst_port;
     // uint64_t key = TCP_CONN_KEY(dst_ip, dst_port);
     // (void) key;
-    LOG_FATAL("NYI");
+    TCP_FATAL("NYI");
     TCP_conn* conn = NULL; //collections_hash_find(server->connections, key);
     if (conn == NULL) {
         return NET_ERR_TCP_NO_CONNECTION;
@@ -290,24 +333,27 @@ errval_t server_send(
     return SYS_ERR_OK;
 }
 
+// TODO: Change it back to TCP_server, we use TCP_worker here since we don't have deletable hash table yet
 errval_t server_unmarshal(
     TCP_server* server, TCP_msg* msg
 ) {
     assert(server && msg);
-    errval_t err;
+    errval_t err = SYS_ERR_OK;
 
     TCP_conn* conn = NULL;
-    err = server_find_or_create_connection(server, msg, &conn);
+    err = find_or_create_connection(server, msg, &conn);
     DEBUG_FAIL_RETURN(err, "Can't find the Connection for this TCP message !"); 
 
     /// TODO: We can't assume the message arrives in order, we must do something here
-    LOG_ERR("Can't Assume the order of the message !");
-
     /// Dangerous, we should make sure the order is OK !
+    if (conn->nextno != msg->seqno) {
+        TCP_ERR("Need to detect if the packet arrives in order!");
+    }
+
     err = conn_handle_msg(conn, msg);
     DEBUG_FAIL_RETURN(err, "Can't handle this message !");
 
-    return SYS_ERR_OK;
+    return err;
 }
 
 

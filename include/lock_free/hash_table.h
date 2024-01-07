@@ -4,12 +4,7 @@
 #include <common.h>      // BEGIN, END DECLS
 #include "defs.h"
 #include "liblfds711.h"  // Lock-free structures
-#include <netutil/ip.h>  // ipv6_addr_t (128 bit)
 #include <stdatomic.h>   // atomic_bool
-#include <netutil/tcp.h>    // tcp_port_t
-#include <netutil/udp.h>    // udp_port_t
-static_assert(sizeof(tcp_port_t) == sizeof(udp_port_t), "The size of tcp_port_t must be equal to the size of udp_port_t");
-static_assert(sizeof(tcp_conn_key_t) == sizeof(udp_conn_key_t), "We treat TCP and UDP connections the same way, so the size of tcp_conn_key_t must be equal to the size of udp_conn_key_t");
 
 #define INIT_FREE         64    
 
@@ -47,15 +42,6 @@ static inline int voidptr_key_cmp(void const *new_key, void const *existing_key)
     return (new > exist) - (new < exist);
 }
 
-static inline int value_key_cmp(void const *new_key, void const *existing_key) {
-    ipv6_addr_t new        = *(ipv6_addr_t *)new_key;
-    tcp_port_t  new_port   = *(tcp_port_t *)((uint8_t *)new_key + sizeof(ipv6_addr_t));
-    ipv6_addr_t exist      = *(ipv6_addr_t *)existing_key;
-    tcp_port_t  exist_port = *(tcp_port_t *)((uint8_t *)existing_key + sizeof(ipv6_addr_t));
-    if (new > exist) return 1;
-    else if (new < exist) return -1;
-    else return (new_port > exist_port) - (new_port < exist_port);
-}
 
 static inline void voidptr_key_hash(void const *key, lfds711_pal_uint_t *hash)
 {
@@ -65,14 +51,6 @@ static inline void voidptr_key_hash(void const *key, lfds711_pal_uint_t *hash)
     return;
 }
 
-static inline void value_key_hash(void const *key, lfds711_pal_uint_t *hash)
-{
-    *hash = 0;
-    uint8_t key_144[sizeof(tcp_conn_key_t)];
-    memcpy(key_144, key, sizeof(tcp_conn_key_t));
-    LFDS711_HASH_A_HASH_FUNCTION(key_144, sizeof(tcp_conn_key_t), *hash)
-    return;
-}
 
 errval_t hash_init(HashTable* hash, HashBucket* buckets, size_t buck_num, enum hash_policy policy, key_compare_function key_cmp, key_hash_function key_hash);
 void hash_destroy(HashTable* hash);
