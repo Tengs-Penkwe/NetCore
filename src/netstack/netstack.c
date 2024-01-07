@@ -1,8 +1,8 @@
-#include <netstack/network.h>
+#include <netstack/netstack.h>
 #include <netutil/ip.h>
 #include <netutil/dump.h>
 
-errval_t network_init(NetWork* net, NetDevice* device) {
+errval_t netstack_init(NetStack* net, NetDevice* device) {
     errval_t err = SYS_ERR_NOT_IMPLEMENTED;
     
     // 1. Set up the ethernet
@@ -11,7 +11,7 @@ errval_t network_init(NetWork* net, NetDevice* device) {
     err = ethernet_init(device, ether);
     DEBUG_FAIL_PUSH(err, SYS_ERR_INIT_FAIL, "Can't Initialize the Ethernet Module");
 
-    *net = (NetWork) {
+    *net = (NetStack) {
         .ether   = ether,
         .device  = ether->device,
         .arp     = ether->arp,
@@ -27,7 +27,7 @@ errval_t network_init(NetWork* net, NetDevice* device) {
     return err;
 }
 
-void network_destroy(NetWork* net) {
+void netstack_destroy(NetStack* net) {
     assert(net);
     ethernet_destroy(net->ether);
 

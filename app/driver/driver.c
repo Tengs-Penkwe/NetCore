@@ -1,4 +1,4 @@
-#include <netstack/network.h>
+#include <netstack/netstack.h>
 #include <device/device.h>
 
 #include <event/threadpool.h>
@@ -153,15 +153,15 @@ int main(int argc, char *argv[]) {
     g_states.max_workers_for_single_tcp_server = workers;
     g_states.max_workers_for_single_udp_server = workers;
 
-    // 5. Initialize the network module
-    NetWork* net = calloc(1, sizeof(NetWork));
+    // 5. Initialize the netstack module
+    NetStack* net = calloc(1, sizeof(NetStack));
     assert(net);
-    err = network_init(net, device);
+    err = netstack_init(net, device);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Can't Initialize Network Module");
         return -1;
     }
-    g_states.network = net;
+    g_states.netstack = net;
 
     // 6. Initialize the memory pool
     MemPool* mempool = aligned_alloc(ATOMIC_ISOLATION, sizeof(MemPool));
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
 void driver_exit(int signum) {
     (void) signum;
 
-    network_destroy(g_states.network);
+    netstack_destroy(g_states.netstack);
 
     device_close(g_states.device);
 

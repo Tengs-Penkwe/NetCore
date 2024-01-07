@@ -7,7 +7,7 @@
 
 #include <linux/if.h>   //struct ifreq
 typedef struct memory_pool MemPool;
-typedef struct net_work    NetWork;
+typedef struct net_work    NetStack;
 
 /// IPv4: Max 60, 
 /// TCP : Max 60, UDP : 8, ICMP : 8
@@ -30,7 +30,7 @@ errval_t device_init(NetDevice* device, const char* tap_path, const char* tap_na
 void     device_close(NetDevice* device);
 errval_t device_send(NetDevice* device, Buffer buf);
 errval_t device_get_mac(NetDevice* device, mac_addr* ret_mac);
-errval_t device_loop(NetDevice* device, NetWork* net, MemPool* mempool);
+errval_t device_loop(NetDevice* device, NetStack* net, MemPool* mempool);
 
 __END_DECLS
 

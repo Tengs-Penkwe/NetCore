@@ -1,5 +1,5 @@
 #include <device/device.h>
-#include <netstack/network.h>
+#include <netstack/netstack.h>
 #include <netutil/dump.h>
 #include <netutil/htons.h>
 
@@ -144,7 +144,7 @@ errval_t device_get_mac(NetDevice* device, mac_addr* restrict ret_mac) {
     return SYS_ERR_OK;
 }
 
-static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) {
+static errval_t handle_frame(NetDevice* device, NetStack* net, MemPool* mempool) {
     errval_t err;
 
     Ether_unmarshal* frame = malloc(sizeof(Ether_unmarshal)); assert(frame);
@@ -185,7 +185,7 @@ static errval_t handle_frame(NetDevice* device, NetWork* net, MemPool* mempool) 
     return SYS_ERR_OK;
 }
 
-errval_t device_loop(NetDevice* device, NetWork* net, MemPool* mempool) {
+errval_t device_loop(NetDevice* device, NetStack* net, MemPool* mempool) {
     assert(device && net);
     errval_t err;
 

@@ -20,12 +20,12 @@ typedef struct net_work {
     ip_addr_t   my_ipv4;
     ipv6_addr_t my_ipv6;
     mac_addr   my_mac;
-} NetWork;
+} NetStack;
 
 __BEGIN_DECLS
 
-errval_t network_init(NetWork* net, NetDevice* device);
-void network_destroy(NetWork* net);
+errval_t netstack_init(NetStack* net, NetDevice* device);
+void netstack_destroy(NetStack* net);
 
 __END_DECLS
 

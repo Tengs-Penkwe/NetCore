@@ -3,7 +3,7 @@
 
 #include <common.h>
 #include <time.h>
-#include <netstack/network.h>
+#include <netstack/netstack.h>
 #include <device/device.h>
 #include <event/memorypool.h>
 #include <event/threadpool.h>
@@ -17,7 +17,7 @@
  ************************************************************/
 
 typedef struct global_states {
-    NetWork        *network;
+    NetStack       *netstack;
     NetDevice      *device;
     MemPool        *mempool;
     ThreadPool     *threadpool;
