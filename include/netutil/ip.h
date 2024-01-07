@@ -109,6 +109,11 @@ typedef struct ip_context {
 
 __BEGIN_DECLS
 
+static inline ipv6_addr_t ipv4_to_ipv6(ip_addr_t addr) {
+    // 0:0:0:0:0:ffff:255.255.255.255, ipv4-mapped IPv6 addresses
+    return ((ipv6_addr_t)0xFFFF << 32) | addr;
+}
+
 static inline ipv6_addr_t mk_ipv6(uint64_t hi, uint64_t lo) {
     return ((ipv6_addr_t)hi << 64) | lo;
 }

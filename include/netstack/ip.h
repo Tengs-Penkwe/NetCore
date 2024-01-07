@@ -46,8 +46,9 @@
 #define IP_ASSEMBLER_QUEUE_SIZE     256
 
 // Use source IP + Sequence Number as hash table key
-typedef uint64_t ip_msg_key_t ;
+typedef khint64_t ip_msg_key_t ;
 #define IP_MSG_KEY(src_ip, seqno) (ip_msg_key_t)((uint64_t)src_ip | ((uint64_t)seqno << 32))
+static_assert(sizeof(ip_msg_key_t) == sizeof(uint64_t), "ip_msg_key_t should be 64-bit");
 
 __BEGIN_DECLS
 // @todo: use better hash function
