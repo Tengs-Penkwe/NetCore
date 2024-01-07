@@ -4,7 +4,7 @@
 #include <event/buffer.h>
 #include <netutil/udp.h>
 #include <lock_free/hash_table.h>
-#include <ipc/rpc.h>
+#include <interface/rpc.h>
 
 #define UDP_DEFAULT_SERVER     64
 

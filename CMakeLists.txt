@@ -60,7 +60,7 @@ file(GLOB DRIVER_CPP_SRCS)
 file(GLOB UNIT_TEST_SRCS "tests/unit/*.c")
 
 # Source files for the user
-file(GLOB USER_C_SRCS "src/ipc/*.c")
+file(GLOB USER_C_SRCS "src/interface/*.c")
 file(GLOB USER_CPP_SRCS "app/user/user.cpp")
 
 ############################################

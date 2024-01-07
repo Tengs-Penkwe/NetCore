@@ -6,7 +6,7 @@
 #include <netstack/tcp.h>
 #include "tcp_connect.h"
 
-#include <ipc/rpc.h>
+#include <interface/rpc.h>
 #include <pthread.h>            // worker thread
 #include <semaphore.h>          // semaphore for worker thread
 #include <lock_free/bdqueue.h>  // message queue for worker thread 
