@@ -95,9 +95,9 @@ errval_t tcp_unmarshal(
     // 2. Checksum
     struct pseudo_ip_header_in_net_order ip_header;
     if (src_ip.is_ipv6) 
-        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, src_ip.ipv6, IP_PROTO_UDP, (uint32_t)buf.valid_size);
+        ip_header = PSEUDO_HEADER_IPv6(tcp->ip->my_ipv6, src_ip.ipv6, IP_PROTO_TCP, (uint32_t)buf.valid_size);
     else
-        ip_header = PSEUDO_HEADER_IPv4(tcp->ip->my_ipv4, src_ip.ipv4, IP_PROTO_UDP, (uint16_t)buf.valid_size);
+        ip_header = PSEUDO_HEADER_IPv4(tcp->ip->my_ipv4, src_ip.ipv4, IP_PROTO_TCP, (uint16_t)buf.valid_size);
     uint16_t chksum = ntohs(packet->chksum);
     packet->chksum  = 0;
     uint16_t tcp_chksum = ntohs(tcp_checksum_in_net_order(buf.data, ip_header));
@@ -140,8 +140,9 @@ errval_t tcp_unmarshal(
         }
         else
         {
+            BdQueue* queue = which_queue(server, src_ip, src_port);
             // 4.1 If the server is live, then we put the message into the queue
-            err = enbdqueue(&server->msg_queue, NULL, (void*)msg);
+            err = enbdqueue(queue, NULL, (void*)msg);
             if (err_is_fail(err)) {
                 assert(err_no(err) == EVENT_ENQUEUE_FULL);
                 TCP_ERR("The given message queue of TCP message is full, will drop this message in upper level");
