@@ -404,9 +404,9 @@ errval_t ipv4_handle(IP* ip, uint8_t proto, ip_addr_t src_ip, Buffer buf) {
         return SYS_ERR_NOT_IMPLEMENTED;
     case IP_PROTO_TCP:
         IP_VERBOSE("Received a TCP packet");
-        // err = tcp_unmarshal(msg->ip->tcp, msg->src_ip, msg->, msg->whole.recvd);
-        // DEBUG_FAIL_RETURN(err, "Error when unmarshalling an TCP message");
-        return SYS_ERR_NOT_IMPLEMENTED;
+        err = tcp_unmarshal(ip->tcp, src_ip_context, buf);
+        DEBUG_FAIL_RETURN(err, "Error when unmarshalling an TCP message");
+        return err;
     default:
         LOG_ERR("Unknown packet type for IPv4: %p", proto);
         return NET_ERR_IPv4_WRONG_PROTOCOL;
