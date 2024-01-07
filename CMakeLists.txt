@@ -38,9 +38,14 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/lib/klib)
 # Colletions-C library
 include_directories(${PROJECT_SOURCE_DIR}/lib/cc/src/include)
-# Lock free stuctures
+# Lock free stuctures: liblfds (https://www.liblfds.org/)
 include_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/inc)
 link_directories(${PROJECT_SOURCE_DIR}/lib/liblfds/liblfds7.1.1/liblfds711/bin)
+# Lock free stuctures: Junction 
+include_directories(${PROJECT_SOURCE_DIR}/lib/junction)
+# Lock free stuctures: LibCuckoo
+add_subdirectory(${PROJECT_SOURCE_DIR}/lib/libcuckoo)
+include_directories(${PROJECT_SOURCE_DIR}/lib/libcuckoo)
 
 ############################################
 ############# Source Files ############
@@ -114,15 +119,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuseless-cast -Wconversion-null -Wextra
 add_library(NetCoreLib ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS})
 
 # Link libraries and set compile options (as needed)
-target_link_libraries(NetCoreLib lfds711)
+target_link_libraries(NetCoreLib lfds711 libcuckoo)
 target_compile_options(NetCoreLib PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
 
 ############################################
 ############# Executables ############
 ############################################
 # The network driver executable
-add_executable(NetCore ${DRIVER_C_SRCS} ${DRIVER_CPP_SRCS} ${DRIVER_MAIN})
-target_link_libraries(NetCore lfds711)
+add_executable(NetCore ${DRIVER_MAIN})
+target_link_libraries(NetCore NetCoreLib)
 target_compile_options(NetCore PRIVATE ${COMMON_OPTIONS} ${KLIB_OPTIONS} ${LFDS_OPTIONS})
 
 # The user executable
