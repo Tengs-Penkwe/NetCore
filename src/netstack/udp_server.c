@@ -77,8 +77,8 @@ errval_t udp_server_deregister(
             return NET_ERR_UDP_PORT_NOT_REGISTERED;
         } else {
             server->is_live = false;
-            atomic_thread_fence(memory_order_seq_cst); // Apply a sequentially-consistent memory barrier
-            usleep(10000); // Sleep for (0.01 seconds) to ensure all the threads have finished their work
+            atomic_thread_fence(memory_order_release); 
+            usleep(10000); //FIXME: This is unsafe, we should use something like Hazard Pointer
             UDP_INFO("We inactivated a UDP server at port: %d", port);
             return SYS_ERR_OK;
         }
