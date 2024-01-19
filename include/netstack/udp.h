@@ -6,7 +6,8 @@
 #include <lock_free/hash_table.h>
 #include <interface/rpc.h>
 
-#define UDP_DEFAULT_SERVER     64
+#define UDP_DEFAULT_SERVER      64
+#define UDP_MAX_PAYLOAD_SIZE    UINT16_MAX
 
 // Forward Declaration
 struct udp_state;
@@ -36,6 +37,14 @@ errval_t udp_init(
 
 void udp_destroy(
     UDP* udp
+);
+
+errval_t udp_server_register(
+    UDP* udp, struct rpc* rpc, const udp_port_t port, const udp_server_callback callback
+);
+
+errval_t udp_server_deregister(
+    UDP* udp, const udp_port_t port
 );
 
 errval_t udp_marshal(

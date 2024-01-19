@@ -13,13 +13,4 @@ typedef struct udp_server {
     udp_server_callback callback;
 } UDP_server ;
 
-errval_t udp_server_register(
-    UDP* udp, struct rpc* rpc, const udp_port_t port, const udp_server_callback callback
-);
-
-errval_t udp_server_deregister(
-    UDP* udp, const udp_port_t port
-);
-
-
 #endif // __TCP_UDP_SERVER_H__
