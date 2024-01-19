@@ -10,6 +10,8 @@
 
 #include <sys/syscall.h>   //syscall
 #include <errno.h>         //strerror
+
+#include "driver.h"        //localserver 
                            
 static void driver_exit(int signum) __attribute__((noreturn));
 
@@ -189,6 +191,16 @@ int main(int argc, char *argv[]) {
     }
     g_states.timer_count = TIMER_NUM;
 
+    // 9. Initialize the IPC thread to handle the RPC
+    IPC* ipc = calloc(1, sizeof(IPC));
+    err = ipc_thread_init(ipc);
+    if (err_is_fail(err)) {
+        DEBUG_ERR(err, "Can't Initialize the IPC");
+        return -1;
+    }
+    g_states.ipc = ipc;
+
+    // 10. Enter the main loop to receive the packets
     err = device_loop(device, net, mempool);
     if (err_is_fail(err)) {
         DEBUG_ERR(err, "Bad thing happened in the device, loop going to shutdown!");
@@ -200,6 +212,8 @@ int main(int argc, char *argv[]) {
 
 void driver_exit(int signum) {
     (void) signum;
+
+    ipc_thread_destroy(g_states.ipc);
 
     netstack_destroy(g_states.netstack);
 
