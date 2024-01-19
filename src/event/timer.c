@@ -1,6 +1,7 @@
 #include <event/event.h>
 #include <event/timer.h>
 #include <event/states.h>
+#include <event/signal.h>    // SIG_TIGGER_SUBMIT
 
 #include <signal.h>
 #include <time.h>
@@ -115,8 +116,8 @@ static void* timer_thread (void* states)
 
     // Unblock the trigger submit signal
     sigset_t set;
-    sigemptyset(&set);
-    sigaddset(&set, signal_num);
+    assert(sigemptyset(&set) == 0);
+    assert(sigaddset(&set, signal_num) == 0);
     if (pthread_sigmask(SIG_UNBLOCK, &set, NULL) != 0)
     {
         USER_PANIC("Can't unblock the signal: %s", strerror(errno));
@@ -126,8 +127,8 @@ static void* timer_thread (void* states)
     struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = time_to_submit_task;
-    sigemptyset(&sa.sa_mask);
-    sigaction(signal_num, &sa, NULL);
+    assert(sigemptyset(&sa.sa_mask) == 0);
+    assert(sigaction(signal_num, &sa, NULL) == 0);
 
     while (true) {
         pause();
