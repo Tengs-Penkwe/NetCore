@@ -14,7 +14,7 @@ __BEGIN_DECLS
 typedef struct net_device NetDevice;
 
 typedef struct ethernet_state {
-    struct net_work   *net;
+    struct net_stack   *net;
     mac_addr           my_mac;
     struct net_device *device;
     struct arp_state  *arp;

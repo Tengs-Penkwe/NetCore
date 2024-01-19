@@ -7,7 +7,7 @@
 
 #include <linux/if.h>   //struct ifreq
 typedef struct memory_pool MemPool;
-typedef struct net_work    NetStack;
+typedef struct net_stack   NetStack;
 
 /// IPv4: Max 60, 
 /// TCP : Max 60, UDP : 8, ICMP : 8
